@@ -1,0 +1,21 @@
+{
+  "name": "colabo",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Collaborative word processor for closed networks",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "build": "cd client && npm install && npm run build"
+  },
+  "dependencies": {
+    "@hocuspocus/extension-database": "^2.15.2",
+    "@hocuspocus/server": "^2.15.2",
+    "express": "^4.21.2",
+    "html-to-docx": "^1.8.0",
+    "multer": "^2.2.0",
+    "pg": "^8.13.1",
+    "ws": "^8.18.0",
+    "yjs": "^13.6.21"
+  }
+}

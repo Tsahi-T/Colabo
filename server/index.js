@@ -62,8 +62,10 @@ app.get('/api/images/:id', async (req, res) => {
 app.post('/api/export/docx', async (req, res) => {
   const { html, title } = req.body;
   if (!html) return res.sendStatus(400);
+  // Air-gap guard: html-to-docx downloads <img> URLs; allow only embedded data URIs.
+  const safe = html.replace(/<img\b[^>]*>/gi, (tag) => (/\bsrc\s*=\s*["']data:/i.test(tag) ? tag : ''));
   const { default: htmlToDocx } = await import('html-to-docx');
-  const buf = await htmlToDocx(html, null, { lang: 'he-IL', font: 'Arial' });
+  const buf = await htmlToDocx(safe, null, { lang: 'he-IL', font: 'Arial' });
   res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     .set('Content-Disposition', `attachment; filename="${encodeURIComponent(title || 'document')}.docx"`)
     .send(Buffer.from(buf));

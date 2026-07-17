@@ -59,6 +59,19 @@ app.get('/api/images/:id', async (req, res) => {
   res.set('Content-Type', img.mime).set('Cache-Control', 'public, max-age=31536000, immutable').send(img.data);
 });
 
+app.post('/api/track', async (req, res) => {
+  const { vid } = req.body || {};
+  if (typeof vid === 'string' && /^[\w-]{8,64}$/.test(vid)) {
+    await storage.trackVisit(vid, new Date().toISOString().slice(0, 10));
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/stats', async (req, res) => {
+  const s = await storage.getStats();
+  res.json({ ...s, online: hocuspocus.getConnectionsCount() });
+});
+
 app.post('/api/export/docx', async (req, res) => {
   const { html, title } = req.body;
   if (!html) return res.sendStatus(400);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 
 export default function Home() {
@@ -42,6 +42,7 @@ export default function Home() {
           ))}
         </div>
       )}
+      <p className="home-foot"><Link to="/about">אודות המערכת · הוראות שימוש · נתוני שימוש</Link></p>
     </div>
   );
 }

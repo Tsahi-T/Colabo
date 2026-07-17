@@ -21,6 +21,11 @@ async function pgStorage(url) {
       updated_at timestamptz DEFAULT now()
     );
     ALTER TABLE docs ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'doc';
+    CREATE TABLE IF NOT EXISTS visits(
+      vid text NOT NULL,
+      day date NOT NULL,
+      PRIMARY KEY(vid, day)
+    );
     CREATE TABLE IF NOT EXISTS images(
       id uuid PRIMARY KEY,
       doc_id uuid REFERENCES docs(id) ON DELETE CASCADE,
@@ -54,6 +59,15 @@ async function pgStorage(url) {
     async loadImage(id) {
       const { rows } = await pool.query('SELECT mime, data FROM images WHERE id=$1', [id]);
       return rows[0] ? { mime: rows[0].mime, data: rows[0].data } : null;
+    },
+    async trackVisit(vid, day) {
+      await pool.query('INSERT INTO visits(vid, day) VALUES($1,$2) ON CONFLICT DO NOTHING', [vid, day]);
+    },
+    async getStats() {
+      const total = (await pool.query('SELECT COUNT(DISTINCT vid) c FROM visits')).rows[0].c;
+      const { rows } = await pool.query(
+        "SELECT to_char(day,'YYYY-MM-DD') day, COUNT(*)::int c FROM visits WHERE day > now() - interval '370 days' GROUP BY day ORDER BY day");
+      return { total: +total, daily: rows.map((r) => ({ day: r.day, count: r.c })) };
     },
   };
 }
@@ -94,6 +108,19 @@ function fsStorage(dir) {
     async loadImage(id) {
       if (!/^[\w-]+$/.test(id) || !fs.existsSync(p(`img_${id}`))) return null;
       return { mime: JSON.parse(fs.readFileSync(p(`img_${id}.json`), 'utf8')).mime, data: fs.readFileSync(p(`img_${id}`)) };
+    },
+    async trackVisit(vid, day) {
+      const f = p('visits.json');
+      const v = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+      (v[day] ||= []).includes(vid) || v[day].push(vid);
+      fs.writeFileSync(f, JSON.stringify(v));
+    },
+    async getStats() {
+      const f = p('visits.json');
+      const v = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+      const total = new Set(Object.values(v).flat()).size;
+      const daily = Object.keys(v).sort().map((day) => ({ day, count: v[day].length }));
+      return { total, daily };
     },
   };
 }

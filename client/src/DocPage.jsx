@@ -21,6 +21,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { getIdentity, setIdentity, touchRecent, COLORS } from './identity.js';
+import Board from './Board.jsx';
 import Toolbar from './Toolbar.jsx';
 import ShareExport from './ShareExport.jsx';
 import { uploadImage } from './images.js';
@@ -142,5 +143,6 @@ export default function DocPage() {
   if (notFound) return <div className="center-msg"><h2>המסמך לא נמצא</h2><Link to="/">← לדף הבית</Link></div>;
   if (!user) return <IdentityModal onDone={(n, c) => { setIdentity(n, c); setUser({ name: n, color: c }); }} />;
   if (!info) return <div className="center-msg">טוען…</div>;
+  if (info.type === 'board') return <Board info={info} user={user} token={token} />;
   return <EditorView info={info} user={user} token={token} />;
 }

@@ -114,4 +114,82 @@ input { font: inherit; }
 
 .center-msg { display: grid; place-items: center; height: 100vh; text-align: center; }
 
+/* ---------- Home create cards ---------- */
+.create-row { display: flex; gap: 1rem; justify-content: center; }
+.create-card {
+  display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 14px;
+  padding: 1.2rem 2rem; font-size: 1.05rem; font-weight: 600; min-width: 170px;
+}
+.create-card:hover { border-color: #2563eb; box-shadow: 0 4px 14px rgba(37,99,235,.12); }
+.create-card .ico { font-size: 2rem; }
+.create-card small { color: #57606a; font-weight: 400; font-size: .8rem; }
+
+/* ---------- Board ---------- */
+.board-wrap {
+  flex: 1; position: relative; overflow: hidden; touch-action: none; direction: ltr;
+  background: #eef2f6;
+  background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+  background-size: 24px 24px;
+  cursor: grab;
+}
+.board-wrap:active { cursor: grabbing; }
+.board-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.board-bar { justify-content: flex-start; }
+.board-bar .hint { color: #8b949e; font-size: .8rem; }
+.swatch-sm { width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(0,0,0,.12); margin: 0 2px; }
+.swatch-sm.sel { border-color: #1f2328; }
+.zoom-badge {
+  position: absolute; bottom: 10px; inset-inline-start: 12px; direction: rtl;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 2px 8px; font-size: .78rem; color: #57606a; user-select: none;
+}
+
+.note {
+  position: absolute; border-radius: 6px; padding: 12px;
+  box-shadow: 0 3px 10px rgba(15,23,42,.18);
+  direction: rtl; cursor: grab; user-select: none;
+  animation: pop .18s ease-out;
+}
+@keyframes pop { from { opacity: 0; scale: .7; } }
+.note.sel { outline: 2px solid #2563eb; outline-offset: 2px; }
+.note.editing { cursor: text; }
+.note-text {
+  width: 100%; height: 100%; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word;
+  font-family: 'Segoe UI', Comic Sans MS, sans-serif; font-size: 1rem; line-height: 1.45; color: #1f2937;
+  unicode-bidi: plaintext;
+}
+.note textarea {
+  width: 100%; height: 100%; border: 0; background: transparent; resize: none; outline: 0;
+  font: inherit; font-size: 1rem; line-height: 1.45; color: #1f2937; unicode-bidi: plaintext;
+}
+.note .anchor {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: #2563eb; border: 2px solid #fff; opacity: 0; transition: opacity .12s;
+  cursor: crosshair; z-index: 3;
+}
+.note:hover .anchor { opacity: 1; }
+.a-t { top: -6px; left: calc(50% - 6px); }
+.a-b { bottom: -6px; left: calc(50% - 6px); }
+.a-l { left: -6px; top: calc(50% - 6px); }
+.a-r { right: -6px; top: calc(50% - 6px); }
+.note .resizer {
+  position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; cursor: nwse-resize; opacity: 0;
+  background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,.25) 50%); border-radius: 0 0 6px 0;
+}
+.note:hover .resizer { opacity: 1; }
+
+.edge-svg { position: absolute; top: 0; left: 0; width: 1px; height: 1px; overflow: visible; }
+.edge { stroke: #64748b; stroke-width: 2.5; }
+.edge.sel { stroke: #2563eb; stroke-width: 3.5; }
+.edge.temp { stroke: #2563eb; stroke-dasharray: 6 5; }
+.edge-hit { stroke: transparent; stroke-width: 14; cursor: pointer; }
+
+.peer-cursor { position: absolute; pointer-events: none; z-index: 999; transform-origin: 0 0; }
+.peer-cursor .dot { display: block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; }
+.peer-cursor .name {
+  color: #fff; font-size: .68rem; font-weight: 600; padding: .05rem .35rem;
+  border-radius: 4px; white-space: nowrap; margin-top: 2px; display: inline-block;
+}
+
 @media print { .topbar, .toolbar { display: none; } .editor-wrap { overflow: visible; } .ProseMirror { border: 0; } }

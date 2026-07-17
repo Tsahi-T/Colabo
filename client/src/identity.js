@@ -14,8 +14,8 @@ const RECENTS = 'colabo.recents';
 export function getRecents() {
   try { return JSON.parse(localStorage.getItem(RECENTS)) || []; } catch { return []; }
 }
-export function touchRecent(token, title, mode) {
+export function touchRecent(token, title, mode, type = 'doc') {
   const list = getRecents().filter((r) => r.token !== token);
-  list.unshift({ token, title: title || 'מסמך ללא שם', mode, at: Date.now() });
+  list.unshift({ token, title: title || (type === 'board' ? 'לוח ללא שם' : 'מסמך ללא שם'), mode, type, at: Date.now() });
   localStorage.setItem(RECENTS, JSON.stringify(list.slice(0, 30)));
 }

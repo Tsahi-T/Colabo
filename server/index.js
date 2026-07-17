@@ -35,7 +35,7 @@ app.use(express.json({ limit: '30mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 app.post('/api/docs', async (req, res) => {
-  const doc = await storage.createDoc();
+  const doc = await storage.createDoc(req.body?.type === 'board' ? 'board' : 'doc');
   res.json({ editToken: doc.editToken, viewToken: doc.viewToken });
 });
 

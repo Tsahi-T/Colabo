@@ -20,6 +20,7 @@ async function pgStorage(url) {
       state bytea,
       updated_at timestamptz DEFAULT now()
     );
+    ALTER TABLE docs ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'doc';
     CREATE TABLE IF NOT EXISTS images(
       id uuid PRIMARY KEY,
       doc_id uuid REFERENCES docs(id) ON DELETE CASCADE,
@@ -27,16 +28,16 @@ async function pgStorage(url) {
       data bytea NOT NULL
     );`);
   return {
-    async createDoc() {
+    async createDoc(type = 'doc') {
       const doc = { id: crypto.randomUUID(), editToken: token(), viewToken: token() };
-      await pool.query('INSERT INTO docs(id, edit_token, view_token) VALUES($1,$2,$3)', [doc.id, doc.editToken, doc.viewToken]);
+      await pool.query('INSERT INTO docs(id, edit_token, view_token, type) VALUES($1,$2,$3,$4)', [doc.id, doc.editToken, doc.viewToken, type]);
       return doc;
     },
     async resolveToken(t) {
-      const { rows } = await pool.query('SELECT id, edit_token, view_token FROM docs WHERE edit_token=$1 OR view_token=$1', [t]);
+      const { rows } = await pool.query('SELECT id, edit_token, view_token, type FROM docs WHERE edit_token=$1 OR view_token=$1', [t]);
       if (!rows[0]) return null;
       const r = rows[0], mode = r.edit_token === t ? 'edit' : 'view';
-      return { docId: r.id, mode, editToken: mode === 'edit' ? r.edit_token : undefined, viewToken: r.view_token };
+      return { docId: r.id, mode, type: r.type, editToken: mode === 'edit' ? r.edit_token : undefined, viewToken: r.view_token };
     },
     async loadDoc(id) {
       const { rows } = await pool.query('SELECT state FROM docs WHERE id=$1', [id]);
@@ -65,16 +66,17 @@ function fsStorage(dir) {
   const save = () => fs.writeFileSync(idxFile, JSON.stringify(idx));
   const p = (name) => path.join(dir, name);
   return {
-    async createDoc() {
+    async createDoc(type = 'doc') {
       const doc = { id: crypto.randomUUID(), editToken: token(), viewToken: token() };
-      idx[doc.id] = { editToken: doc.editToken, viewToken: doc.viewToken };
+      idx[doc.id] = { editToken: doc.editToken, viewToken: doc.viewToken, type };
       save();
       return doc;
     },
     async resolveToken(t) {
       for (const [id, d] of Object.entries(idx)) {
-        if (d.editToken === t) return { docId: id, mode: 'edit', editToken: d.editToken, viewToken: d.viewToken };
-        if (d.viewToken === t) return { docId: id, mode: 'view', viewToken: d.viewToken };
+        const base = { docId: id, type: d.type || 'doc', viewToken: d.viewToken };
+        if (d.editToken === t) return { ...base, mode: 'edit', editToken: d.editToken };
+        if (d.viewToken === t) return { ...base, mode: 'view' };
       }
       return null;
     },

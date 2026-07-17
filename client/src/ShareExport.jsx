@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { exportHtml, exportDocx, exportPdf } from './export.js';
 import { importFile } from './import.js';
 
-function Menu({ label, children }) {
+export function Menu({ label, children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
   useEffect(() => {
@@ -18,17 +18,26 @@ function Menu({ label, children }) {
   );
 }
 
-export default function ShareExport({ info, editor, title }) {
+export function ShareMenu({ info }) {
   const [copied, setCopied] = useState('');
+  if (info.mode !== 'edit') return null;
+  function copy(token) {
+    navigator.clipboard.writeText(`${location.origin}/d/${token}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+  return (
+    <Menu label={copied ? '✓ הועתק!' : 'שיתוף'}>
+      <button onClick={() => copy(info.editToken)}>קישור לעריכה</button>
+      <button onClick={() => copy(info.viewToken)}>קישור לצפייה בלבד</button>
+    </Menu>
+  );
+}
+
+export default function ShareExport({ info, editor, title }) {
   const [loading, setLoading] = useState(false);
   const fileRef = useRef();
   const name = title || 'מסמך';
-
-  function copy(token, kind) {
-    navigator.clipboard.writeText(`${location.origin}/d/${token}`);
-    setCopied(kind);
-    setTimeout(() => setCopied(''), 1800);
-  }
 
   async function pickFile(e) {
     const f = e.target.files[0];
@@ -48,12 +57,7 @@ export default function ShareExport({ info, editor, title }) {
           <input ref={fileRef} type="file" accept=".docx,.html,.htm,.txt,.md" hidden onChange={pickFile} />
         </>
       )}
-      {info.mode === 'edit' && (
-        <Menu label={copied ? '✓ הועתק!' : 'שיתוף'}>
-          <button onClick={() => copy(info.editToken, 'edit')}>קישור לעריכה</button>
-          <button onClick={() => copy(info.viewToken, 'view')}>קישור לצפייה בלבד</button>
-        </Menu>
-      )}
+      <ShareMenu info={info} />
       <Menu label="הורדה">
         <button onClick={() => exportDocx(editor, name)}>Word ‏(.docx)</button>
         <button onClick={() => exportPdf(editor, name)}>PDF (הדפסה)</button>

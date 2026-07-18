@@ -23,6 +23,7 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { getIdentity, setIdentity, touchRecent, COLORS } from './identity.js';
 import Board from './Board.jsx';
 import Timeline from './Timeline.jsx';
+import Risks from './Risks.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
@@ -149,5 +150,6 @@ export default function DocPage() {
   if (!info) return <div className="center-msg">טוען…</div>;
   if (info.type === 'board') return <Board info={info} user={user} token={token} />;
   if (info.type === 'timeline') return <Timeline info={info} user={user} token={token} />;
+  if (info.type === 'risks') return <Risks info={info} user={user} token={token} />;
   return <EditorView info={info} user={user} token={token} />;
 }

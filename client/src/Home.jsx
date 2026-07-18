@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk } from './icons.jsx';
 
 const TYPE_ICON = {
   doc: <span className="ricon doc"><IconDoc /></span>,
   board: <span className="ricon board"><IconBoard /></span>,
   timeline: <span className="ricon timeline"><IconTimeline /></span>,
+  risks: <span className="ricon risks"><IconRisk /></span>,
 };
 
 export default function Home() {
@@ -38,6 +39,9 @@ export default function Home() {
         </button>
         <button className="create-card" onClick={() => createDoc('timeline')} disabled={busy}>
           <span className="ico timeline"><IconTimeline /></span>ציר זמן<small>אבני דרך על ציר תאריכים</small>
+        </button>
+        <button className="create-card" onClick={() => createDoc('risks')} disabled={busy}>
+          <span className="ico risks"><IconRisk /></span>ניהול סיכונים<small>טבלה ומטריצת חומרה/הסתברות</small>
         </button>
       </div>
       {recents.length > 0 && (

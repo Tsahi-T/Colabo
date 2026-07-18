@@ -34,6 +34,31 @@ export default function Timeline({ info, user, token }) {
   const canvasRef = useRef();
   const fileRef = useRef();
   const [cw, setCw] = useState(1000);
+  const tPts = useRef(new Map()); // touch points for pinch-zoom
+  const tPinch = useRef(null);
+
+  function cDown(e) {
+    if (e.pointerType !== 'touch') return;
+    tPts.current.set(e.pointerId, [e.clientX, e.clientY]);
+    if (tPts.current.size === 2) {
+      const [a, b] = [...tPts.current.values()];
+      tPinch.current = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: zoom };
+    }
+  }
+  function cMove(e) {
+    if (e.pointerType !== 'touch' || !tPts.current.has(e.pointerId)) return;
+    tPts.current.set(e.pointerId, [e.clientX, e.clientY]);
+    const p = tPinch.current;
+    if (p && tPts.current.size === 2) {
+      const [a, b] = [...tPts.current.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+      setZoom(Math.min(12, Math.max(1, p.z * (d / p.d))));
+    }
+  }
+  function cUp(e) {
+    tPts.current.delete(e.pointerId);
+    if (tPts.current.size < 2) tPinch.current = null;
+  }
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const items = ydoc.getMap('items');
@@ -207,7 +232,8 @@ export default function Timeline({ info, user, token }) {
           </div>
           {editable && <button className="btn tlr-add" onClick={add}>+ הוספת אבן דרך</button>}
         </aside>
-        <div className="tl-canvas" ref={canvasRef} onClick={() => setSel(null)}>
+        <div className="tl-canvas" ref={canvasRef} onClick={() => setSel(null)}
+          onPointerDownCapture={cDown} onPointerMoveCapture={cMove} onPointerUpCapture={cUp} onPointerCancelCapture={cUp}>
           <div className="tl-stage" dir="ltr" style={{ width: W }}>
             {title && <div className="tlc-title" dir="rtl">{title}</div>}
             <div className="tl-axis" style={{ left: PADE - 46, width: W - PADS - PADE + 46 + 30 }} />

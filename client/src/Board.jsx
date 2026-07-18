@@ -32,6 +32,8 @@ export default function Board({ info, user, token }) {
   const wrapRef = useRef();
   const drag = useRef(null);
   const fileRef = useRef();
+  const pointers = useRef(new Map()); // active touch points, for pinch-zoom
+  const pinch = useRef(null);
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const notes = ydoc.getMap('notes');
@@ -145,7 +147,37 @@ export default function Board({ info, user, token }) {
     drag.current = { mode: 'connect', from: id };
     capture(e);
   }
+  // Two-finger pinch: zoom around the midpoint (capture phase, so it wins over note drags).
+  function pDownC(e) {
+    if (e.pointerType !== 'touch') return;
+    pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pointers.current.size === 2) {
+      drag.current = null;
+      setConnect(null);
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, v: view };
+    }
+  }
+  function pMoveC(e) {
+    if (e.pointerType !== 'touch' || !pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, [e.clientX, e.clientY]);
+    const pz = pinch.current;
+    if (pz && pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+      const r = wrapRef.current.getBoundingClientRect();
+      const cx = (a[0] + b[0]) / 2 - r.left, cy = (a[1] + b[1]) / 2 - r.top;
+      const s = Math.min(2.5, Math.max(0.2, pz.v.s * (d / pz.d)));
+      setView({ s, x: cx - ((cx - pz.v.x) * s) / pz.v.s, y: cy - ((cy - pz.v.y) * s) / pz.v.s });
+    }
+  }
+  function pUpC(e) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+  }
+
   function move(e) {
+    if (pinch.current) return;
     const p = toWorld(e);
     provider.setAwarenessField('cursor', p);
     const d = drag.current;
@@ -268,6 +300,7 @@ export default function Board({ info, user, token }) {
         </div>
       )}
       <div ref={wrapRef} className="board-wrap" onPointerDown={downBg} onPointerMove={move} onPointerUp={up}
+        onPointerDownCapture={pDownC} onPointerMoveCapture={pMoveC} onPointerUpCapture={pUpC} onPointerCancelCapture={pUpC}
         onDoubleClick={(e) => { if (editable && e.target === e.currentTarget) { const p = toWorld(e); addNote(p.x, p.y); } }}>
         <div className="board-layer" style={{ transform: `translate(${view.x}px,${view.y}px) scale(${view.s})` }}>
           <svg className="edge-svg">

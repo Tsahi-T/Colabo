@@ -23,6 +23,13 @@ export const IconBoard = () => (
   </svg>
 );
 
+export const IconChat = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M4 5h16v11H9l-5 4V5z" />
+    <path {...S} d="M8 9.5h8M8 12.5h5" />
+  </svg>
+);
+
 export const IconRisk = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M4 4h7v7H4zM13 13h7v7h-7zM4 13h7v7H4z" />

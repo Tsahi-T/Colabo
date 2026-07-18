@@ -30,6 +30,15 @@ export const IconRisk = () => (
   </svg>
 );
 
+export const IconSwot = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <rect x="3" y="3" width="8" height="8" rx="1.5" {...S} />
+    <rect x="13" y="3" width="8" height="8" rx="1.5" {...S} />
+    <rect x="3" y="13" width="8" height="8" rx="1.5" {...S} />
+    <rect x="13" y="13" width="8" height="8" rx="1.5" {...S} />
+  </svg>
+);
+
 export const IconTimeline = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M21 12H4.5M4.5 12l3.2-3.2M4.5 12l3.2 3.2" />

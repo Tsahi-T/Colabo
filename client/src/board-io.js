@@ -1,6 +1,7 @@
 // Board <-> human-readable TXT.
 export const PASTELS = {
-  'צהוב': '#fef08a', 'ורוד': '#fbcfe8', 'כחול': '#bfdbfe', 'ירוק': '#bbf7d0', 'סגול': '#ddd6fe',
+  'צהוב': '#fef08a', 'כתום': '#fed7aa', 'ורוד': '#fbcfe8', 'אדום': '#fecaca', 'סגול': '#ddd6fe',
+  'כחול': '#bfdbfe', 'תכלת': '#a5f3fc', 'ירוק': '#bbf7d0', 'ליים': '#d9f99d', 'אפור': '#e5e7eb',
 };
 const colorName = (hex) => Object.keys(PASTELS).find((k) => PASTELS[k] === hex) || 'צהוב';
 
@@ -11,6 +12,7 @@ export function boardToTxt(title, notes, edges) {
   for (const id of ids) {
     const n = notes.get(id);
     out += `\n[${num.get(id)}] מיקום: ${Math.round(n.get('x'))},${Math.round(n.get('y'))} | צבע: ${colorName(n.get('color'))} | גודל: ${Math.round(n.get('w'))}x${Math.round(n.get('h'))}\n`;
+    if (n.get('title')) out += `# ${n.get('title')}\n`;
     out += (n.get('text') || '').trimEnd() + '\n';
   }
   const lines = [...edges.values()].map((e) => num.get(e.a) && num.get(e.b) ? `${num.get(e.a)} - ${num.get(e.b)}` : null).filter(Boolean);
@@ -25,13 +27,14 @@ export function txtToBoard(txt) {
   for (const line of txt.split(/\r?\n/)) {
     const head = line.match(/^\[(\d+)\] מיקום: (-?\d+),(-?\d+)(?: \| צבע: (\S+))?(?: \| גודל: (\d+)x(\d+))?/);
     if (head) {
-      cur = { num: +head[1], x: +head[2], y: +head[3], color: PASTELS[head[4]] || PASTELS['צהוב'], w: +(head[5] || 180), h: +(head[6] || 180), text: '' };
+      cur = { num: +head[1], x: +head[2], y: +head[3], color: PASTELS[head[4]] || PASTELS['צהוב'], w: +(head[5] || 190), h: +(head[6] || 170), title: '', text: '' };
       notes.push(cur);
       continue;
     }
     if (/^חיבורים:/.test(line)) { inEdges = true; cur = null; continue; }
     const edge = inEdges && line.match(/^(\d+)\s*-\s*(\d+)/);
     if (edge) { edges.push([+edge[1], +edge[2]]); continue; }
+    if (cur && line.startsWith('# ') && !cur.title && !cur.text) { cur.title = line.slice(2); continue; }
     if (cur) cur.text += (cur.text ? '\n' : '') + line;
   }
   notes.forEach((n) => { n.text = n.text.trimEnd(); });

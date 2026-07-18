@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
+import { Logo } from './icons.jsx';
 
 const RANGES = { week: { days: 7, label: 'שבוע' }, month: { days: 30, label: 'חודש' }, year: { days: 365, label: 'שנה' } };
 const fmtDay = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
@@ -75,7 +76,7 @@ export default function About() {
   return (
     <div className="about">
       <header className="topbar">
-        <Link to="/" className="logo-sm">📝</Link>
+        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
         <b style={{ flex: 1 }}>אודות COLABO</b>
         <ThemeToggle />
       </header>

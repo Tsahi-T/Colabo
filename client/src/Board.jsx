@@ -4,10 +4,11 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
+import { Logo } from './icons.jsx';
 import { PASTELS, boardToTxt, txtToBoard } from './board-io.js';
 import { touchRecent } from './identity.js';
 
-const NOTE_W = 180, NOTE_H = 180;
+const NOTE_W = 190, NOTE_H = 170;
 const uid = () => crypto.randomUUID().slice(0, 8);
 const download = (text, name) => {
   const a = document.createElement('a');
@@ -87,8 +88,8 @@ export default function Board({ info, user, token }) {
     ydoc.transact(() => {
       n.set('x', x - NOTE_W / 2); n.set('y', y - NOTE_H / 2);
       n.set('w', NOTE_W); n.set('h', NOTE_H);
-      n.set('color', lastColor); n.set('rot', +(Math.random() * 5 - 2.5).toFixed(1));
-      n.set('text', ''); n.set('z', maxZ() + 1);
+      n.set('color', lastColor); n.set('rot', +(Math.random() * 4 - 2).toFixed(1));
+      n.set('title', ''); n.set('text', ''); n.set('z', maxZ() + 1);
       notes.set(id, n);
     });
     setSel({ kind: 'note', id });
@@ -103,11 +104,12 @@ export default function Board({ info, user, token }) {
       } else edges.delete(sel.id);
     });
     setSel(null);
+    setEditing(null);
   }
   useEffect(() => {
     const onKey = (e) => {
       if (!editable || editing || !sel) return;
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSel(); }
+      if (e.key === 'Delete') { e.preventDefault(); deleteSel(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -118,6 +120,7 @@ export default function Board({ info, user, token }) {
   function downBg(e) {
     if (e.target !== e.currentTarget) return;
     setSel(null);
+    setEditing(null);
     drag.current = { mode: 'pan', sx: e.clientX, sy: e.clientY, v: view };
     capture(e);
   }
@@ -126,9 +129,8 @@ export default function Board({ info, user, token }) {
     e.stopPropagation();
     const n = notes.get(id);
     n.set('z', maxZ() + 1);
-    setSel({ kind: 'note', id });
     const p = toWorld(e);
-    drag.current = { mode: 'note', id, dx: p.x - n.get('x'), dy: p.y - n.get('y') };
+    drag.current = { mode: 'note', id, dx: p.x - n.get('x'), dy: p.y - n.get('y'), sx: e.clientX, sy: e.clientY, moved: false };
     capture(e);
   }
   function downResize(e, id) {
@@ -150,20 +152,28 @@ export default function Board({ info, user, token }) {
     if (!d) return;
     if (d.mode === 'pan') setView({ ...d.v, x: d.v.x + e.clientX - d.sx, y: d.v.y + e.clientY - d.sy });
     else if (d.mode === 'note') {
+      if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 5) return;
+      d.moved = true;
       const n = notes.get(d.id);
       if (n) ydoc.transact(() => { n.set('x', p.x - d.dx); n.set('y', p.y - d.dy); });
     } else if (d.mode === 'resize') {
       const n = notes.get(d.id);
       if (n) ydoc.transact(() => {
-        n.set('w', Math.max(120, p.x - n.get('x')));
-        n.set('h', Math.max(90, p.y - n.get('y')));
+        n.set('w', Math.max(130, p.x - n.get('x')));
+        n.set('h', Math.max(100, p.y - n.get('y')));
       });
     } else if (d.mode === 'connect') setConnect({ from: d.from, x: p.x, y: p.y });
   }
   function up(e) {
     const d = drag.current;
     drag.current = null;
-    if (d?.mode === 'connect') {
+    if (!d) return;
+    if (d.mode === 'note' && !d.moved) {
+      // A tap (no drag): first tap selects, tap on the selected note opens editing. Touch-friendly.
+      if (sel?.kind === 'note' && sel.id === d.id) setEditing(d.id);
+      else setSel({ kind: 'note', id: d.id });
+    }
+    if (d.mode === 'connect') {
       setConnect(null);
       const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-note]');
       const to = el?.dataset.note;
@@ -200,7 +210,7 @@ export default function Board({ info, user, token }) {
       const byNum = new Map();
       ns.forEach((v, i) => {
         const id = uid(), n = new Y.Map();
-        Object.entries({ x: v.x, y: v.y, w: v.w, h: v.h, color: v.color, rot: +(Math.random() * 5 - 2.5).toFixed(1), text: v.text, z: i + 1 }).forEach(([k, val]) => n.set(k, val));
+        Object.entries({ x: v.x, y: v.y, w: v.w, h: v.h, color: v.color, rot: +(Math.random() * 4 - 2).toFixed(1), title: v.title || '', text: v.text, z: i + 1 }).forEach(([k, val]) => n.set(k, val));
         notes.set(id, n);
         byNum.set(v.num, id);
       });
@@ -213,11 +223,14 @@ export default function Board({ info, user, token }) {
     const n = notes.get(id);
     return n && { x: n.get('x') + n.get('w') / 2, y: n.get('y') + n.get('h') / 2 };
   };
+  const closeEditIfLeft = (e) => {
+    if (!e.relatedTarget || !e.currentTarget.closest('.note').contains(e.relatedTarget)) setEditing(null);
+  };
 
   return (
     <div className="doc-page">
       <header className="topbar">
-        <Link to="/" className="logo-sm">📝</Link>
+        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
         <input className="title-input" placeholder="לוח ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
@@ -240,7 +253,10 @@ export default function Board({ info, user, token }) {
       </header>
       {editable && (
         <div className="toolbar board-bar">
-          <span className="hint">לחיצה כפולה על הלוח — פתק חדש · גרירה מנקודת עיגון — חיבור</span>
+          <button className="btn" onClick={() => {
+            const r = wrapRef.current.getBoundingClientRect();
+            addNote((r.width / 2 - view.x) / view.s, (r.height / 2 - view.y) / view.s);
+          }}>+ פתק</button>
           <span className="sep" />
           {Object.entries(PASTELS).map(([name, hex]) => (
             <button key={hex} title={name} className={'swatch-sm' + (lastColor === hex && (!sel || sel.kind !== 'note') ? ' sel' : '')}
@@ -248,6 +264,7 @@ export default function Board({ info, user, token }) {
               onClick={() => { setLastColor(hex); if (sel?.kind === 'note') notes.get(sel.id)?.set('color', hex); }} />
           ))}
           {sel && <><span className="sep" /><button className="tb" title="מחיקה" onClick={deleteSel}>🗑</button></>}
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>לחיצה כפולה — פתק · לחיצה על פתק נבחר — עריכה · גרירה מנקודת עיגון — חיבור</span>
         </div>
       )}
       <div ref={wrapRef} className="board-wrap" onPointerDown={downBg} onPointerMove={move} onPointerUp={up}
@@ -278,13 +295,25 @@ export default function Board({ info, user, token }) {
               onPointerDown={(e) => downNote(e, id)}
               onDoubleClick={(e) => { e.stopPropagation(); editable && setEditing(id); }}>
               {editing === id ? (
-                <textarea autoFocus defaultValue={n.get('text')}
-                  onInput={(e) => n.set('text', e.target.value)}
-                  onBlur={() => setEditing(null)}
-                  onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}
-                  onPointerDown={(e) => e.stopPropagation()} />
+                <div className="note-edit" onPointerDown={(e) => e.stopPropagation()}>
+                  <input className="note-title-in" autoFocus placeholder="כותרת" defaultValue={n.get('title')}
+                    onInput={(e) => n.set('title', e.target.value)} onBlur={closeEditIfLeft}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null); if (e.key === 'Enter') e.currentTarget.nextElementSibling?.focus(); }} />
+                  <textarea placeholder="כותבים כאן…" defaultValue={n.get('text')}
+                    onInput={(e) => n.set('text', e.target.value)} onBlur={closeEditIfLeft}
+                    onKeyDown={(e) => e.key === 'Escape' && setEditing(null)} />
+                </div>
               ) : (
-                <div className="note-text">{n.get('text')}</div>
+                <div className="note-body">
+                  {n.get('title') && <div className="note-title">{n.get('title')}</div>}
+                  <div className="note-text">{n.get('text')}</div>
+                </div>
+              )}
+              {editable && editing !== id && sel?.kind === 'note' && sel.id === id && (
+                <span className="note-actions" onPointerDown={(e) => e.stopPropagation()}>
+                  <button title="עריכה" onClick={() => setEditing(id)}>✏️</button>
+                  <button title="מחיקה" onClick={deleteSel}>🗑</button>
+                </span>
               )}
               {editable && editing !== id && <>
                 {['t', 'b', 'l', 'r'].map((side) => (

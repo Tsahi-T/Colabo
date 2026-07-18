@@ -4,13 +4,16 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
-import { PASTELS } from './board-io.js';
+import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
 
 const DAY = 864e5;
 const uid = () => crypto.randomUUID().slice(0, 8);
 const today = () => new Date().toISOString().slice(0, 10);
-const MARKS = { 'צהוב': '#eab308', 'ורוד': '#ec4899', 'כחול': '#3b82f6', 'ירוק': '#22c55e', 'סגול': '#8b5cf6' };
+export const MARKS = {
+  'כחול': '#3b82f6', 'טורקיז': '#06b6d4', 'ירוק': '#22c55e', 'צהוב': '#eab308',
+  'כתום': '#f97316', 'אדום': '#ef4444', 'ורוד': '#ec4899', 'סגול': '#8b5cf6',
+};
 const fmt = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' });
 const download = (text, name) => {
   const a = document.createElement('a');
@@ -20,11 +23,6 @@ const download = (text, name) => {
   URL.revokeObjectURL(a.href);
 };
 
-// Lanes: alternate above/below the axis, two stem lengths each side, to reduce card collisions.
-const LANES = [
-  { dir: -1, stem: 46 }, { dir: 1, stem: 46 }, { dir: -1, stem: 150 }, { dir: 1, stem: 150 },
-];
-
 export default function Timeline({ info, user, token }) {
   const editable = info.mode === 'edit';
   const [, force] = useReducer((c) => c + 1, 0);
@@ -32,9 +30,10 @@ export default function Timeline({ info, user, token }) {
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
   const [sel, setSel] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [ppd, setPpd] = useState(12); // pixels per day
+  const [zoom, setZoom] = useState(1); // 1 = the whole timeline fits the canvas
+  const canvasRef = useRef();
   const fileRef = useRef();
+  const [cw, setCw] = useState(1000);
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const items = ydoc.getMap('items');
@@ -58,52 +57,68 @@ export default function Timeline({ info, user, token }) {
       [...aw.getStates().entries()].filter(([id]) => id !== aw.clientID).map(([, s]) => s.user).filter(Boolean)
     );
     aw.on('change', syncPeers);
-    return () => { ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
+    const measure = () => setCw(canvasRef.current?.clientWidth || 1000);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => {
+      ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers);
+      window.removeEventListener('resize', measure); provider.destroy();
+    };
   }, []);
 
   useEffect(() => { touchRecent(token, title, info.mode, 'timeline'); }, [title]);
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (!editable || editing || !sel) return;
-      if (e.key === 'Delete') { del(sel); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-
-  // ---- layout: time-proportional, right-to-left ----
+  // ---- data ----
   const sorted = [...items.entries()]
     .map(([id, m]) => ({ id, date: m.get('date') || today(), text: m.get('text') || '', color: m.get('color') || MARKS['כחול'] }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
-  const PAD = 130;
+  // ---- canvas layout: right-to-left, calendar-proportional, fits by default ----
+  const PADS = 100, PADE = 90; // start (right) / end (arrow, left) padding
   const minT = sorted.length ? +new Date(sorted[0].date) : Date.now();
   const maxT = sorted.length ? +new Date(sorted[sorted.length - 1].date) : Date.now();
-  const spanDays = Math.max(7, (maxT - minT) / DAY);
-  const W = Math.max(940, spanDays * ppd + PAD * 2);
-  const xOf = (iso) => W - PAD - ((+new Date(iso) - minT) / DAY) * ppd; // newest at the left
-  const laid = sorted.map((m, i) => ({ ...m, x: xOf(m.date), lane: LANES[i % LANES.length] }));
+  const spanDays = Math.max(10, (maxT - minT) / DAY + 2);
+  const ppd = Math.min(90, Math.max(0.2, ((cw - PADS - PADE) / spanDays) * zoom));
+  const W = Math.max(cw, spanDays * ppd + PADS + PADE);
+  const xOf = (t) => W - PADS - ((t - minT) / DAY) * ppd; // earliest on the right
+  const laid = sorted.map((m, i) => ({
+    ...m, x: xOf(+new Date(m.date)),
+    up: i % 2 === 0, far: i % 4 >= 2, // alternate above/below, two distances
+  }));
 
-  // month ticks
+  // adaptive ticks: months, or years for long ranges; thin labels when crowded
   const ticks = [];
   if (sorted.length) {
-    const d = new Date(minT); d.setDate(1);
-    for (; +d <= maxT + 31 * DAY; d.setMonth(d.getMonth() + 1)) {
-      ticks.push({ x: xOf(d.toISOString().slice(0, 10)), label: d.toLocaleDateString('he-IL', { month: 'short', year: '2-digit' }) });
+    const yearly = spanDays > 1100;
+    const d = new Date(minT);
+    yearly ? (d.setMonth(0, 1)) : d.setDate(1);
+    const step = yearly ? 12 : Math.ceil((spanDays / 30) / 14) || 1;
+    for (; +d <= maxT + (yearly ? 366 : 31) * DAY; d.setMonth(d.getMonth() + step)) {
+      ticks.push({
+        x: xOf(+d),
+        label: yearly ? String(d.getFullYear()) : d.toLocaleDateString('he-IL', { month: 'short', year: '2-digit' }),
+      });
     }
   }
+  const todayT = +new Date(today());
+  const showToday = sorted.length && todayT >= minT - 5 * DAY && todayT <= maxT + 5 * DAY;
 
   // ---- mutations ----
   function add() {
     const id = uid(), m = new Y.Map();
+    const last = sorted[sorted.length - 1];
+    const nextDate = last ? new Date(+new Date(last.date) + 14 * DAY).toISOString().slice(0, 10) : today();
     ydoc.transact(() => {
-      m.set('date', today()); m.set('text', ''); m.set('color', MARKS['כחול']);
+      m.set('date', nextDate); m.set('text', ''); m.set('color', MARKS['כחול']);
       items.set(id, m);
     });
-    setSel(id); setEditing(id);
+    setSel(id);
   }
-  const del = (id) => { items.delete(id); setSel(null); setEditing(null); };
+  function del(m) {
+    if (m.text && !confirm(`למחוק את "${m.text}"?`)) return;
+    items.delete(m.id);
+    if (sel === m.id) setSel(null);
+  }
 
   // ---- TXT ----
   const exportTxt = () => download(
@@ -130,7 +145,7 @@ export default function Timeline({ info, user, token }) {
   return (
     <div className="doc-page">
       <header className="topbar">
-        <Link to="/" className="logo-sm">📝</Link>
+        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
         <input className="title-input" placeholder="ציר זמן ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
@@ -154,61 +169,74 @@ export default function Timeline({ info, user, token }) {
         <div className="toolbar board-bar">
           <button className="btn" onClick={add}>+ אבן דרך</button>
           <span className="sep" />
-          <button className="tb" title="הקטנה" onClick={() => setPpd((p) => Math.max(2, p / 1.4))}>−</button>
-          <button className="tb" title="הגדלה" onClick={() => setPpd((p) => Math.min(60, p * 1.4))}>+</button>
+          <button className="tb" title="הקטנה" onClick={() => setZoom((z) => Math.max(1, z / 1.35))}>−</button>
+          <button className="tb" title="הגדלה" onClick={() => setZoom((z) => Math.min(12, z * 1.35))}>+</button>
+          <button className="btn" onClick={() => setZoom(1)}>התאם למסך</button>
           <span className="sep" />
           {Object.entries(MARKS).map(([name, hex]) => (
             <button key={hex} title={name} className="swatch-sm" style={{ background: hex }}
               onClick={() => sel && items.get(sel)?.set('color', hex)} />
           ))}
-          {sel && <><span className="sep" /><button className="tb" title="מחיקה" onClick={() => del(sel)}>🗑</button></>}
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>הזמן זורם מימין לשמאל · המרחק בין אבני הדרך יחסי ללוח השנה</span>
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>עורכים ברשימה מימין · הזמן זורם מימין לשמאל</span>
         </div>
       )}
-      <div className="tl-wrap" onClick={() => { setSel(null); editing && setEditing(null); }}>
-        <div className="tl-inner" dir="ltr" style={{ width: W }}>
-          <div className="tl-axis" style={{ left: 40, width: W - PAD + 40 }} />
-          {ticks.map((t, i) => (
-            <span key={i}>
-              <span className="tl-tick" style={{ left: t.x }} />
-              <span className="tl-tick-label" style={{ right: W - t.x }}>{t.label}</span>
-            </span>
-          ))}
-          {laid.map((m) => (
-            <div key={m.id} className="tl-node" style={{ right: W - m.x }}>
-              <div className="tl-dot" style={{ background: m.color }}
-                onClick={(e) => { e.stopPropagation(); editable && setSel(m.id); }} />
-              <div className="tl-stem" style={m.lane.dir < 0 ? { bottom: 8, height: m.lane.stem } : { top: 8, height: m.lane.stem }} />
-              <div dir="rtl"
-                className={'tl-card' + (sel === m.id ? ' sel' : '')}
-                style={{ borderTopColor: m.color, ...(m.lane.dir < 0 ? { bottom: m.lane.stem + 10 } : { top: m.lane.stem + 10 }) }}
-                onClick={(e) => { e.stopPropagation(); if (editable) { setSel(m.id); } }}
-                onDoubleClick={(e) => { e.stopPropagation(); editable && setEditing(m.id); }}>
-                {editing === m.id ? (
+      <div className="tl-split">
+        <aside className="tl-list">
+          <div className="tl-list-head"><span>אבן דרך</span><span>תאריך</span></div>
+          <div className="tl-rows">
+            {sorted.map((m, i) => (
+              <div key={m.id} className={'tlr' + (sel === m.id ? ' sel' : '')} onClick={() => setSel(m.id)}>
+                <span className="tlr-idx" style={{ background: m.color }}>{i + 1}</span>
+                {editable ? (
                   <>
-                    <input type="date" value={m.date} onClick={(e) => e.stopPropagation()}
+                    <input className="tlr-text" placeholder="שם אבן הדרך…" value={m.text}
+                      onChange={(e) => items.get(m.id)?.set('text', e.target.value)} />
+                    <input className="tlr-date" type="date" value={m.date}
                       onChange={(e) => e.target.value && items.get(m.id)?.set('date', e.target.value)} />
-                    <textarea autoFocus defaultValue={m.text} placeholder="תיאור אבן הדרך…"
-                      onInput={(e) => items.get(m.id)?.set('text', e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}
-                      onBlur={(e) => { if (!e.relatedTarget || !e.currentTarget.parentElement.contains(e.relatedTarget)) setEditing(null); }} />
+                    <button className="tlr-del" title="מחיקה" onClick={(e) => { e.stopPropagation(); del(m); }}>✕</button>
                   </>
                 ) : (
                   <>
-                    <div className="tl-date">{fmt(m.date)}</div>
-                    <div className="tl-text">{m.text || <i style={{ color: 'var(--ink3)' }}>ללא תיאור</i>}</div>
+                    <span className="tlr-text">{m.text || '—'}</span>
+                    <span className="tlr-date-ro">{fmt(m.date)}</span>
                   </>
                 )}
-                {editable && <button className="tl-del" title="מחיקה" onClick={(e) => { e.stopPropagation(); del(m.id); }}>✕</button>}
               </div>
-            </div>
-          ))}
-          {!sorted.length && (
-            <div className="tl-empty" dir="rtl">
-              {editable ? 'לוחצים "+ אבן דרך" כדי להתחיל לבנות את ציר הזמן' : 'ציר הזמן ריק עדיין'}
-            </div>
-          )}
+            ))}
+            {!sorted.length && <div className="tlr-empty">אין עדיין אבני דרך</div>}
+          </div>
+          {editable && <button className="btn tlr-add" onClick={add}>+ הוספת אבן דרך</button>}
+        </aside>
+        <div className="tl-canvas" ref={canvasRef} onClick={() => setSel(null)}>
+          <div className="tl-stage" dir="ltr" style={{ width: W }}>
+            {title && <div className="tlc-title" dir="rtl">{title}</div>}
+            <div className="tl-axis" style={{ left: PADE - 46, width: W - PADS - PADE + 46 + 30 }} />
+            {ticks.map((t, i) => (
+              <span key={i}>
+                <span className="tl-tick" style={{ left: t.x }} />
+                <span className="tl-tick-label" style={{ left: t.x }}>{t.label}</span>
+              </span>
+            ))}
+            {showToday && (
+              <>
+                <div className="tl-today" style={{ left: xOf(todayT) }} />
+                <span className="tl-today-label" style={{ left: xOf(todayT) }}>היום</span>
+              </>
+            )}
+            {laid.map((m, i) => (
+              <div key={m.id} className={'tl-ms' + (sel === m.id ? ' sel' : '') + (m.up ? ' up' : ' down')}
+                style={{ left: m.x }}
+                onClick={(e) => { e.stopPropagation(); setSel(m.id); }}>
+                <span className="tl-ms-dot" style={{ background: m.color }}>{i + 1}</span>
+                <span className="tl-ms-stem" style={{ height: m.far ? 92 : 34, background: m.color }} />
+                <div className="tl-ms-label" dir="rtl" style={{ [m.up ? 'bottom' : 'top']: (m.far ? 92 : 34) + 24 }}>
+                  <span className="tl-ms-date" style={{ background: m.color }}>{fmt(m.date)}</span>
+                  <span className="tl-ms-text">{m.text || 'ללא שם'}</span>
+                </div>
+              </div>
+            ))}
+            {!sorted.length && <div className="tl-empty" dir="rtl">מוסיפים אבני דרך ברשימה — והציר נבנה כאן מעצמו ✨</div>}
+          </div>
         </div>
       </div>
     </div>

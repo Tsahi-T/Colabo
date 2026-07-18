@@ -24,6 +24,7 @@ import { getIdentity, setIdentity, touchRecent, COLORS } from './identity.js';
 import Board from './Board.jsx';
 import Timeline from './Timeline.jsx';
 import { ThemeToggle } from './theme.jsx';
+import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
 import ShareExport from './ShareExport.jsx';
 import { uploadImage } from './images.js';
@@ -114,7 +115,7 @@ function EditorView({ info, user, token }) {
   return (
     <div className="doc-page">
       <header className="topbar">
-        <Link to="/" className="logo-sm">📝</Link>
+        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
         <input className="title-input" placeholder="מסמך ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}

@@ -398,6 +398,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-score { font-weight: 800; font-size: 1rem; color: #1f2328; min-width: 52px; }
 .rk-score.rk-g { background: #6ee7a0; }
 .rk-score.rk-y { background: #fbe14a; }
+.rk-score.rk-o { background: #fdac4e; }
 .rk-score.rk-r { background: #f76d6d; }
 
 .rk-matrix-area { position: relative; padding: 1.2rem 1rem 2.2rem; display: grid; place-items: center; }
@@ -420,6 +421,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-cell { background-image: linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,0) 70%); }
 .rk-bg-g { background-color: #6ee7a0; }
 .rk-bg-y { background-color: #fbe14a; }
+.rk-bg-o { background-color: #fdac4e; }
 .rk-bg-r { background-color: #f76d6d; }
 .rk-base { position: absolute; top: 2px; right: 6px; font-size: .62rem; font-weight: 700; color: rgba(0, 0, 0, .45); }
 .rk-chip {

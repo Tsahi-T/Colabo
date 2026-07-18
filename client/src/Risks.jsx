@@ -8,7 +8,7 @@ import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
-const level = (score) => (score >= 12 ? 'r' : score >= 7 ? 'y' : 'g');
+const level = (score) => (score > 14 ? 'r' : score >= 12 ? 'o' : score >= 7 ? 'y' : 'g');
 const download = (text, name) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));

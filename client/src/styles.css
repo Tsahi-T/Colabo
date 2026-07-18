@@ -386,6 +386,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-table td { padding: .35rem .5rem; border-bottom: 1px solid var(--hover); vertical-align: top; }
 .rk-table tr:last-child td { border-bottom: 0; }
 .rk-table tr.sel td { background: var(--sel-bg); }
+.rk-example td { color: var(--ink3); font-style: italic; background: var(--bg); }
+.rk-example .rk-c:first-child { font-style: normal; font-size: .72rem; }
 .rk-c { text-align: center !important; vertical-align: middle !important; }
 .rk-num {
   display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
@@ -412,7 +414,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-matrix-box .rk-axis-x { grid-column: 2; grid-row: 2; }
 .rk-matrix { display: flex; flex-direction: column; gap: 5px; }
 .rk-row { display: flex; gap: 5px; }
-.rk-ax { width: 26px; min-height: 26px; display: grid; place-items: center; font-weight: 800; font-size: .8rem; color: var(--ink2); }
+.rk-ax { width: 26px; min-height: 26px; display: grid; place-items: center; font-family: inherit; font-weight: 800; font-size: .8rem; color: var(--ink2); }
 .rk-row .rk-ax:not(:first-child) { width: clamp(46px, 9vw, 72px); }
 .rk-cell {
   width: clamp(46px, 9vw, 72px); height: clamp(42px, 7vw, 58px); border-radius: 9px; position: relative;
@@ -423,7 +425,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-bg-y { background-color: #fbe14a; }
 .rk-bg-o { background-color: #fdac4e; }
 .rk-bg-r { background-color: #f76d6d; }
-.rk-base { position: absolute; top: 2px; right: 6px; font-size: .62rem; font-weight: 700; color: rgba(0, 0, 0, .45); }
+.rk-base { position: absolute; top: 2px; right: 6px; font-family: inherit; font-size: .62rem; font-weight: 700; color: rgba(0, 0, 0, .45); }
 .rk-chip {
   width: 23px; height: 23px; border-radius: 50%; background: var(--ink); color: var(--panel);
   font-size: .72rem; font-weight: 800; display: grid; place-items: center;
@@ -432,10 +434,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-chip.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rk-axis-y {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  font-size: .8rem; font-weight: 800; color: var(--ink2);
+  font-family: inherit; font-size: .8rem; font-weight: 800; color: var(--ink2);
 }
-.rk-axis-y-word { writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .06em; }
-.rk-axis-x { font-size: .8rem; font-weight: 800; color: var(--ink2); letter-spacing: .03em; }
+.rk-axis-y-word { transform: rotate(-90deg); white-space: nowrap; font-family: inherit; letter-spacing: .02em; }
+.rk-axis-x { font-family: inherit; font-size: .8rem; font-weight: 800; color: var(--ink2); letter-spacing: .02em; }
 
 /* ---------- SWOT ---------- */
 .ico.swot { background: rgba(139, 92, 246, .14); color: #7c3aed; }

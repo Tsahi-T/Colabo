@@ -141,12 +141,20 @@ export default function Risks({ info, user, token }) {
           <table className="rk-table">
             <thead>
               <tr>
-                <th className="rk-c">#</th><th>סיכון</th><th>פירוט</th><th>פעולות לצמצום הסיכון</th>
+                <th className="rk-c">#</th><th>נושא הסיכון</th><th>פירוט הסיכון</th><th>פעולות לצמצום הסיכון</th>
                 <th className="rk-c">חומרה</th><th className="rk-c">הסתברות</th><th className="rk-c">משוקלל</th>
                 {editable && <th />}
               </tr>
             </thead>
             <tbody>
+              <tr className="rk-example">
+                <td className="rk-c">דוגמה</td>
+                <td>לוחות זמנים</td>
+                <td>משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני</td>
+                <td>גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים</td>
+                <td className="rk-c">–</td><td className="rk-c">–</td><td className="rk-c">–</td>
+                {editable && <td />}
+              </tr>
               {rows.map((r) => (
                 <tr key={r.id} className={sel === r.id ? 'sel' : ''} onClick={() => setSel(r.id)}>
                   <td className="rk-c"><span className="rk-num">{r.num}</span></td>

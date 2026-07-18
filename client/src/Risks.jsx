@@ -180,7 +180,7 @@ export default function Risks({ info, user, token }) {
         <div className="rk-matrix-area">
           {title && <div className="tlc-title rk-title">{title}</div>}
           <div className="rk-matrix-box">
-            <span className="rk-axis-y">חומרה ↑</span>
+            <span className="rk-axis-y"><span>↑</span><span className="rk-axis-y-word">חומרה</span></span>
             <div className="rk-matrix" dir="ltr">
               {[5, 4, 3, 2, 1].map((s) => (
                 <div className="rk-row" key={s}>
@@ -205,7 +205,7 @@ export default function Risks({ info, user, token }) {
                 {nums15.map((p) => <span key={p} className="rk-ax">{p}</span>)}
               </div>
             </div>
-            <span className="rk-axis-x">הסתברות ←</span>
+            <span className="rk-axis-x">הסתברות&nbsp;→</span>
           </div>
         </div>
       </div>

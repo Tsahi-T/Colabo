@@ -22,6 +22,8 @@ import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import { getIdentity, setIdentity, touchRecent, COLORS } from './identity.js';
 import Board from './Board.jsx';
+import Timeline from './Timeline.jsx';
+import { ThemeToggle } from './theme.jsx';
 import Toolbar from './Toolbar.jsx';
 import ShareExport from './ShareExport.jsx';
 import { uploadImage } from './images.js';
@@ -123,6 +125,7 @@ function EditorView({ info, user, token }) {
           ))}
         </div>
         <ShareExport info={info} editor={editor} title={title} />
+        <ThemeToggle />
       </header>
       {editable && <Toolbar editor={editor} token={token} />}
       <main className="editor-wrap"><EditorContent editor={editor} /></main>
@@ -144,5 +147,6 @@ export default function DocPage() {
   if (!user) return <IdentityModal onDone={(n, c) => { setIdentity(n, c); setUser({ name: n, color: c }); }} />;
   if (!info) return <div className="center-msg">טוען…</div>;
   if (info.type === 'board') return <Board info={info} user={user} token={token} />;
+  if (info.type === 'timeline') return <Timeline info={info} user={user} token={token} />;
   return <EditorView info={info} user={user} token={token} />;
 }

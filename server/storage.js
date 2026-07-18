@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
 const token = () => crypto.randomBytes(12).toString('base64url');
 
@@ -131,5 +132,5 @@ export async function createStorage() {
     return pgStorage(process.env.DATABASE_URL);
   }
   console.log('Storage: local files (./data) — dev mode');
-  return fsStorage(path.resolve('data'));
+  return fsStorage(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'));
 }

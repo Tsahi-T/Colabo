@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu } from './ShareExport.jsx';
+import { ThemeToggle } from './theme.jsx';
 import { PASTELS, boardToTxt, txtToBoard } from './board-io.js';
 import { touchRecent } from './identity.js';
 
@@ -234,6 +235,7 @@ export default function Board({ info, user, token }) {
           </>}
           <button className="btn" onClick={exportTxt}>הורדה</button>
           <ShareMenu info={info} />
+          <ThemeToggle />
         </div>
       </header>
       {editable && (

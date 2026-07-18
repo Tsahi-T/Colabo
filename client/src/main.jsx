@@ -4,7 +4,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './Home.jsx';
 import DocPage from './DocPage.jsx';
 import About from './About.jsx';
+import { initTheme } from './theme.jsx';
 import './styles.css';
+
+initTheme();
 
 // Anonymous daily usage ping (browser-unique id, no personal data).
 try {

@@ -147,22 +147,14 @@ export default function Risks({ info, user, token }) {
               </tr>
             </thead>
             <tbody>
-              <tr className="rk-example">
-                <td className="rk-c">דוגמה</td>
-                <td>לוחות זמנים</td>
-                <td>משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני</td>
-                <td>גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים</td>
-                <td className="rk-c">–</td><td className="rk-c">–</td><td className="rk-c">–</td>
-                {editable && <td />}
-              </tr>
               {rows.map((r) => (
                 <tr key={r.id} className={sel === r.id ? 'sel' : ''} onClick={() => setSel(r.id)}>
                   <td className="rk-c"><span className="rk-num">{r.num}</span></td>
                   {editable ? (
                     <>
-                      <td><input className="rk-in rk-name" placeholder="שם הסיכון…" value={r.name} onChange={(e) => set(r.id, 'name', e.target.value)} /></td>
-                      <td><textarea className="rk-in" rows="2" placeholder="פירוט…" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
-                      <td><textarea className="rk-in" rows="2" placeholder="פעולות…" value={r.actions} onChange={(e) => set(r.id, 'actions', e.target.value)} /></td>
+                      <td><input className="rk-in rk-name" placeholder="לוחות זמנים" value={r.name} onChange={(e) => set(r.id, 'name', e.target.value)} /></td>
+                      <td><textarea className="rk-in" rows="2" placeholder="משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
+                      <td><textarea className="rk-in" rows="2" placeholder="גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים" value={r.actions} onChange={(e) => set(r.id, 'actions', e.target.value)} /></td>
                       <td className="rk-c"><select className="rk-sel" value={r.sev} onChange={(e) => set(r.id, 'sev', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                       <td className="rk-c"><select className="rk-sel" value={r.prob} onChange={(e) => set(r.id, 'prob', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                     </>

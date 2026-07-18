@@ -418,14 +418,13 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .rk-table td { padding: .35rem .5rem; border-bottom: 1px solid var(--hover); vertical-align: top; }
 .rk-table tr:last-child td { border-bottom: 0; }
 .rk-table tr.sel td { background: var(--sel-bg); }
-.rk-example td { color: var(--ink3); font-style: italic; background: var(--bg); }
-.rk-example .rk-c:first-child { font-style: normal; font-size: .72rem; }
 .rk-c { text-align: center !important; vertical-align: middle !important; }
 .rk-num {
   display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   background: var(--ink); color: var(--panel); font-weight: 800; font-size: .76rem;
 }
 .rk-in { width: 100%; border: 0; background: transparent; outline: 0; resize: vertical; font-size: .88rem; line-height: 1.45; unicode-bidi: plaintext; }
+.rk-in::placeholder { color: var(--ink3); }
 .rk-name { font-weight: 700; }
 .rk-ro { white-space: pre-wrap; color: var(--ink2); }
 .rk-sel { border: 1px solid var(--border); border-radius: 6px; background: var(--bg); padding: .2rem .4rem; }

@@ -236,7 +236,7 @@ export default function Timeline({ info, user, token }) {
           onPointerDownCapture={cDown} onPointerMoveCapture={cMove} onPointerUpCapture={cUp} onPointerCancelCapture={cUp}>
           <div className="tl-stage" dir="ltr" style={{ width: W }}>
             {title && <div className="tlc-title" dir="rtl">{title}</div>}
-            <div className="tl-axis" style={{ left: PADE - 46, width: W - PADS - PADE + 46 + 30 }} />
+            {sorted.length > 0 && <div className="tl-axis" style={{ left: PADE - 46, width: W - PADS - PADE + 46 + 30 }} />}
             {ticks.map((t, i) => (
               <span key={i}>
                 <span className="tl-tick" style={{ left: t.x }} />

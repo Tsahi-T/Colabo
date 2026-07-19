@@ -62,12 +62,12 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 }
 .btn-primary:hover { background: var(--accent-h); }
 .btn-primary:disabled { opacity: .6; cursor: default; }
-.create-row { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.create-row { display: grid; grid-template-columns: repeat(3, 196px); gap: 1rem; justify-content: center; }
 .create-card {
   display: flex; flex-direction: column; align-items: center; gap: .2rem;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-  padding: 1.2rem 1.6rem; font-size: 1.05rem; font-weight: 600; min-width: 158px;
-  box-shadow: var(--card-shadow);
+  padding: 1.2rem 1rem; font-size: 1.05rem; font-weight: 600;
+  box-shadow: var(--card-shadow); min-height: 162px; justify-content: center;
 }
 .create-card { transition: transform .15s, box-shadow .15s, border-color .15s; }
 .create-card:hover { border-color: var(--accent); box-shadow: var(--card-shadow), 0 10px 24px var(--accent-soft); transform: translateY(-3px); }
@@ -613,6 +613,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   .toolbar .hint { display: none; }
   .tl-split { flex-direction: column; }
   .sw-grid { grid-template-columns: 1fr; }
+  .create-row { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
   .tl-list { width: 100%; max-height: 40%; border-inline-end: 0; border-bottom: 1px solid var(--border); }
   .tlc-title { font-size: 1.05rem; top: 10px; right: 14px; }
   .ProseMirror { padding: 1.6rem 1.1rem; min-height: 60vh; }

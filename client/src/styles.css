@@ -278,9 +278,9 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 }
 
 /* ---------- About ---------- */
-.home-foot { margin-top: 2.5rem; }
-.home-foot a { color: var(--ink2); font-size: .85rem; text-decoration: none; }
-.home-foot a:hover { color: var(--accent); }
+.home-note { max-width: 480px; margin: 0 auto 2rem; font-size: .8rem; color: var(--ink3); line-height: 1.6; }
+.home-note a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.home-note a:hover { text-decoration: underline; }
 .about { min-height: 100vh; background: var(--bg); }
 .about-main { max-width: 780px; margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
 .about-main h1 { font-size: 1.7rem; margin-bottom: .3rem; }

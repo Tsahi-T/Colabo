@@ -10,7 +10,17 @@ import { createStorage } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
+const RETENTION_DAYS = 30;
 const storage = await createStorage();
+
+// Retention: purge docs with no edit activity for RETENTION_DAYS — checked once a day.
+function cleanupStale() {
+  storage.deleteStale(RETENTION_DAYS)
+    .then((n) => n && console.log(`Retention: removed ${n} inactive doc(s) (>${RETENTION_DAYS}d)`))
+    .catch((e) => console.error('Retention cleanup failed:', e));
+}
+cleanupStale();
+setInterval(cleanupStale, 24 * 60 * 60 * 1000);
 
 // ---------- Realtime sync (Hocuspocus over WebSocket) ----------
 const hocuspocus = Hocuspocus.configure({

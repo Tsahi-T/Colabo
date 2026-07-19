@@ -32,6 +32,11 @@ export default function Home() {
       <span className="home-theme"><ThemeToggle /></span>
       <div className="hero"><Logo size={58} /><h1 className="logo">COLABO</h1></div>
       <p className="tagline">עבודה משותפת בזמן אמת — פותחים, משתפים קישור, עובדים יחד.</p>
+      <p className="home-note">
+        המערכת מיועדת לעבודה משותפת בזמן אמת — מסמך שאין בו פעילות 30 יום נמחק אוטומטית.
+        מומלץ לייצא ולשמור עותק מקומי של תוכן חשוב; ניתן בכל עת לטעון קובץ ולהמשיך לעבוד.{' '}
+        <Link to="/about">פרטים נוספים</Link>
+      </p>
       <div className="create-row">
         <button className="create-card" onClick={() => createDoc('doc')} disabled={busy}>
           <span className="ico doc"><IconDoc /></span>מסמך<small>מעבד תמלילים משותף</small>
@@ -66,7 +71,6 @@ export default function Home() {
           ))}
         </div>
       )}
-      <p className="home-foot"><Link to="/about">אודות המערכת · הוראות שימוש · נתוני שימוש</Link></p>
     </div>
   );
 }

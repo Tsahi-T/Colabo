@@ -61,6 +61,12 @@ async function pgStorage(url) {
       const { rows } = await pool.query('SELECT mime, data FROM images WHERE id=$1', [id]);
       return rows[0] ? { mime: rows[0].mime, data: rows[0].data } : null;
     },
+    // Retention: docs untouched (no edit) for `days` are purged; images cascade via FK.
+    async deleteStale(days) {
+      const { rows } = await pool.query(
+        'DELETE FROM docs WHERE updated_at < now() - make_interval(days => $1) RETURNING id', [days]);
+      return rows.length;
+    },
     async trackVisit(vid, day) {
       await pool.query('INSERT INTO visits(vid, day) VALUES($1,$2) ON CONFLICT DO NOTHING', [vid, day]);
     },
@@ -83,7 +89,7 @@ function fsStorage(dir) {
   return {
     async createDoc(type = 'doc') {
       const doc = { id: crypto.randomUUID(), editToken: token(), viewToken: token() };
-      idx[doc.id] = { editToken: doc.editToken, viewToken: doc.viewToken, type };
+      idx[doc.id] = { editToken: doc.editToken, viewToken: doc.viewToken, type, updatedAt: Date.now() };
       save();
       return doc;
     },
@@ -99,7 +105,25 @@ function fsStorage(dir) {
       const f = p(`doc_${id}.bin`);
       return fs.existsSync(f) ? fs.readFileSync(f) : null;
     },
-    async saveDoc(id, buf) { fs.writeFileSync(p(`doc_${id}.bin`), buf); },
+    async saveDoc(id, buf) {
+      fs.writeFileSync(p(`doc_${id}.bin`), buf);
+      if (idx[id]) { idx[id].updatedAt = Date.now(); save(); }
+    },
+    // Retention: docs untouched (no edit) for `days` are purged (dev-mode parity with pgStorage).
+    async deleteStale(days) {
+      const cutoff = Date.now() - days * 86400000;
+      let count = 0;
+      for (const [id, d] of Object.entries(idx)) {
+        if ((d.updatedAt || 0) < cutoff) {
+          delete idx[id];
+          const f = p(`doc_${id}.bin`);
+          if (fs.existsSync(f)) fs.unlinkSync(f);
+          count++;
+        }
+      }
+      if (count) save();
+      return count;
+    },
     async saveImage(docId, mime, buf) {
       const id = crypto.randomUUID();
       fs.writeFileSync(p(`img_${id}`), buf);

@@ -40,10 +40,10 @@ async function pgStorage(url) {
       return doc;
     },
     async resolveToken(t) {
-      const { rows } = await pool.query('SELECT id, edit_token, view_token, type FROM docs WHERE edit_token=$1 OR view_token=$1', [t]);
+      const { rows } = await pool.query('SELECT id, edit_token, view_token, type, updated_at FROM docs WHERE edit_token=$1 OR view_token=$1', [t]);
       if (!rows[0]) return null;
       const r = rows[0], mode = r.edit_token === t ? 'edit' : 'view';
-      return { docId: r.id, mode, type: r.type, editToken: mode === 'edit' ? r.edit_token : undefined, viewToken: r.view_token };
+      return { docId: r.id, mode, type: r.type, editToken: mode === 'edit' ? r.edit_token : undefined, viewToken: r.view_token, updatedAt: +new Date(r.updated_at) };
     },
     async loadDoc(id) {
       const { rows } = await pool.query('SELECT state FROM docs WHERE id=$1', [id]);
@@ -95,7 +95,7 @@ function fsStorage(dir) {
     },
     async resolveToken(t) {
       for (const [id, d] of Object.entries(idx)) {
-        const base = { docId: id, type: d.type || 'doc', viewToken: d.viewToken };
+        const base = { docId: id, type: d.type || 'doc', viewToken: d.viewToken, updatedAt: d.updatedAt || 0 };
         if (d.editToken === t) return { ...base, mode: 'edit', editToken: d.editToken };
         if (d.viewToken === t) return { ...base, mode: 'view' };
       }

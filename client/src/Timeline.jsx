@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { ShareMenu } from './ShareExport.jsx';
+import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
+import { printDoc, esc } from './printExport.js';
 
 const DAY = 864e5;
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -145,10 +146,16 @@ export default function Timeline({ info, user, token }) {
     if (sel === m.id) setSel(null);
   }
 
-  // ---- TXT ----
+  // ---- TXT / PDF ----
   const exportTxt = () => download(
     `ציר זמן: ${title || 'ללא שם'}\n\n` + sorted.map((m) => `${m.date} | ${m.text.replace(/\n/g, ' / ')}`).join('\n') + '\n',
     `${title || 'ציר זמן'}.txt`);
+  const exportPdf = () => printDoc(
+    `<h1>${esc(title || 'ציר זמן')}</h1>` + (sorted.length
+      ? sorted.map((m) => `<div class="pm-item" style="border-color:${m.color}"><div class="pm-date">${esc(fmt(m.date))}</div><div class="pm-text">${esc(m.text) || 'ללא תיאור'}</div></div>`).join('')
+      : '<p>אין אבני דרך.</p>'),
+    title || 'ציר זמן',
+    '.pm-item{border-inline-start:4px solid #ccc;padding:.5rem 1rem;margin-bottom:.7rem;break-inside:avoid}.pm-date{font-weight:700;font-size:.85rem;color:#555}.pm-text{font-size:1.02rem;margin-top:.2rem}');
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
@@ -182,10 +189,13 @@ export default function Timeline({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
           </>}
-          <button className="btn" onClick={exportTxt}>הורדה</button>
+          <Menu label="הורדה">
+            <button onClick={exportPdf}>PDF (הדפסה)</button>
+            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+          </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
         </div>

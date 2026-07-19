@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { ShareMenu } from './ShareExport.jsx';
+import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
+import { printDoc, esc } from './printExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const level = (score) => (score > 14 ? 'r' : score >= 12 ? 'o' : score >= 7 ? 'y' : 'g');
+const LEVEL_HEX = { g: '#6ee7a0', y: '#fbe14a', o: '#fdac4e', r: '#f76d6d' };
 const download = (text, name) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
@@ -84,6 +86,22 @@ export default function Risks({ info, user, token }) {
     `ניהול סיכונים: ${title || 'ללא שם'}\n\n` + rows.map((r) =>
       `[${r.num}] ${r.name} | חומרה: ${r.sev} | הסתברות: ${r.prob} | משוקלל: ${r.score}\nפירוט: ${r.detail.replace(/\n/g, ' / ')}\nפעולות: ${r.actions.replace(/\n/g, ' / ')}\n`
     ).join('\n'), `${title || 'ניהול סיכונים'}.txt`);
+  const exportPdf = () => {
+    const nums15 = [1, 2, 3, 4, 5];
+    const tableRows = rows.map((r) => `<tr><td>${r.num}</td><td>${esc(r.name) || '—'}</td><td>${esc(r.detail)}</td><td>${esc(r.actions)}</td><td class="pm-score" style="background:${LEVEL_HEX[level(r.score)]}">${r.score}</td></tr>`).join('');
+    const matrixRows = [5, 4, 3, 2, 1].map((s) => `<div class="pm-row"><span class="pm-ax">${s}</span>` +
+      nums15.map((p) => {
+        const cell = rows.filter((r) => r.sev === s && r.prob === p);
+        return `<span class="pm-cell" style="background:${LEVEL_HEX[level(s * p)]}">${cell.map((r) => r.num).join(',')}</span>`;
+      }).join('') + '</div>').join('') +
+      `<div class="pm-row"><span class="pm-ax"></span>${nums15.map((p) => `<span class="pm-ax">${p}</span>`).join('')}</div>`;
+    printDoc(
+      `<h1>${esc(title || 'ניהול סיכונים')}</h1>` +
+      (rows.length ? `<table><thead><tr><th>#</th><th>נושא</th><th>פירוט</th><th>פעולות</th><th>משוקלל</th></tr></thead><tbody>${tableRows}</tbody></table>` : '<p>אין סיכונים.</p>') +
+      (rows.length ? `<div class="pm-matrix">${matrixRows}</div>` : ''),
+      title || 'ניהול סיכונים',
+      'table{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.85rem}th,td{border:1px solid #ccc;padding:.4rem .5rem;text-align:right}th{background:#f1f5f9}.pm-score{font-weight:700;text-align:center}.pm-matrix{display:flex;flex-direction:column;gap:3px;margin-top:1.5rem;direction:ltr}.pm-row{display:flex;gap:3px}.pm-cell{width:46px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:700;font-size:.72rem}.pm-ax{width:24px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem}');
+  };
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
@@ -128,10 +146,13 @@ export default function Risks({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
           </>}
-          <button className="btn" onClick={exportTxt}>הורדה</button>
+          <Menu label="הורדה">
+            <button onClick={exportPdf}>PDF (הדפסה)</button>
+            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+          </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
         </div>

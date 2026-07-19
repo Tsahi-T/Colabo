@@ -145,17 +145,25 @@ export default function DocPage() {
   const [user, setUser] = useState(getIdentity());
 
   useEffect(() => {
+    // Clear immediately: without this, a client-side nav to a new token (e.g. the chat
+    // sidebar) briefly re-renders the type screen with the OLD info tied to the NEW key,
+    // and its Y.Doc/provider (memoized once) would stay wired to the wrong document forever.
+    setInfo(null);
+    setNotFound(false);
     fetch(`/api/docs/${token}`).then((r) => (r.ok ? r.json() : Promise.reject())).then(setInfo).catch(() => setNotFound(true));
   }, [token]);
 
   if (notFound) return <div className="center-msg"><h2>המסמך לא נמצא</h2><Link to="/">← לדף הבית</Link></div>;
   if (!user) return <IdentityModal onDone={(n, c) => { setIdentity(n, c); setUser({ name: n, color: c }); }} />;
   if (!info) return <div className="center-msg">טוען…</div>;
-  if (info.type === 'board') return <Board info={info} user={user} token={token} />;
-  if (info.type === 'timeline') return <Timeline info={info} user={user} token={token} />;
-  if (info.type === 'risks') return <Risks info={info} user={user} token={token} />;
-  if (info.type === 'swot') return <SWOT info={info} user={user} token={token} />;
-  if (info.type === 'chat') return <Chat info={info} user={user} token={token} />;
-  if (info.type === 'tasks') return <Tasks info={info} user={user} token={token} />;
-  return <EditorView info={info} user={user} token={token} />;
+  // key={token}: forces a full remount on navigation between two documents of the same
+  // type (e.g. the chat sidebar) — otherwise React reuses the instance and the Y.Doc/
+  // WebSocket provider (created once via useMemo(..., [])) would keep pointing at the old doc.
+  if (info.type === 'board') return <Board key={token} info={info} user={user} token={token} />;
+  if (info.type === 'timeline') return <Timeline key={token} info={info} user={user} token={token} />;
+  if (info.type === 'risks') return <Risks key={token} info={info} user={user} token={token} />;
+  if (info.type === 'swot') return <SWOT key={token} info={info} user={user} token={token} />;
+  if (info.type === 'chat') return <Chat key={token} info={info} user={user} token={token} />;
+  if (info.type === 'tasks') return <Tasks key={token} info={info} user={user} token={token} />;
+  return <EditorView key={token} info={info} user={user} token={token} />;
 }

@@ -275,7 +275,7 @@ export default function Board({ info, user, token }) {
         <div className="actions">
           <button className="btn" onClick={fitAll}>הצג הכל</button>
           {editable && <>
-            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
           </>}
           <button className="btn" onClick={exportTxt}>הורדה</button>

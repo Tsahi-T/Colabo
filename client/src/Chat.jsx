@@ -1,17 +1,62 @@
 import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, getRecents } from './identity.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const EMOJIS = ['😀','😂','🤣','😊','😉','😍','🥰','😎','🤔','😐','😴','😢','😭','😡','🤯','🥳','🤝','👍','👎','👏','🙏','💪','👌','✌️','❤️','💔','🔥','⭐','✨','🎉','🎯','✅','❌','⚠️','❓','💡','📌','🚀','☕','🎈'];
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 const fmtDay = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 const dayKey = (ts) => new Date(ts).toDateString();
+const SIDE_MIN = 180, SIDE_MAX = 420, SIDE_DEFAULT = 250;
+const POLL_MS = 20000;
+
+// Right-hand panel: chats visited on this browser, each polled lightly for "changed since I last opened it".
+function ChatSidebar({ currentToken, width, onDragStart }) {
+  const nav = useNavigate();
+  const [chats, setChats] = useState(() => getRecents().filter((r) => r.type === 'chat'));
+  const [unread, setUnread] = useState({});
+
+  useEffect(() => {
+    let stopped = false;
+    async function poll() {
+      const list = getRecents().filter((r) => r.type === 'chat');
+      if (!stopped) setChats(list);
+      const entries = await Promise.all(list.map(async (c) => {
+        if (c.token === currentToken) return [c.token, false];
+        try {
+          const info = await (await fetch('/api/docs/' + c.token)).json();
+          return [c.token, !!info.updatedAt && info.updatedAt > c.at];
+        } catch { return [c.token, false]; }
+      }));
+      if (!stopped) setUnread(Object.fromEntries(entries));
+    }
+    poll();
+    const id = setInterval(poll, POLL_MS);
+    return () => { stopped = true; clearInterval(id); };
+  }, [currentToken]);
+
+  return (
+    <aside className="ch-side" style={{ width }}>
+      <div className="ch-side-head">צ'אטים אחרונים</div>
+      <div className="ch-side-list">
+        {chats.map((c) => (
+          <button key={c.token} className={'ch-side-item' + (c.token === currentToken ? ' active' : '')}
+            onClick={() => nav('/d/' + c.token)}>
+            {unread[c.token] && <span className="ch-side-dot" title="הודעות חדשות" />}
+            <span className="ch-side-title">{c.title || "צ'אט ללא שם"}</span>
+          </button>
+        ))}
+        {!chats.length && <div className="ch-side-empty">הצ'אטים שביקרת בהם יופיעו כאן</div>}
+      </div>
+      <div className="ch-side-resizer" onPointerDown={onDragStart} />
+    </aside>
+  );
+}
 
 export default function Chat({ info, user, token }) {
   const editable = info.mode === 'edit';
@@ -26,6 +71,28 @@ export default function Chat({ info, user, token }) {
   const inputRef = useRef();
   const typingTimer = useRef();
   const vid = useMemo(() => localStorage.getItem('colabo.vid') || 'me', []);
+  const [sideW, setSideW] = useState(() => {
+    const saved = +localStorage.getItem('colabo.chatSideW');
+    return saved >= SIDE_MIN && saved <= SIDE_MAX ? saved : SIDE_DEFAULT;
+  });
+  const latestSideW = useRef(sideW);
+
+  function startResize(e) {
+    e.preventDefault();
+    const startX = e.clientX, startW = sideW;
+    function move(ev) {
+      const w = Math.min(SIDE_MAX, Math.max(SIDE_MIN, startW + (startX - ev.clientX)));
+      latestSideW.current = w;
+      setSideW(w);
+    }
+    function up() {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      localStorage.setItem('colabo.chatSideW', String(latestSideW.current));
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const messages = ydoc.getArray('messages');
@@ -118,6 +185,9 @@ export default function Chat({ info, user, token }) {
         </div>
       </header>
 
+      <div className="ch-body">
+      <ChatSidebar currentToken={token} width={sideW} onDragStart={startResize} />
+      <div className="ch-main">
       <div className="ch-list" ref={listRef}>
         {!msgs.length && <div className="ch-empty">עוד אין הודעות — תכתבו את הראשונה 💬</div>}
         {msgs.map((m, i) => {
@@ -182,6 +252,8 @@ export default function Chat({ info, user, token }) {
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

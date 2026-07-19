@@ -2,18 +2,19 @@ import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { ShareMenu } from './ShareExport.jsx';
+import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PRESETS } from './swot-presets.js';
 import { touchRecent } from './identity.js';
+import { printDoc, esc } from './printExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const QUADS = [
-  { k: 'S', he: 'חוזקות', en: 'Strengths', cls: 'sw-s' },
-  { k: 'W', he: 'חולשות', en: 'Weaknesses', cls: 'sw-w' },
-  { k: 'O', he: 'הזדמנויות', en: 'Opportunities', cls: 'sw-o' },
-  { k: 'T', he: 'איומים', en: 'Threats', cls: 'sw-t' },
+  { k: 'S', he: 'חוזקות', en: 'Strengths', cls: 'sw-s', color: '#22c55e' },
+  { k: 'W', he: 'חולשות', en: 'Weaknesses', cls: 'sw-w', color: '#ef4444' },
+  { k: 'O', he: 'הזדמנויות', en: 'Opportunities', cls: 'sw-o', color: '#3b82f6' },
+  { k: 'T', he: 'איומים', en: 'Threats', cls: 'sw-t', color: '#f97316' },
 ];
 const download = (text, name) => {
   const a = document.createElement('a');
@@ -124,6 +125,13 @@ export default function SWOT({ info, user, token }) {
     });
     download(out, `${title || 'SWOT'}.txt`);
   };
+  const exportPdf = () => printDoc(
+    `<h1>${esc(title || 'ניתוח SWOT')}</h1><div class="pm-grid">` +
+    QUADS.map((q) => `<div class="pm-q" style="border-color:${q.color}"><h2 style="color:${q.color}">${q.k} — ${esc(q.he)} / ${q.en}</h2><ul>` +
+      (grouped[q.k].length ? grouped[q.k].map((r) => `<li>${esc(r.text) || '—'}</li>`).join('') : '<li>—</li>') + '</ul></div>').join('') +
+    '</div>',
+    title || 'ניתוח SWOT',
+    '.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}.pm-q{border:2px solid #ccc;border-radius:8px;padding:.8rem 1.1rem;break-inside:avoid}.pm-q h2{margin:0 0 .5rem;font-size:1.05rem}.pm-q ul{margin:0;padding-inline-start:1.2rem}.pm-q li{margin-bottom:.3rem}');
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
@@ -165,10 +173,13 @@ export default function SWOT({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
           </>}
-          <button className="btn" onClick={exportTxt}>הורדה</button>
+          <Menu label="הורדה">
+            <button onClick={exportPdf}>PDF (הדפסה)</button>
+            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+          </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
         </div>

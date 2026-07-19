@@ -46,6 +46,13 @@ export const IconSwot = () => (
   </svg>
 );
 
+export const IconTasks = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M4 5.5l1.5 1.5L8.5 4M4 12l1.5 1.5L8.5 10M4 18.5l1.5 1.5L8.5 16.5" />
+    <path {...S} d="M12 6h8M12 12.5h8M12 19h8" />
+  </svg>
+);
+
 export const IconTimeline = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M21 12H4.5M4.5 12l3.2-3.2M4.5 12l3.2 3.2" />

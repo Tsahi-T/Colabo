@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks } from './icons.jsx';
 
 const TYPE_ICON = {
   doc: <span className="ricon doc"><IconDoc /></span>,
@@ -11,6 +11,7 @@ const TYPE_ICON = {
   risks: <span className="ricon risks"><IconRisk /></span>,
   swot: <span className="ricon swot"><IconSwot /></span>,
   chat: <span className="ricon chat"><IconChat /></span>,
+  tasks: <span className="ricon tasks"><IconTasks /></span>,
 };
 
 export default function Home() {
@@ -55,6 +56,9 @@ export default function Home() {
         </button>
         <button className="create-card" onClick={() => createDoc('chat')} disabled={busy}>
           <span className="ico chat"><IconChat /></span>צ'אט<small>התכתבות חיה עם כל מי שמחובר</small>
+        </button>
+        <button className="create-card" onClick={() => createDoc('tasks')} disabled={busy}>
+          <span className="ico tasks"><IconTasks /></span>ניהול משימות<small>לוח מעקב — מי אחראי, מה תקוע, מה באיחור</small>
         </button>
       </div>
       {recents.length > 0 && (

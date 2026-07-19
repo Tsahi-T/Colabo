@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useReducer } from 'react';
+import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -12,13 +12,37 @@ const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת�
 const PRIORITIES = { low: 'נמוכה', normal: 'רגילה', high: 'גבוהה', urgent: 'דחוף' };
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
-const download = (text, name) => {
+const UPCOMING_DAYS = 3;
+
+const download = (text, name, mime) => {
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
+  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
 };
+
+// ---- CSV (Excel-compatible: BOM + CRLF), dependency-free ----
+const CSV_HEADERS = ['כותרת', 'תיאור', 'סטטוס', 'עדיפות', 'אחראי', 'תאריך יעד', 'תאריך יעד עדכני'];
+const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const csvRow = (arr) => arr.map(csvEscape).join(',');
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = ''; rows.push(row); row = [];
+    } else field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c !== ''));
+}
 
 export default function Tasks({ info, user, token }) {
   const editable = info.mode === 'edit';
@@ -28,7 +52,8 @@ export default function Tasks({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [view, setView] = useState('board'); // board | table
   const [open, setOpen] = useState(null);    // task id in modal
-  const [filter, setFilter] = useState({ text: '', status: '', assignee: '' });
+  const [filter, setFilter] = useState({ text: '', status: '', assignee: '', upcoming: false });
+  const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const tasks = ydoc.getMap('tasks');
@@ -61,16 +86,26 @@ export default function Tasks({ info, user, token }) {
     .map(([id, t]) => ({
       id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '',
       status: t.get('status') || 'new', priority: t.get('priority') || 'normal',
-      due: t.get('due') || '', follow: t.get('follow') || '', assignee: t.get('assignee') || '',
+      due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', assignee: t.get('assignee') || '',
       log: t.get('log') || [],
     }))
     .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
 
-  const overdue = (t) => t.due && t.status !== 'done' && t.due < today();
-  const followDue = (t) => t.follow && t.status !== 'done' && t.follow <= today();
+  const effDue = (t) => t.dueCurrent || t.due;
+  const overdue = (t) => { const d = effDue(t); return !!d && t.status !== 'done' && d < today(); };
+  const upcoming = (t) => {
+    const d = effDue(t);
+    if (!d || t.status === 'done' || overdue(t)) return false;
+    return (new Date(d) - new Date(today())) / 86400000 <= UPCOMING_DAYS;
+  };
   const assignees = [...new Set(rows.map((t) => t.assignee).filter(Boolean))].sort();
 
   const set = (id, k, v) => tasks.get(id)?.set(k, v);
+  function setDue(id, v) {
+    const t = tasks.get(id);
+    if (!t) return;
+    ydoc.transact(() => { t.set('due', v); if (!t.get('dueCurrent')) t.set('dueCurrent', v); });
+  }
   function logEntry(id, note, from, to) {
     const t = tasks.get(id);
     if (!t) return;
@@ -87,10 +122,21 @@ export default function Tasks({ info, user, token }) {
     ydoc.transact(() => {
       t.set('ord', Math.max(0, ...rows.map((x) => x.ord)) + 1);
       t.set('title', ''); t.set('desc', ''); t.set('status', 'new'); t.set('priority', 'normal');
-      t.set('due', ''); t.set('follow', ''); t.set('assignee', ''); t.set('log', []);
+      t.set('due', ''); t.set('dueCurrent', ''); t.set('assignee', ''); t.set('log', []);
       tasks.set(id, t);
     });
     setOpen(id);
+  }
+  function dup(t) {
+    const id = uid(), nt = new Y.Map();
+    ydoc.transact(() => {
+      nt.set('ord', Math.max(0, ...rows.map((x) => x.ord)) + 1);
+      nt.set('title', t.title ? `${t.title} (עותק)` : ''); nt.set('desc', t.desc);
+      nt.set('status', 'new'); nt.set('priority', t.priority);
+      nt.set('due', t.due); nt.set('dueCurrent', t.dueCurrent);
+      nt.set('assignee', t.assignee); nt.set('log', []);
+      tasks.set(id, nt);
+    });
   }
   function del(t) {
     if (t.title && !confirm(`למחוק את המשימה "${t.title}"?`)) return;
@@ -98,21 +144,44 @@ export default function Tasks({ info, user, token }) {
     if (open === t.id) setOpen(null);
   }
 
-  const exportTxt = () => download(
-    `ניהול משימות: ${title || 'ללא שם'}\n\n` + rows.map((t) =>
-      `[${STATUSES[t.status]}] ${t.title} | עדיפות: ${PRIORITIES[t.priority]}` +
-      `${t.assignee ? ` | אחראי: ${t.assignee}` : ''}${t.due ? ` | יעד: ${fmt(t.due)}` : ''}` +
-      `${t.desc ? `\n  ${t.desc.replace(/\n/g, ' / ')}` : ''}`
-    ).join('\n'), `${title || 'ניהול משימות'}.txt`);
+  const exportCsv = () => download(
+    [csvRow(CSV_HEADERS), ...rows.map((t) => csvRow([t.title, t.desc, STATUSES[t.status], PRIORITIES[t.priority], t.assignee, t.due, t.dueCurrent]))].join('\r\n') + '\r\n',
+    `${title || 'ניהול משימות'}.csv`, 'text/csv;charset=utf-8');
+
+  async function importCsv(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const grid = parseCsv((await f.text()).replace(/^﻿/, '')).slice(1); // drop header row
+    const revStatus = Object.fromEntries(Object.entries(STATUSES).map(([k, v]) => [v, k]));
+    const revPri = Object.fromEntries(Object.entries(PRIORITIES).map(([k, v]) => [v, k]));
+    const parsed = grid.filter((r) => r[0]?.trim()).map((r) => ({
+      title: r[0] || '', desc: r[1] || '', status: revStatus[r[2]] || 'new', priority: revPri[r[3]] || 'normal',
+      assignee: r[4] || '', due: r[5] || '', dueCurrent: r[6] || r[5] || '',
+    }));
+    if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
+    if (tasks.size && !confirm('הטעינה תחליף את כל המשימות הקיימות. להמשיך?')) return;
+    ydoc.transact(() => {
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      parsed.forEach((p, i) => {
+        const t = new Y.Map();
+        t.set('ord', i + 1);
+        Object.entries(p).forEach(([k, v]) => t.set(k, v));
+        t.set('log', []);
+        tasks.set(uid(), t);
+      });
+    });
+  }
 
   const filtered = rows.filter((t) =>
     (!filter.text || (t.title + t.desc).includes(filter.text)) &&
     (!filter.status || t.status === filter.status) &&
-    (!filter.assignee || t.assignee === filter.assignee));
+    (!filter.assignee || t.assignee === filter.assignee) &&
+    (!filter.upcoming || upcoming(t) || overdue(t)));
 
   const stat = {
     overdue: rows.filter(overdue).length,
-    follow: rows.filter(followDue).length,
+    upcoming: rows.filter(upcoming).length,
     waiting: rows.filter((t) => t.status === 'waiting').length,
     open: rows.filter((t) => t.status !== 'done').length,
   };
@@ -133,7 +202,11 @@ export default function Tasks({ info, user, token }) {
           ))}
         </div>
         <div className="actions">
-          <button className="btn" onClick={exportTxt}>הורדה</button>
+          {editable && <>
+            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+          </>}
+          <button className="btn" onClick={exportCsv}>הורדה</button>
           <ShareMenu info={info} />
           <ThemeToggle />
         </div>
@@ -146,10 +219,12 @@ export default function Tasks({ info, user, token }) {
         <button className={'btn tk-tab' + (view === 'table' ? ' sel' : '')} onClick={() => setView('table')}>טבלה</button>
         <span className="sep" />
         <span className={'tk-stat' + (stat.overdue ? ' alert' : '')}>⚠️ באיחור: {stat.overdue}</span>
-        <span className={'tk-stat' + (stat.follow ? ' warn' : '')}>👁️ מעקב להיום: {stat.follow}</span>
+        <span className={'tk-stat' + (stat.upcoming ? ' warn' : '')}>🟡 קרוב ליעד: {stat.upcoming}</span>
         <span className="tk-stat">⏳ ממתין לאחר: {stat.waiting}</span>
         <span className="tk-stat">סה״כ פתוחות: {stat.open}</span>
       </div>
+
+      <datalist id="tk-people">{assignees.map((a) => <option key={a} value={a} />)}</datalist>
 
       {view === 'board' ? (
         <div className="tk-board">
@@ -159,15 +234,14 @@ export default function Tasks({ info, user, token }) {
               onDrop={(e) => { e.preventDefault(); editable && setStatusLogged(e.dataTransfer.getData('text/plain'), s); }}>
               <h3>{label} <span className="tk-count">{rows.filter((t) => t.status === s).length}</span></h3>
               {rows.filter((t) => t.status === s).map((t) => (
-                <div key={t.id} className={'tk-card' + (overdue(t) ? ' overdue' : '')} draggable={editable}
+                <div key={t.id} className={'tk-card' + (overdue(t) ? ' overdue' : upcoming(t) ? ' upcoming' : '')} draggable={editable}
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}
                   onClick={() => setOpen(t.id)}>
                   <div className="tk-card-title">{t.title || 'משימה ללא שם'}</div>
                   <div className="tk-card-meta">
                     <span className={'tk-pri tk-p-' + t.priority}>{PRIORITIES[t.priority]}</span>
                     {t.assignee && <span>👤 {t.assignee}</span>}
-                    {t.due && <span className="tk-due">📅 {fmt(t.due)}</span>}
-                    {followDue(t) && <span className="tk-follow">👁️ מעקב</span>}
+                    {effDue(t) && <span className="tk-due">📅 {fmt(effDue(t))}</span>}
                   </div>
                 </div>
               ))}
@@ -186,19 +260,46 @@ export default function Tasks({ info, user, token }) {
               <option value="">כל האחראים</option>
               {assignees.map((a) => <option key={a}>{a}</option>)}
             </select>
+            <label className="tk-check">
+              <input type="checkbox" checked={filter.upcoming} onChange={(e) => setFilter({ ...filter, upcoming: e.target.checked })} />
+              קרוב ליעד / באיחור
+            </label>
           </div>
           <table className="rk-table tk-table">
-            <thead><tr><th>כותרת</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>מעקב</th>{editable && <th />}</tr></thead>
+            <thead><tr><th>כותרת</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th>{editable && <th />}</tr></thead>
             <tbody>
               {filtered.map((t) => (
-                <tr key={t.id} className={overdue(t) ? 'tk-row-late' : ''} onClick={() => setOpen(t.id)}>
-                  <td className="rk-name">{t.title || '—'}</td>
-                  <td><span className={'tk-chip tk-s-' + t.status}>{STATUSES[t.status]}</span></td>
-                  <td>{PRIORITIES[t.priority]}</td>
-                  <td>{t.assignee || '—'}</td>
-                  <td>{fmt(t.due)}</td>
-                  <td>{fmt(t.follow)}</td>
-                  {editable && <td className="rk-c"><button className="tlr-del" title="מחיקה" onClick={(e) => { e.stopPropagation(); del(t); }}>✕</button></td>}
+                <tr key={t.id} className={overdue(t) ? 'tk-row-late' : upcoming(t) ? 'tk-row-soon' : ''}>
+                  {editable ? (
+                    <>
+                      <td><input className="tk-in" placeholder="כותרת המשימה…" value={t.title} onChange={(e) => set(t.id, 'title', e.target.value)} /></td>
+                      <td><select className="tk-in" value={t.status} onChange={(e) => setStatusLogged(t.id, e.target.value)}>
+                        {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select></td>
+                      <td><select className="tk-in" value={t.priority} onChange={(e) => set(t.id, 'priority', e.target.value)}>
+                        {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select></td>
+                      <td><input className="tk-in" list="tk-people" placeholder="אחראי" value={t.assignee} onChange={(e) => set(t.id, 'assignee', e.target.value)} /></td>
+                      <td><input className="tk-in" type="date" value={t.due} onChange={(e) => setDue(t.id, e.target.value)} /></td>
+                      <td><input className="tk-in" type="date" value={t.dueCurrent} onChange={(e) => set(t.id, 'dueCurrent', e.target.value)} /></td>
+                      <td className="rk-c">
+                        <div className="tk-row-actions">
+                          <button className="tlr-del" title="פרטים והיסטוריה" onClick={() => setOpen(t.id)}>⤢</button>
+                          <button className="tlr-del" title="שכפול שורה" onClick={() => dup(t)}>⧉</button>
+                          <button className="tlr-del" title="מחיקה" onClick={() => del(t)}>✕</button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="rk-name">{t.title || '—'}</td>
+                      <td><span className={'tk-chip tk-s-' + t.status}>{STATUSES[t.status]}</span></td>
+                      <td>{PRIORITIES[t.priority]}</td>
+                      <td>{t.assignee || '—'}</td>
+                      <td>{fmt(t.due)}</td>
+                      <td>{fmt(t.dueCurrent)}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -226,16 +327,15 @@ export default function Tasks({ info, user, token }) {
                 </select>
               </label>
               <label>תאריך יעד
-                <input className="tk-in" type="date" value={cur.due} readOnly={!editable} onChange={(e) => set(cur.id, 'due', e.target.value)} />
+                <input className="tk-in" type="date" value={cur.due} readOnly={!editable} onChange={(e) => setDue(cur.id, e.target.value)} />
               </label>
-              <label>מעקב הבא
-                <input className="tk-in" type="date" value={cur.follow} readOnly={!editable} onChange={(e) => set(cur.id, 'follow', e.target.value)} />
+              <label>יעד עדכני
+                <input className="tk-in" type="date" value={cur.dueCurrent} readOnly={!editable} onChange={(e) => set(cur.id, 'dueCurrent', e.target.value)} />
               </label>
             </div>
             <label className="tk-lbl">אחראי
               <input className="tk-in" list="tk-people" placeholder="שם האחראי" value={cur.assignee} readOnly={!editable}
                 onChange={(e) => set(cur.id, 'assignee', e.target.value)} />
-              <datalist id="tk-people">{assignees.map((a) => <option key={a} value={a} />)}</datalist>
             </label>
             {editable && (
               <form className="tk-note-row" onSubmit={(e) => {

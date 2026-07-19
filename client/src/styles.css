@@ -100,7 +100,9 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .home-theme { position: fixed; top: 12px; inset-inline-end: 12px; }
 
 /* ---------- Modal ---------- */
-.modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); display: grid; place-items: center; z-index: 50; }
+/* flex (not grid place-items) so a modal taller than the viewport scrolls
+   into view instead of having its top edge clipped and unreachable */
+.modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 50; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 2.5rem 1rem; }
 .modal { background: var(--panel); border-radius: 14px; padding: 2rem; width: min(92vw, 380px); text-align: center; box-shadow: var(--shadow-pop); }
 .modal h2 { margin-top: 0; }
 .modal p { color: var(--ink2); font-size: .92rem; }
@@ -651,7 +653,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .tk-card-meta { display: flex; gap: .55rem; margin-top: .3rem; font-size: .76rem; color: var(--ink2); flex-wrap: wrap; align-items: center; }
 .tk-card.overdue .tk-due { color: #dc2626; font-weight: 600; }
 [data-theme='dark'] .tk-card.overdue .tk-due { color: #f87171; }
-.tk-follow { color: #b45309; font-weight: 600; }
+.tk-card.upcoming .tk-due { color: #b45309; font-weight: 600; }
+[data-theme='dark'] .tk-card.upcoming .tk-due { color: #fbbf24; }
 .tk-pri { padding: .05rem .45rem; border-radius: 99px; color: #fff; font-size: .72rem; }
 .tk-p-urgent { background: #dc2626; }
 .tk-p-high { background: #d97706; }
@@ -659,23 +662,31 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .tk-p-low { background: #94a3b8; }
 
 .tk-table-wrap { flex: 1; overflow: auto; padding: 1rem; }
-.tk-filters { display: flex; gap: .5rem; margin-bottom: .8rem; flex-wrap: wrap; }
+.tk-filters { display: flex; align-items: center; gap: .5rem; margin-bottom: .8rem; flex-wrap: wrap; }
 .tk-filters input, .tk-filters select { background: var(--panel); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .4rem .7rem; }
-.tk-table tbody tr { cursor: pointer; }
-.tk-table tbody tr:hover { background: var(--hover); }
+.tk-check {
+  display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink2);
+  padding: .38rem .7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); cursor: pointer;
+}
 .tk-row-late td:first-child { color: #dc2626; font-weight: 600; }
 [data-theme='dark'] .tk-row-late td:first-child { color: #f87171; }
+.tk-row-soon td:first-child { color: #b45309; font-weight: 600; }
+[data-theme='dark'] .tk-row-soon td:first-child { color: #fbbf24; }
 .tk-chip { padding: .12rem .55rem; border-radius: 99px; font-size: .76rem; color: #fff; white-space: nowrap; }
 .tk-chip.tk-s-new { background: var(--ink3); }
 .tk-chip.tk-s-in_progress { background: var(--accent); }
 .tk-chip.tk-s-waiting { background: #d97706; }
 .tk-chip.tk-s-done { background: #16a34a; }
+.tk-row-actions { display: flex; gap: .2rem; justify-content: center; }
+/* inputs embedded directly in table cells stay compact; the modal's own .tk-in stays roomy */
+.tk-table td .tk-in { padding: .3rem .5rem; font-size: .85rem; }
 
-.tk-modal { width: min(94vw, 540px); text-align: start; display: flex; flex-direction: column; gap: .6rem; max-height: 88vh; overflow-y: auto; }
-.tk-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .45rem .65rem; font-family: inherit; font-size: .9rem; box-sizing: border-box; }
-.tk-title-in { font-size: 1.05rem; font-weight: 600; }
+.tk-modal { width: min(94vw, 580px); text-align: start; display: flex; flex-direction: column; gap: .7rem; max-height: calc(100vh - 5rem); overflow-y: auto; }
+.tk-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .55rem .75rem; font-family: inherit; font-size: .92rem; box-sizing: border-box; }
+textarea.tk-in { min-height: 80px; resize: vertical; line-height: 1.5; }
+.tk-title-in { font-size: 1.08rem; font-weight: 600; }
 .tk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-.tk-grid label, .tk-lbl { display: flex; flex-direction: column; gap: .25rem; font-size: .8rem; color: var(--ink2); }
+.tk-grid label, .tk-lbl { display: flex; flex-direction: column; gap: .3rem; font-size: .82rem; color: var(--ink2); }
 .tk-note-row { display: flex; gap: .5rem; }
 .tk-log { max-height: 150px; overflow-y: auto; font-size: .8rem; color: var(--ink2); border-top: 1px solid var(--border); }
 .tk-log-row { padding: .35rem 0; border-bottom: 1px solid var(--border); }

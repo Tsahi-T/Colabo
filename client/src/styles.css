@@ -670,28 +670,45 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .tk-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: .55rem .65rem; margin-bottom: .5rem; cursor: pointer; box-shadow: var(--card-shadow); }
 .tk-card:hover { border-color: var(--accent); }
 .tk-card-title { font-weight: 600; font-size: .9rem; }
+.tk-card-desc { font-size: .78rem; color: var(--ink3); margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tk-card-meta { display: flex; gap: .55rem; margin-top: .3rem; font-size: .76rem; color: var(--ink2); flex-wrap: wrap; align-items: center; }
 .tk-card.overdue .tk-due { color: #dc2626; font-weight: 600; }
 [data-theme='dark'] .tk-card.overdue .tk-due { color: #f87171; }
 .tk-card.upcoming .tk-due { color: #b45309; font-weight: 600; }
 [data-theme='dark'] .tk-card.upcoming .tk-due { color: #fbbf24; }
-.tk-pri { padding: .05rem .45rem; border-radius: 99px; color: #fff; font-size: .72rem; }
-.tk-p-urgent { background: #dc2626; }
-.tk-p-high { background: #d97706; }
-.tk-p-normal { background: var(--ink3); }
-.tk-p-low { background: #94a3b8; }
+/* priority is now a compact 1–3 chip instead of a labeled pill */
+.tk-pri {
+  display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 50%;
+  color: #fff; font-size: .7rem; font-weight: 800; flex-shrink: 0;
+}
+.tk-p-1 { background: var(--ink3); }
+.tk-p-2 { background: #d97706; }
+.tk-p-3 { background: #dc2626; }
 
 .tk-table-wrap { flex: 1; overflow: auto; padding: 1rem; }
+.tk-in-desc { font-size: .76rem; color: var(--ink3); margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 .tk-filters { display: flex; align-items: center; gap: .5rem; margin-bottom: .8rem; flex-wrap: wrap; }
 .tk-filters input, .tk-filters select { background: var(--panel); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .4rem .7rem; }
 .tk-check {
   display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink2);
   padding: .38rem .7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); cursor: pointer;
 }
-.tk-row-late td:first-child { color: #dc2626; font-weight: 600; }
-[data-theme='dark'] .tk-row-late td:first-child { color: #f87171; }
-.tk-row-soon td:first-child { color: #b45309; font-weight: 600; }
-[data-theme='dark'] .tk-row-soon td:first-child { color: #fbbf24; }
+/* row tone: a background tint reads regardless of whether the cell holds text or an <input> */
+.tk-row-late { background: rgba(239, 68, 68, .09); }
+.tk-row-late:hover { background: rgba(239, 68, 68, .16); }
+.tk-row-soon { background: rgba(217, 119, 6, .09); }
+.tk-row-soon:hover { background: rgba(217, 119, 6, .16); }
+/* header: sort button + inline filter select, stacked */
+.tk-table th { padding: .3rem .4rem; vertical-align: top; }
+.tk-th-sort {
+  display: block; width: 100%; border: 0; background: none; color: inherit; font: inherit; font-weight: 700;
+  text-align: start; padding: .25rem .2rem; border-radius: 6px; white-space: nowrap;
+}
+.tk-th-sort:hover { background: var(--hover); }
+.tk-th-filter {
+  width: 100%; margin-top: .2rem; font-size: .72rem; font-weight: 400; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--panel); color: var(--ink2); padding: .15rem .3rem;
+}
 .tk-chip { padding: .12rem .55rem; border-radius: 99px; font-size: .76rem; color: #fff; white-space: nowrap; }
 .tk-chip.tk-s-new { background: var(--ink3); }
 .tk-chip.tk-s-in_progress { background: var(--accent); }

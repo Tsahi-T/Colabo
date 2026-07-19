@@ -8,8 +8,8 @@ import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
-const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר', done: 'בוצע' };
-const PRIORITIES = { low: 'נמוכה', normal: 'רגילה', high: 'גבוהה', urgent: 'דחוף' };
+const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
+const PRIORITIES = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
 const UPCOMING_DAYS = 3;
@@ -52,7 +52,8 @@ export default function Tasks({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [view, setView] = useState('board'); // board | table
   const [open, setOpen] = useState(null);    // task id in modal
-  const [filter, setFilter] = useState({ text: '', status: '', assignee: '', upcoming: false });
+  const [filter, setFilter] = useState({ text: '', status: '', priority: '', assignee: '', upcoming: false });
+  const [sort, setSort] = useState({ key: null, dir: 1 });
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -85,7 +86,7 @@ export default function Tasks({ info, user, token }) {
   const rows = [...tasks.entries()]
     .map(([id, t]) => ({
       id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '',
-      status: t.get('status') || 'new', priority: t.get('priority') || 'normal',
+      status: t.get('status') || 'new', priority: t.get('priority') || 1,
       due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', assignee: t.get('assignee') || '',
       log: t.get('log') || [],
     }))
@@ -121,7 +122,7 @@ export default function Tasks({ info, user, token }) {
     const id = uid(), t = new Y.Map();
     ydoc.transact(() => {
       t.set('ord', Math.max(0, ...rows.map((x) => x.ord)) + 1);
-      t.set('title', ''); t.set('desc', ''); t.set('status', 'new'); t.set('priority', 'normal');
+      t.set('title', ''); t.set('desc', ''); t.set('status', 'new'); t.set('priority', 1);
       t.set('due', ''); t.set('dueCurrent', ''); t.set('assignee', ''); t.set('log', []);
       tasks.set(id, t);
     });
@@ -154,9 +155,9 @@ export default function Tasks({ info, user, token }) {
     if (!f) return;
     const grid = parseCsv((await f.text()).replace(/^﻿/, '')).slice(1); // drop header row
     const revStatus = Object.fromEntries(Object.entries(STATUSES).map(([k, v]) => [v, k]));
-    const revPri = Object.fromEntries(Object.entries(PRIORITIES).map(([k, v]) => [v, k]));
+    const revPri = Object.fromEntries(Object.entries(PRIORITIES).map(([k, v]) => [v, +k]));
     const parsed = grid.filter((r) => r[0]?.trim()).map((r) => ({
-      title: r[0] || '', desc: r[1] || '', status: revStatus[r[2]] || 'new', priority: revPri[r[3]] || 'normal',
+      title: r[0] || '', desc: r[1] || '', status: revStatus[r[2]] || 'new', priority: revPri[r[3]] || 1,
       assignee: r[4] || '', due: r[5] || '', dueCurrent: r[6] || r[5] || '',
     }));
     if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
@@ -173,11 +174,26 @@ export default function Tasks({ info, user, token }) {
     });
   }
 
-  const filtered = rows.filter((t) =>
+  let filtered = rows.filter((t) =>
     (!filter.text || (t.title + t.desc).includes(filter.text)) &&
     (!filter.status || t.status === filter.status) &&
+    (!filter.priority || t.priority === +filter.priority) &&
     (!filter.assignee || t.assignee === filter.assignee) &&
     (!filter.upcoming || upcoming(t) || overdue(t)));
+
+  const SORTERS = {
+    title: (t) => t.title, status: (t) => Object.keys(STATUSES).indexOf(t.status), priority: (t) => t.priority,
+    assignee: (t) => t.assignee, due: (t) => t.due || '9999', dueCurrent: (t) => effDue(t) || '9999',
+  };
+  if (sort.key) {
+    const get = SORTERS[sort.key];
+    filtered = [...filtered].sort((a, b) => {
+      const av = get(a), bv = get(b);
+      return (av > bv ? 1 : av < bv ? -1 : 0) * sort.dir;
+    });
+  }
+  const toggleSort = (key) => setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: 1 }));
+  const sortArrow = (key) => (sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : '');
 
   const stat = {
     overdue: rows.filter(overdue).length,
@@ -187,6 +203,7 @@ export default function Tasks({ info, user, token }) {
   };
 
   const cur = open && rows.find((t) => t.id === open);
+  const rowTone = (t) => (overdue(t) ? ' tk-row-late' : upcoming(t) ? ' tk-row-soon' : '');
 
   return (
     <div className="doc-page">
@@ -203,7 +220,7 @@ export default function Tasks({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" onClick={() => fileRef.current.click()}>טעינה</button>
+            <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
           </>}
           <button className="btn" onClick={exportCsv}>הורדה</button>
@@ -220,7 +237,7 @@ export default function Tasks({ info, user, token }) {
         <span className="sep" />
         <span className={'tk-stat' + (stat.overdue ? ' alert' : '')}>⚠️ באיחור: {stat.overdue}</span>
         <span className={'tk-stat' + (stat.upcoming ? ' warn' : '')}>🟡 קרוב ליעד: {stat.upcoming}</span>
-        <span className="tk-stat">⏳ ממתין לאחר: {stat.waiting}</span>
+        <span className="tk-stat">⏳ ממתין לאחר / בפער: {stat.waiting}</span>
         <span className="tk-stat">סה״כ פתוחות: {stat.open}</span>
       </div>
 
@@ -238,8 +255,9 @@ export default function Tasks({ info, user, token }) {
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}
                   onClick={() => setOpen(t.id)}>
                   <div className="tk-card-title">{t.title || 'משימה ללא שם'}</div>
+                  {t.desc && <div className="tk-card-desc">{t.desc.split('\n')[0]}</div>}
                   <div className="tk-card-meta">
-                    <span className={'tk-pri tk-p-' + t.priority}>{PRIORITIES[t.priority]}</span>
+                    <span className={'tk-pri tk-p-' + t.priority} title={'עדיפות ' + t.priority + ' — ' + PRIORITIES[t.priority]}>{t.priority}</span>
                     {t.assignee && <span>👤 {t.assignee}</span>}
                     {effDue(t) && <span className="tk-due">📅 {fmt(effDue(t))}</span>}
                   </div>
@@ -252,32 +270,55 @@ export default function Tasks({ info, user, token }) {
         <div className="tk-table-wrap">
           <div className="tk-filters">
             <input placeholder="🔍 חיפוש…" value={filter.text} onChange={(e) => setFilter({ ...filter, text: e.target.value })} />
-            <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
-              <option value="">כל הסטטוסים</option>
-              {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <select value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
-              <option value="">כל האחראים</option>
-              {assignees.map((a) => <option key={a}>{a}</option>)}
-            </select>
             <label className="tk-check">
               <input type="checkbox" checked={filter.upcoming} onChange={(e) => setFilter({ ...filter, upcoming: e.target.checked })} />
               קרוב ליעד / באיחור
             </label>
           </div>
           <table className="rk-table tk-table">
-            <thead><tr><th>כותרת</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th>{editable && <th />}</tr></thead>
+            <thead>
+              <tr>
+                <th><button className="tk-th-sort" onClick={() => toggleSort('title')}>כותרת{sortArrow('title')}</button></th>
+                <th>
+                  <button className="tk-th-sort" onClick={() => toggleSort('status')}>סטטוס{sortArrow('status')}</button>
+                  <select className="tk-th-filter" value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
+                    <option value="">הכל</option>
+                    {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </th>
+                <th>
+                  <button className="tk-th-sort" onClick={() => toggleSort('priority')}>עדיפות{sortArrow('priority')}</button>
+                  <select className="tk-th-filter" value={filter.priority} onChange={(e) => setFilter({ ...filter, priority: e.target.value })}>
+                    <option value="">הכל</option>
+                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
+                  </select>
+                </th>
+                <th>
+                  <button className="tk-th-sort" onClick={() => toggleSort('assignee')}>אחראי{sortArrow('assignee')}</button>
+                  <select className="tk-th-filter" value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
+                    <option value="">הכל</option>
+                    {assignees.map((a) => <option key={a}>{a}</option>)}
+                  </select>
+                </th>
+                <th><button className="tk-th-sort" onClick={() => toggleSort('due')}>תאריך יעד{sortArrow('due')}</button></th>
+                <th><button className="tk-th-sort" onClick={() => toggleSort('dueCurrent')}>יעד עדכני{sortArrow('dueCurrent')}</button></th>
+                {editable && <th />}
+              </tr>
+            </thead>
             <tbody>
               {filtered.map((t) => (
-                <tr key={t.id} className={overdue(t) ? 'tk-row-late' : upcoming(t) ? 'tk-row-soon' : ''}>
+                <tr key={t.id} className={rowTone(t)}>
                   {editable ? (
                     <>
-                      <td><input className="tk-in" placeholder="כותרת המשימה…" value={t.title} onChange={(e) => set(t.id, 'title', e.target.value)} /></td>
+                      <td>
+                        <input className="tk-in" placeholder="כותרת המשימה…" value={t.title} onChange={(e) => set(t.id, 'title', e.target.value)} />
+                        {t.desc && <div className="tk-in-desc">{t.desc.split('\n')[0]}</div>}
+                      </td>
                       <td><select className="tk-in" value={t.status} onChange={(e) => setStatusLogged(t.id, e.target.value)}>
                         {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                       </select></td>
-                      <td><select className="tk-in" value={t.priority} onChange={(e) => set(t.id, 'priority', e.target.value)}>
-                        {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      <td><select className="tk-in" value={t.priority} onChange={(e) => set(t.id, 'priority', +e.target.value)}>
+                        {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
                       </select></td>
                       <td><input className="tk-in" list="tk-people" placeholder="אחראי" value={t.assignee} onChange={(e) => set(t.id, 'assignee', e.target.value)} /></td>
                       <td><input className="tk-in" type="date" value={t.due} onChange={(e) => setDue(t.id, e.target.value)} /></td>
@@ -292,9 +333,9 @@ export default function Tasks({ info, user, token }) {
                     </>
                   ) : (
                     <>
-                      <td className="rk-name">{t.title || '—'}</td>
+                      <td className="rk-name">{t.title || '—'}{t.desc && <div className="tk-in-desc">{t.desc.split('\n')[0]}</div>}</td>
                       <td><span className={'tk-chip tk-s-' + t.status}>{STATUSES[t.status]}</span></td>
-                      <td>{PRIORITIES[t.priority]}</td>
+                      <td><span className={'tk-pri tk-p-' + t.priority}>{t.priority} — {PRIORITIES[t.priority]}</span></td>
                       <td>{t.assignee || '—'}</td>
                       <td>{fmt(t.due)}</td>
                       <td>{fmt(t.dueCurrent)}</td>
@@ -322,8 +363,8 @@ export default function Tasks({ info, user, token }) {
                 </select>
               </label>
               <label>עדיפות
-                <select className="tk-in" value={cur.priority} disabled={!editable} onChange={(e) => set(cur.id, 'priority', e.target.value)}>
-                  {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                <select className="tk-in" value={cur.priority} disabled={!editable} onChange={(e) => set(cur.id, 'priority', +e.target.value)}>
+                  {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
                 </select>
               </label>
               <label>תאריך יעד

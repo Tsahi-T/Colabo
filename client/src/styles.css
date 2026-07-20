@@ -743,6 +743,22 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 
 @media print { .topbar, .toolbar { display: none; } .editor-wrap { overflow: visible; } .ProseMirror { border: 0; } }
 
+/* Export-to-PDF: print only the target screen's real visual, scaled to one page. */
+@media print {
+  body.printing * { visibility: hidden !important; }
+  body.printing .print-target, body.printing .print-target * { visibility: visible !important; }
+  body.printing .print-target {
+    position: fixed !important; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--print-scale, 1)) !important;
+    transform-origin: center center !important;
+    overflow: visible !important; margin: 0 !important; box-shadow: none !important;
+  }
+  /* the target's sub-elements must not clip their overflow during capture */
+  body.printing .print-target.tl-stage,
+  body.printing .print-target.sun-stage,
+  body.printing .print-target.rk-page { overflow: visible !important; }
+}
+
 /* ---------- Tasks (tk-) ---------- */
 .ico.tasks { background: rgba(236, 72, 153, .12); color: #db2777; }
 [data-theme='dark'] .ico.tasks { color: #f9a8d4; }

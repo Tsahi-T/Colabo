@@ -6,7 +6,7 @@ import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
-import { printDoc, esc } from './printExport.js';
+import { printElementImage } from './imageExport.js';
 
 const DAY = 864e5;
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -150,12 +150,7 @@ export default function Timeline({ info, user, token }) {
   const exportTxt = () => download(
     `ציר זמן: ${title || 'ללא שם'}\n\n` + sorted.map((m) => `${m.date} | ${m.text.replace(/\n/g, ' / ')}`).join('\n') + '\n',
     `${title || 'ציר זמן'}.txt`);
-  const exportPdf = () => printDoc(
-    `<h1>${esc(title || 'ציר זמן')}</h1>` + (sorted.length
-      ? sorted.map((m) => `<div class="pm-item" style="border-color:${m.color}"><div class="pm-date">${esc(fmt(m.date))}</div><div class="pm-text">${esc(m.text) || 'ללא תיאור'}</div></div>`).join('')
-      : '<p>אין אבני דרך.</p>'),
-    title || 'ציר זמן',
-    '.pm-item{border-inline-start:4px solid #ccc;padding:.5rem 1rem;margin-bottom:.7rem;break-inside:avoid}.pm-date{font-weight:700;font-size:.85rem;color:#555}.pm-text{font-size:1.02rem;margin-top:.2rem}');
+  const exportPdf = () => printElementImage('.tl-stage', { title: title || 'ציר זמן', landscape: true });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';

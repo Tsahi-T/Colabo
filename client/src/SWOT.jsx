@@ -7,7 +7,7 @@ import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PRESETS } from './swot-presets.js';
 import { touchRecent } from './identity.js';
-import { printDoc, esc } from './printExport.js';
+import { printElementImage } from './imageExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const QUADS = [
@@ -125,13 +125,7 @@ export default function SWOT({ info, user, token }) {
     });
     download(out, `${title || 'SWOT'}.txt`);
   };
-  const exportPdf = () => printDoc(
-    `<h1>${esc(title || 'ניתוח SWOT')}</h1><div class="pm-grid">` +
-    QUADS.map((q) => `<div class="pm-q" style="border-color:${q.color}"><h2 style="color:${q.color}">${q.k} — ${esc(q.he)} / ${q.en}</h2><ul>` +
-      (grouped[q.k].length ? grouped[q.k].map((r) => `<li>${esc(r.text) || '—'}</li>`).join('') : '<li>—</li>') + '</ul></div>').join('') +
-    '</div>',
-    title || 'ניתוח SWOT',
-    '.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}.pm-q{border:2px solid #ccc;border-radius:8px;padding:.8rem 1.1rem;break-inside:avoid}.pm-q h2{margin:0 0 .5rem;font-size:1.05rem}.pm-q ul{margin:0;padding-inline-start:1.2rem}.pm-q li{margin-bottom:.3rem}');
+  const exportPdf = () => printElementImage('.sw-grid', { title: title || 'ניתוח SWOT' });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';

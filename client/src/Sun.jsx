@@ -6,7 +6,7 @@ import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent } from './identity.js';
-import { printDoc, esc } from './printExport.js';
+import { printElementImage } from './imageExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const GOLDEN_ANGLE = (137.508 * Math.PI) / 180;
@@ -97,11 +97,7 @@ export default function Sun({ info, user, token }) {
   const exportTxt = () => download(
     `שמש אסוציאציות: ${core || title || 'ללא שם'}\n\n` + petals.map((p) => `- ${p.text}`).join('\n') + '\n',
     `${title || 'שמש אסוציאציות'}.txt`);
-  const exportPdf = () => printDoc(
-    `<h1>${esc(title || 'שמש אסוציאציות')}</h1><div class="sun-core">${esc(core) || '—'}</div><ul>` +
-    (petals.length ? petals.map((p) => `<li>${esc(p.text) || '—'}</li>`).join('') : '<li>—</li>') + '</ul>',
-    title || 'שמש אסוציאציות',
-    '.sun-core{font-size:1.3rem;font-weight:800;text-align:center;background:#2563eb;color:#fff;border-radius:99px;padding:.6rem 1rem;max-width:340px;margin:1rem auto}ul{max-width:420px;margin:1rem auto;font-size:1.05rem}li{margin-bottom:.4rem}');
+  const exportPdf = () => printElementImage('.sun-stage', { title: title || 'שמש אסוציאציות', landscape: true });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';

@@ -9,8 +9,7 @@ import { touchRecent } from './identity.js';
 import { printDoc, esc } from './printExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
-// Vibrant ray palette — cycled by petal index so every board looks lively.
-const RAYS = ['#3b82f6', '#f97316', '#22c55e', '#a855f7', '#ec4899', '#06b6d4', '#eab308', '#ef4444', '#14b8a6', '#8b5cf6'];
+const GOLDEN_ANGLE = (137.508 * Math.PI) / 180;
 const download = (text, name, mime = 'text/plain;charset=utf-8') => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
@@ -19,16 +18,34 @@ const download = (text, name, mime = 'text/plain;charset=utf-8') => {
   URL.revokeObjectURL(a.href);
 };
 
+// Golden-angle spiral (elliptical to use wide screens) — evenly spreads nodes
+// around the center, growing outward as the network gets denser. Ported from Socio.
+function layoutNodes(count, w, h) {
+  const cx = w / 2, cy = h / 2;
+  const rMinX = Math.min(180, w / 2 - 90), rMinY = 130;
+  const rMaxX = Math.max(w / 2 - 100, rMinX + 30), rMaxY = Math.max(h / 2 - 50, rMinY + 20);
+  return Array.from({ length: count }, (_, i) => {
+    const spread = count > 1 ? Math.pow(i / (count - 1), 0.65) : 0;
+    const angle = -Math.PI / 2 + i * GOLDEN_ANGLE;
+    return {
+      x: cx + Math.cos(angle) * (rMinX + (rMaxX - rMinX) * spread),
+      y: cy + Math.sin(angle) * (rMinY + (rMaxY - rMinY) * spread),
+    };
+  });
+}
+
 export default function Sun({ info, user, token }) {
   const editable = info.mode === 'edit';
   const [, force] = useReducer((c) => c + 1, 0);
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
+  const [size, setSize] = useState({ width: 900, height: 560 });
+  const stageRef = useRef();
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
-  const nodes = ydoc.getMap('nodes'); // id -> Y.Map{ text, ord }
+  const nodes = ydoc.getMap('nodes');
   const meta = ydoc.getMap('meta');
   const provider = useMemo(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -52,6 +69,14 @@ export default function Sun({ info, user, token }) {
     return () => { ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
   }, []);
 
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => e && setSize({ width: e.contentRect.width, height: e.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => { touchRecent(token, title, info.mode, 'sun'); }, [title]);
 
   const core = meta.get('core') || '';
@@ -59,20 +84,15 @@ export default function Sun({ info, user, token }) {
     .map(([id, n]) => ({ id, text: n.get('text') || '', ord: n.get('ord') || 0 }))
     .sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
 
+  const cx = size.width / 2, cy = size.height / 2;
+  const positions = useMemo(() => layoutNodes(petals.length, size.width, size.height), [petals.length, size.width, size.height]);
+
   function addPetal(text = '') {
     const id = uid(), n = new Y.Map();
     ydoc.transact(() => { n.set('text', text); n.set('ord', Math.max(0, ...petals.map((p) => p.ord)) + 1); nodes.set(id, n); });
   }
   const setPetal = (id, text) => nodes.get(id)?.set('text', text);
   const delPetal = (id) => nodes.delete(id);
-
-  // Even radial layout — positions derive from index/count, so it always stays tidy.
-  const n = petals.length;
-  const R = 40; // % of stage from center
-  const pos = (i) => {
-    const a = (-90 + (360 * i) / Math.max(1, n)) * (Math.PI / 180);
-    return { x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) };
-  };
 
   const exportTxt = () => download(
     `שמש אסוציאציות: ${core || title || 'ללא שם'}\n\n` + petals.map((p) => `- ${p.text}`).join('\n') + '\n',
@@ -88,7 +108,7 @@ export default function Sun({ info, user, token }) {
     if (!f) return;
     const lines = (await f.text()).split(/\r?\n/);
     const coreLine = lines.find((l) => /^שמש אסוציאציות:/.test(l));
-    const items = lines.map((l) => l.match(/^-\s*(.+)/)).filter(Boolean).map((m) => m[1]);
+    const items = lines.map((l) => l.match(/^\s*[-*]\s*(.+)/)).filter(Boolean).map((m) => m[1]);
     if (!items.length && !coreLine) return alert('לא נמצא תוכן בקובץ');
     if ((nodes.size || core) && !confirm('הטעינה תחליף את התוכן הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
@@ -127,31 +147,37 @@ export default function Sun({ info, user, token }) {
       {editable && (
         <div className="toolbar board-bar">
           <button className="btn-primary" onClick={() => addPetal()}>+ אסוציאציה</button>
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>לחיצה על מילה עורכת אותה · מוסיפים אסוציאציות והשמש מסתדרת מעצמה</span>
+          {petals.length > 0 && <span className="sun-count">{petals.length} אסוציאציות</span>}
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>מוסיפים מילים והן מתחברות לרשת סביב הנושא</span>
         </div>
       )}
       <div className="sun-wrap">
-        <div className="sun-stage">
-          <svg className="sun-rays" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <div className="sun-stage" ref={stageRef}>
+          <svg className="sun-net" width={size.width} height={size.height} aria-hidden="true">
             {petals.map((p, i) => {
-              const { x, y } = pos(i);
-              return <line key={p.id} x1="50" y1="50" x2={x} y2={y} stroke={RAYS[i % RAYS.length]} strokeWidth="0.5" />;
+              const pos = positions[i];
+              return pos && <line key={p.id} className="sna-line" x1={cx} y1={cy} x2={pos.x} y2={pos.y} />;
             })}
           </svg>
-          <div className="sun-core">
-            {editable
-              ? <textarea value={core} placeholder="הנושא המרכזי" rows={1} onChange={(e) => meta.set('core', e.target.value)} />
-              : (core || <span className="sun-ph">הנושא המרכזי</span>)}
+
+          <div className="sun-core-wrap" style={{ left: cx, top: cy }}>
+            <span className="sun-halo" aria-hidden="true" />
+            <div className="sun-core">
+              {editable
+                ? <textarea value={core} placeholder="הנושא המרכזי" rows={1} onChange={(e) => meta.set('core', e.target.value)} />
+                : (core || <span className="sun-ph">הנושא המרכזי</span>)}
+            </div>
           </div>
+
           {petals.map((p, i) => {
-            const { x, y } = pos(i);
-            const color = RAYS[i % RAYS.length];
+            const pos = positions[i];
+            if (!pos) return null;
             return (
-              <div key={p.id} className="sun-petal" style={{ left: x + '%', top: y + '%', '--pc': color }}>
+              <div key={p.id} className="sun-petal" style={{ left: pos.x, top: pos.y }}>
                 {editable ? (
                   <>
                     <textarea value={p.text} placeholder="אסוציאציה" rows={1} onChange={(e) => setPetal(p.id, e.target.value)} />
-                    <button className="sun-petal-del" onClick={() => delPetal(p.id)}>✕</button>
+                    <button className="sun-petal-del" title="מחיקה" onClick={() => delPetal(p.id)}>✕</button>
                   </>
                 ) : (
                   <span className="sun-petal-text">{p.text || '—'}</span>
@@ -159,8 +185,9 @@ export default function Sun({ info, user, token }) {
               </div>
             );
           })}
-          {!petals.length && !core && editable && (
-            <div className="sun-empty">התחילו מהנושא המרכזי, והוסיפו אסוציאציות סביבו ☀️</div>
+
+          {!petals.length && !core && (
+            <div className="sun-empty">{editable ? 'התחילו מהנושא המרכזי, והוסיפו אסוציאציות סביבו ☀️' : 'השמש ריקה עדיין'}</div>
           )}
         </div>
       </div>

@@ -9,6 +9,13 @@ export const Logo = ({ size = 26 }) => (
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
 
+export const IconSun = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.2" {...S} />
+    <path {...S} d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" />
+  </svg>
+);
+
 export const IconDoc = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M6 3h8l5 5v13H6z" />

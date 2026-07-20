@@ -62,9 +62,10 @@ async function pgStorage(url) {
       return rows[0] ? { mime: rows[0].mime, data: rows[0].data } : null;
     },
     // Retention: docs untouched (no edit) for `days` are purged; images cascade via FK.
+    // 'tasks' are exempt — a task board is durable, low-volume, textual working memory.
     async deleteStale(days) {
       const { rows } = await pool.query(
-        'DELETE FROM docs WHERE updated_at < now() - make_interval(days => $1) RETURNING id', [days]);
+        "DELETE FROM docs WHERE type <> 'tasks' AND updated_at < now() - make_interval(days => $1) RETURNING id", [days]);
       return rows.length;
     },
     async trackVisit(vid, day) {
@@ -110,10 +111,12 @@ function fsStorage(dir) {
       if (idx[id]) { idx[id].updatedAt = Date.now(); save(); }
     },
     // Retention: docs untouched (no edit) for `days` are purged (dev-mode parity with pgStorage).
+    // 'tasks' are exempt — a task board is durable, low-volume, textual working memory.
     async deleteStale(days) {
       const cutoff = Date.now() - days * 86400000;
       let count = 0;
       for (const [id, d] of Object.entries(idx)) {
+        if (d.type === 'tasks') continue;
         if ((d.updatedAt || 0) < cutoff) {
           delete idx[id];
           const f = p(`doc_${id}.bin`);

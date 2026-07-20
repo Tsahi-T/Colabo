@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun } from './icons.jsx';
 
 const TYPE_ICON = {
   doc: <span className="ricon doc"><IconDoc /></span>,
@@ -12,6 +12,7 @@ const TYPE_ICON = {
   swot: <span className="ricon swot"><IconSwot /></span>,
   chat: <span className="ricon chat"><IconChat /></span>,
   tasks: <span className="ricon tasks"><IconTasks /></span>,
+  sun: <span className="ricon sun"><IconSun /></span>,
 };
 
 export default function Home() {
@@ -59,6 +60,9 @@ export default function Home() {
         </button>
         <button className="create-card" onClick={() => createDoc('tasks')} disabled={busy}>
           <span className="ico tasks"><IconTasks /></span>ניהול משימות<small>לוח מעקב — מי אחראי, מה תקוע, מה באיחור</small>
+        </button>
+        <button className="create-card" onClick={() => createDoc('sun')} disabled={busy}>
+          <span className="ico sun"><IconSun /></span>שמש אסוציאציות<small>נושא מרכזי ומילים סביבו לסיעור מוחות</small>
         </button>
       </div>
       {recents.length > 0 && (

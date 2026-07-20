@@ -1,16 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
-import { Logo } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun } from './icons.jsx';
 
 const RANGES = { week: { days: 7, label: 'שבוע' }, month: { days: 30, label: 'חודש' }, year: { days: 365, label: 'שנה' } };
 const fmtDay = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
 
+const TOOLS = [
+  { icon: <IconDoc />, cls: 'doc', name: 'מסמך', desc: 'מעבד תמלילים משותף — עיצוב מלא, כותרות, טבלאות ותמונות.' },
+  { icon: <IconBoard />, cls: 'board', name: 'לוח חשיבה', desc: 'פתקים צבעוניים על קנבס אינסופי, עם קווי קשר וגרירה חופשית.' },
+  { icon: <IconTimeline />, cls: 'timeline', name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים יחסי — לתכנון וסקירה.' },
+  { icon: <IconRisk />, cls: 'risks', name: 'ניהול סיכונים', desc: 'טבלת סיכונים ומטריצת חומרה × הסתברות שנצבעת מעצמה.' },
+  { icon: <IconSwot />, cls: 'swot', name: 'ניתוח SWOT', desc: 'ארבעה רבעים — חוזקות, חולשות, הזדמנויות ואיומים.' },
+  { icon: <IconTasks />, cls: 'tasks', name: 'ניהול משימות', desc: 'לוח קנבן וטבלה — אחראי, יעדים, עדיפות ומעקב איחורים.' },
+  { icon: <IconSun />, cls: 'sun', name: 'שמש אסוציאציות', desc: 'נושא מרכזי ומילים סביבו — לסיעור מוחות ומיפוי רעיונות.' },
+  { icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
+];
+
+const IO = [
+  { name: 'מסמך', out: 'Word · PDF · HTML', in: 'Word · HTML · טקסט' },
+  { name: 'ניהול משימות', out: 'Excel (CSV)', in: 'Excel (CSV)' },
+  { name: 'ציר זמן · סיכונים · SWOT · שמש', out: 'PDF · TXT', in: 'TXT' },
+  { name: 'לוח חשיבה', out: 'TXT', in: 'TXT' },
+  { name: 'צ\'אט', out: 'TXT', in: '—' },
+];
+
 // Single-series area chart (SVG, self-contained, hover crosshair + tooltip).
 function UsageChart({ daily, days }) {
-  const [hover, setHover] = useState(null); // index
+  const [hover, setHover] = useState(null);
   const W = 720, H = 220, PAD = { t: 14, r: 14, b: 26, l: 34 };
-
   const data = useMemo(() => {
     const byDay = Object.fromEntries(daily.map((d) => [d.day, d.count]));
     const out = [];
@@ -20,21 +38,18 @@ function UsageChart({ daily, days }) {
     }
     return out;
   }, [daily, days]);
-
   const max = Math.max(4, ...data.map((d) => d.count));
   const x = (i) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(1, data.length - 1);
   const y = (v) => H - PAD.b - (v * (H - PAD.t - PAD.b)) / max;
   const line = data.map((d, i) => `${x(i)},${y(d.count)}`).join(' ');
   const ticksY = [0, Math.round(max / 2), max];
   const tickEvery = Math.ceil(data.length / 6);
-
   function onMove(e) {
     const r = e.currentTarget.getBoundingClientRect();
     const px = ((e.clientX - r.left) / r.width) * W;
     const i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (data.length - 1));
     setHover(i >= 0 && i < data.length ? i : null);
   }
-
   return (
     <div className="chart-box" dir="ltr">
       <svg viewBox={`0 0 ${W} ${H}`} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
@@ -82,24 +97,69 @@ export default function About() {
       </header>
       <main className="about-main">
 
-        <section>
-          <h1>עבודה משותפת, בזמן אמת</h1>
-          <p>COLABO היא מערכת פנים-ארגונית לעבודה משותפת: מסמכים ולוחות חשיבה שכולם עורכים יחד, בו-זמנית, בלי לשלוח קבצים הלוך ושוב.</p>
+        <section className="ab-hero">
+          <Logo size={64} />
+          <h1>סביבת עבודה משותפת, בזמן אמת</h1>
+          <p className="ab-lead">
+            COLABO היא סביבה פנים-ארגונית שבה צוות עובד יחד על אותו תוכן בו-זמנית — מסמכים, לוחות,
+            תרשימים ומעקבים — בלי לשלוח קבצים הלוך ושוב וגרסאות מתנגשות. פותחים כלי, משתפים קישור, וכל
+            מי שנכנס רואה ועורך את אותו הדבר, ברגע זה ממש.
+          </p>
         </section>
 
         <section>
-          <h2>איך משתמשים</h2>
-          <div className="how-grid">
-            <div className="how-card"><span>📄</span><b>יוצרים</b>בדף הבית בוחרים מסמך או לוח חשיבה — ומתחילים לעבוד. הכל נשמר אוטומטית, אין כפתור שמירה.</div>
-            <div className="how-card"><span>🔗</span><b>משתפים</b>בתפריט "שיתוף" מעתיקים קישור לעריכה או קישור לצפייה בלבד, ושולחים למי שרוצים. מי שנכנס בוחר שם וצבע — ורואים אותו חי.</div>
-            <div className="how-card"><span>✍️</span><b>עורכים יחד</b>במסמך: עיצוב מלא, טבלאות ותמונות. בלוח: לחיצה כפולה יוצרת פתק, גוררים, מחברים בקווים.</div>
-            <div className="how-card"><span>💾</span><b>מייצאים</b>בתפריט "הורדה": מסמך ל-Word / PDF / HTML, לוח לקובץ טקסט קריא. אפשר גם לטעון קבצים קיימים.</div>
+          <h2>שלושה צעדים</h2>
+          <div className="ab-steps">
+            <div className="ab-step"><span className="ab-num">1</span><b>יוצרים</b><p>בדף הבית בוחרים את סוג הכלי. נפתח מיד, בלי הרשמה, והכל נשמר אוטומטית — אין כפתור שמירה.</p></div>
+            <div className="ab-step"><span className="ab-num">2</span><b>משתפים</b><p>בתפריט "שיתוף" מעתיקים <b>קישור עריכה</b> או <b>קישור לצפייה בלבד</b>. מי שנכנס בוחר שם וצבע, ורואים אותו חי על המסך.</p></div>
+            <div className="ab-step"><span className="ab-num">3</span><b>עובדים יחד</b><p>הקלדות, גרירות ושינויים של כולם מופיעים מיד אצל כל המשתתפים, כולל סמן חי ורשימת מי מחובר.</p></div>
           </div>
         </section>
 
+        <section>
+          <h2>הכלים שבמערכת</h2>
+          <div className="ab-tools">
+            {TOOLS.map((t) => (
+              <div key={t.name} className="ab-tool">
+                <span className={'ico ' + t.cls}>{t.icon}</span>
+                <div><b>{t.name}</b><p>{t.desc}</p></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2>ייצוא וטעינה של קבצים</h2>
+          <p className="ab-note">
+            כל כלי מאפשר לשמור עותק מקומי דרך תפריט <b>הורדה</b>, ולטעון חזרה קובץ קיים דרך כפתור <b>טעינה</b>.
+            הפורמטים נבחרו כדי להשתלב עם התוכנות שאתם כבר עובדים איתן: מסמכים ל-Word, משימות ל-Excel, ושאר הכלים לקובצי PDF להצגה ולקובצי טקסט לעבודה.
+          </p>
+          <div className="ab-table-wrap">
+            <table className="ab-table">
+              <thead><tr><th>כלי</th><th>ייצוא (הורדה)</th><th>טעינה חוזרת</th></tr></thead>
+              <tbody>
+                {IO.map((r) => (
+                  <tr key={r.name}><td>{r.name}</td><td>{r.out}</td><td>{r.in}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="ab-points">
+            <li><b>PDF הוא לייצוא בלבד</b> — הוא נועד להצגה, צילום מסך והדבקה במצגת, ואי אפשר לטעון אותו חזרה.</li>
+            <li><b>טעינה חוזרת אפשרית רק מקובץ שיוצא מהמערכת</b> (TXT או CSV, לפי הכלי) — כדי שהמבנה יישמר במדויק.</li>
+            <li>קובצי ה-TXT קריאים גם כטקסט רגיל, וה-CSV נפתח ונערך ישירות ב-Excel וחוזר פנימה.</li>
+          </ul>
+        </section>
+
         <section className="disclaimer">
-          <h2>⚠️ הסתייגות ותנאי שימוש</h2>
-          <p>COLABO היא כלי לעבודה משותפת <b>בזמן אמת</b> — היא נועדה לחשיבה, טיוט וכתיבה משותפים, ולא לשמש ארכיון או מאגר רשומות מחייב. <b>מסמך שאין בו שום עריכה במשך 30 יום נמחק אוטומטית</b>, לצמיתות ובלי אפשרות שחזור. בנוסף, כל מי שמחזיק קישור עריכה יכול לשנות או למחוק תוכן בכל עת. <b>תוכן חשוב יש לייצא ולשמור עותק מחוץ למערכת</b> (Word / PDF / TXT — בתפריט ההורדה), וניתן תמיד לטעון קובץ ולהמשיך לעבוד ממנו. השימוש במערכת הוא באחריות המשתמש בלבד, והמערכת מסופקת כפי שהיא (As-Is) ללא כל התחייבות או אחריות, לרבות לזמינות, לשלמות המידע או לנזק הנובע מהשימוש.</p>
+          <h2>⚠️ תיאום ציפיות ותנאי שימוש</h2>
+          <p>
+            COLABO היא כלי לעבודה משותפת <b>בזמן אמת</b> — לחשיבה, טיוטה וכתיבה משותפת, ולא ארכיון או מאגר רשומות מחייב.
+            <b> מסמך שאין בו שום עריכה במשך 30 יום נמחק אוטומטית</b>, לצמיתות ובלי שחזור (לוחות ניהול משימות פטורים ממחיקה זו).
+            כל מי שמחזיק קישור עריכה יכול לשנות או למחוק תוכן בכל עת. לכן <b>תוכן חשוב יש לייצא ולשמור עותק מחוץ למערכת</b>,
+            וניתן תמיד לטעון אותו חזרה ולהמשיך. השימוש באחריות המשתמש בלבד, והמערכת מסופקת כפי שהיא (As-Is) ללא כל אחריות
+            לזמינות, לשלמות המידע או לנזק הנובע מהשימוש.
+          </p>
         </section>
 
         <section>
@@ -119,6 +179,7 @@ export default function About() {
                 </div>
               </div>
               <UsageChart daily={stats.daily} days={RANGES[range].days} />
+              <p className="ab-fine">הספירה אנונימית לחלוטין — לפי דפדפן ייחודי, בלי חשבונות ובלי מידע מזהה.</p>
             </>
           )}
         </section>

@@ -15,43 +15,60 @@ const dayKey = (ts) => new Date(ts).toDateString();
 const SIDE_MIN = 180, SIDE_MAX = 420, SIDE_DEFAULT = 250;
 const POLL_MS = 20000;
 
-// Right-hand panel: chats visited on this browser, each polled lightly for "changed since I last opened it".
-function ChatSidebar({ currentToken, width, onDragStart }) {
+// Right-hand panel: chats visited on this browser. Polls each doc's updatedAt to sort by
+// last activity (newest message rises to top) and flag unread. The open chat is always
+// injected into the list so it can never vanish while recents lag a poll behind.
+function ChatSidebar({ currentToken, currentTitle, width, onDragStart }) {
   const nav = useNavigate();
-  const [chats, setChats] = useState(() => getRecents().filter((r) => r.type === 'chat'));
-  const [unread, setUnread] = useState({});
+  const [recents, setRecents] = useState(() => getRecents().filter((r) => r.type === 'chat'));
+  const [activity, setActivity] = useState({}); // token -> server updatedAt (ms)
 
   useEffect(() => {
     let stopped = false;
     async function poll() {
       const list = getRecents().filter((r) => r.type === 'chat');
-      if (!stopped) setChats(list);
-      const entries = await Promise.all(list.map(async (c) => {
-        if (c.token === currentToken) return [c.token, false];
-        try {
-          const info = await (await fetch('/api/docs/' + c.token)).json();
-          return [c.token, !!info.updatedAt && info.updatedAt > c.at];
-        } catch { return [c.token, false]; }
+      if (!stopped) setRecents(list);
+      const results = await Promise.all(list.map(async (c) => {
+        try { const info = await (await fetch('/api/docs/' + c.token)).json(); return [c.token, info.updatedAt || 0]; }
+        catch { return [c.token, null]; } // null → keep the previous value, don't drop the chat
       }));
-      if (!stopped) setUnread(Object.fromEntries(entries));
+      if (stopped) return;
+      setActivity((prev) => {
+        const next = { ...prev };
+        results.forEach(([t, v]) => { if (v !== null) next[t] = v; });
+        return next;
+      });
     }
     poll();
     const id = setInterval(poll, POLL_MS);
     return () => { stopped = true; clearInterval(id); };
   }, [currentToken]);
 
+  const map = new Map(recents.map((r) => [r.token, r]));
+  if (currentToken && !map.has(currentToken)) map.set(currentToken, { token: currentToken, title: currentTitle, type: 'chat', at: Date.now() });
+  const items = [...map.values()].map((c) => {
+    const isCurrent = c.token === currentToken;
+    return {
+      token: c.token,
+      title: (isCurrent ? currentTitle : '') || c.title || "צ'אט ללא שם",
+      unread: !isCurrent && (activity[c.token] || 0) > (c.at || 0),
+      act: Math.max(c.at || 0, activity[c.token] || 0),
+      isCurrent,
+    };
+  }).sort((a, b) => b.act - a.act);
+
   return (
     <aside className="ch-side" style={{ width }}>
       <div className="ch-side-head">צ'אטים אחרונים</div>
       <div className="ch-side-list">
-        {chats.map((c) => (
-          <button key={c.token} className={'ch-side-item' + (c.token === currentToken ? ' active' : '')}
-            onClick={() => nav('/d/' + c.token)}>
-            {unread[c.token] && <span className="ch-side-dot" title="הודעות חדשות" />}
-            <span className="ch-side-title">{c.title || "צ'אט ללא שם"}</span>
+        {items.map((c) => (
+          <button key={c.token} className={'ch-side-item' + (c.isCurrent ? ' active' : '')}
+            onClick={() => !c.isCurrent && nav('/d/' + c.token)}>
+            {c.unread && <span className="ch-side-dot" title="הודעות חדשות" />}
+            <span className="ch-side-title">{c.title}</span>
           </button>
         ))}
-        {!chats.length && <div className="ch-side-empty">הצ'אטים שביקרת בהם יופיעו כאן</div>}
+        {!items.length && <div className="ch-side-empty">הצ'אטים שביקרת בהם יופיעו כאן</div>}
       </div>
       <div className="ch-side-resizer" onPointerDown={onDragStart} />
     </aside>
@@ -186,7 +203,7 @@ export default function Chat({ info, user, token }) {
       </header>
 
       <div className="ch-body">
-      <ChatSidebar currentToken={token} width={sideW} onDragStart={startResize} />
+      <ChatSidebar currentToken={token} currentTitle={title} width={sideW} onDragStart={startResize} />
       <div className="ch-main">
       <div className="ch-list" ref={listRef}>
         {!msgs.length && <div className="ch-empty">עוד אין הודעות — תכתבו את הראשונה 💬</div>}

@@ -11,11 +11,15 @@ export function setIdentity(name, color) {
 
 // Recent documents list (browser-local).
 const RECENTS = 'colabo.recents';
+const DEFAULT_TITLE = {
+  doc: 'מסמך ללא שם', board: 'לוח ללא שם', timeline: 'ציר זמן ללא שם', risks: 'ניהול סיכונים',
+  swot: 'ניתוח SWOT', chat: "צ'אט ללא שם", tasks: 'ניהול משימות', sun: 'שמש אסוציאציות',
+};
 export function getRecents() {
   try { return JSON.parse(localStorage.getItem(RECENTS)) || []; } catch { return []; }
 }
 export function touchRecent(token, title, mode, type = 'doc') {
   const list = getRecents().filter((r) => r.token !== token);
-  list.unshift({ token, title: title || (type === 'board' ? 'לוח ללא שם' : 'מסמך ללא שם'), mode, type, at: Date.now() });
+  list.unshift({ token, title: title || DEFAULT_TITLE[type] || 'ללא שם', mode, type, at: Date.now() });
   localStorage.setItem(RECENTS, JSON.stringify(list.slice(0, 30)));
 }

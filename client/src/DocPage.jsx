@@ -27,6 +27,7 @@ import Risks from './Risks.jsx';
 import SWOT from './SWOT.jsx';
 import Chat from './Chat.jsx';
 import Tasks from './Tasks.jsx';
+import Sun from './Sun.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
@@ -165,5 +166,6 @@ export default function DocPage() {
   if (info.type === 'swot') return <SWOT key={token} info={info} user={user} token={token} />;
   if (info.type === 'chat') return <Chat key={token} info={info} user={user} token={token} />;
   if (info.type === 'tasks') return <Tasks key={token} info={info} user={user} token={token} />;
+  if (info.type === 'sun') return <Sun key={token} info={info} user={user} token={token} />;
   return <EditorView key={token} info={info} user={user} token={token} />;
 }

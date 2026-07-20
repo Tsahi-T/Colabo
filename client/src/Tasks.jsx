@@ -203,7 +203,7 @@ export default function Tasks({ info, user, token }) {
   };
 
   const cur = open && rows.find((t) => t.id === open);
-  const rowTone = (t) => (overdue(t) ? ' tk-row-late' : upcoming(t) ? ' tk-row-soon' : '');
+  const rowTone = (t) => (t.status === 'done' ? ' tk-row-done' : overdue(t) ? ' tk-row-late' : upcoming(t) ? ' tk-row-soon' : '');
 
   return (
     <div className="doc-page">
@@ -251,11 +251,11 @@ export default function Tasks({ info, user, token }) {
               onDrop={(e) => { e.preventDefault(); editable && setStatusLogged(e.dataTransfer.getData('text/plain'), s); }}>
               <h3>{label} <span className="tk-count">{rows.filter((t) => t.status === s).length}</span></h3>
               {rows.filter((t) => t.status === s).map((t) => (
-                <div key={t.id} className={'tk-card' + (overdue(t) ? ' overdue' : upcoming(t) ? ' upcoming' : '')} draggable={editable}
+                <div key={t.id} className={'tk-card tk-cs-' + t.status + (overdue(t) ? ' overdue' : upcoming(t) ? ' upcoming' : '')} draggable={editable}
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}
                   onClick={() => setOpen(t.id)}>
                   <div className="tk-card-title">{t.title || 'משימה ללא שם'}</div>
-                  {t.desc && <div className="tk-card-desc">{t.desc.split('\n')[0]}</div>}
+                  {t.desc && <div className="tk-card-desc">{t.desc}</div>}
                   <div className="tk-card-meta">
                     <span className={'tk-pri tk-p-' + t.priority} title={'עדיפות ' + t.priority + ' — ' + PRIORITIES[t.priority]}>{t.priority}</span>
                     {t.assignee && <span>👤 {t.assignee}</span>}

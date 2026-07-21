@@ -13,7 +13,8 @@ export function setIdentity(name, color) {
 const RECENTS = 'colabo.recents';
 const DEFAULT_TITLE = {
   doc: 'מסמך ללא שם', board: 'לוח ללא שם', timeline: 'ציר זמן ללא שם', risks: 'ניהול סיכונים',
-  swot: 'ניתוח SWOT', chat: "צ'אט ללא שם", tasks: 'ניהול משימות', sun: 'שמש אסוציאציות',
+  swot: 'ניתוח SWOT', chat: "צ'אט ללא שם", tasks: 'ניהול משימות', sun: 'תרשים שמש',
+  project: 'פרויקט ללא שם',
 };
 export function getRecents() {
   try { return JSON.parse(localStorage.getItem(RECENTS)) || []; } catch { return []; }

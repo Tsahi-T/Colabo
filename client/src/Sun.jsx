@@ -95,20 +95,21 @@ export default function Sun({ info, user, token }) {
   const delPetal = (id) => nodes.delete(id);
 
   const exportTxt = () => download(
-    `שמש אסוציאציות: ${core || title || 'ללא שם'}\n\n` + petals.map((p) => `- ${p.text}`).join('\n') + '\n',
-    `${title || 'שמש אסוציאציות'}.txt`);
-  const exportPdf = () => printElementImage('.sun-stage', { title: title || 'שמש אסוציאציות', landscape: true });
+    `תרשים שמש: ${core || title || 'ללא שם'}\n\n` + petals.map((p) => `- ${p.text}`).join('\n') + '\n',
+    `${title || 'תרשים שמש'}.txt`);
+  const exportPdf = () => printElementImage('.sun-stage', { title: title || 'תרשים שמש', landscape: true });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
     const lines = (await f.text()).split(/\r?\n/);
-    const coreLine = lines.find((l) => /^שמש אסוציאציות:/.test(l));
+    // accept both the current header and the older "שמש אסוציאציות" one
+    const coreLine = lines.find((l) => /^(תרשים שמש|שמש אסוציאציות):/.test(l));
     const items = lines.map((l) => l.match(/^\s*[-*]\s*(.+)/)).filter(Boolean).map((m) => m[1]);
     if (!items.length && !coreLine) return alert('לא נמצא תוכן בקובץ');
     if ((nodes.size || core) && !confirm('הטעינה תחליף את התוכן הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
-      if (coreLine) meta.set('core', coreLine.replace(/^שמש אסוציאציות:\s*/, '').trim());
+      if (coreLine) meta.set('core', coreLine.replace(/^(תרשים שמש|שמש אסוציאציות):\s*/, '').trim());
       [...nodes.keys()].forEach((k) => nodes.delete(k));
       items.forEach((text, i) => { const nn = new Y.Map(); nn.set('text', text); nn.set('ord', i + 1); nodes.set(uid(), nn); });
     });
@@ -118,7 +119,7 @@ export default function Sun({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm"><Logo size={24} /></Link>
-        <input className="title-input" placeholder="שמש אסוציאציות ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" placeholder="תרשים שמש ללא שם" value={title} readOnly={!editable}
           onChange={(e) => meta.set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />
@@ -142,9 +143,9 @@ export default function Sun({ info, user, token }) {
       </header>
       {editable && (
         <div className="toolbar board-bar">
-          <button className="btn-primary" onClick={() => addPetal()}>+ אסוציאציה</button>
-          {petals.length > 0 && <span className="sun-count">{petals.length} אסוציאציות</span>}
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>מוסיפים מילים והן מתחברות לרשת סביב הנושא</span>
+          <button className="btn-primary" onClick={() => addPetal()}>+ הוספה</button>
+          {petals.length > 0 && <span className="sun-count">{petals.length === 1 ? 'פריט אחד' : `${petals.length} פריטים`}</span>}
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>תרשים שמש לפיתוח חשיבה — אסוציאציות, שותפים, מחשבות</span>
         </div>
       )}
       <div className="sun-wrap">
@@ -172,7 +173,7 @@ export default function Sun({ info, user, token }) {
               <div key={p.id} className="sun-petal" style={{ left: pos.x, top: pos.y }}>
                 {editable ? (
                   <>
-                    <textarea value={p.text} placeholder="אסוציאציה" rows={1} onChange={(e) => setPetal(p.id, e.target.value)} />
+                    <textarea value={p.text} placeholder="כתוב כאן" rows={1} onChange={(e) => setPetal(p.id, e.target.value)} />
                     <button className="sun-petal-del" title="מחיקה" onClick={() => delPetal(p.id)}>✕</button>
                   </>
                 ) : (
@@ -183,7 +184,7 @@ export default function Sun({ info, user, token }) {
           })}
 
           {!petals.length && !core && (
-            <div className="sun-empty">{editable ? 'התחילו מהנושא המרכזי, והוסיפו אסוציאציות סביבו ☀️' : 'השמש ריקה עדיין'}</div>
+            <div className="sun-empty">{editable ? 'מתחילים מהנושא המרכזי, ומוסיפים סביבו ☀️' : 'התרשים ריק עדיין'}</div>
           )}
         </div>
       </div>

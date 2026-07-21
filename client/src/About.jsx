@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
 
 const RANGES = { week: { days: 7, label: 'שבוע' }, month: { days: 30, label: 'חודש' }, year: { days: 365, label: 'שנה' } };
 const fmtDay = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
@@ -13,14 +13,15 @@ const TOOLS = [
   { icon: <IconRisk />, cls: 'risks', name: 'ניהול סיכונים', desc: 'טבלת סיכונים ומטריצת חומרה × הסתברות שנצבעת מעצמה.' },
   { icon: <IconSwot />, cls: 'swot', name: 'ניתוח SWOT', desc: 'ארבעה רבעים — חוזקות, חולשות, הזדמנויות ואיומים.' },
   { icon: <IconTasks />, cls: 'tasks', name: 'ניהול משימות', desc: 'לוח קנבן וטבלה — אחראי, יעדים, עדיפות ומעקב איחורים.' },
-  { icon: <IconSun />, cls: 'sun', name: 'שמש אסוציאציות', desc: 'נושא מרכזי ומילים סביבו — לסיעור מוחות ומיפוי רעיונות.' },
+  { icon: <IconSun />, cls: 'sun', name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו — אסוציאציות, שותפים ומחשבות.' },
+  { icon: <IconProject />, cls: 'project', name: 'ניהול פרויקט', desc: 'כרטיס פרויקט — מטרה, תכולה, בעלי עניין, אבני דרך ומדדים.' },
   { icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
 ];
 
 const IO = [
   { name: 'מסמך', out: 'Word · PDF · HTML', in: 'Word · HTML · טקסט' },
   { name: 'ניהול משימות', out: 'Excel (CSV)', in: 'Excel (CSV)' },
-  { name: 'ציר זמן · סיכונים · SWOT · שמש', out: 'PDF · TXT', in: 'TXT' },
+  { name: 'ציר זמן · סיכונים · SWOT · תרשים שמש · פרויקט', out: 'PDF · TXT', in: 'TXT' },
   { name: 'לוח חשיבה', out: 'TXT', in: 'TXT' },
   { name: 'צ\'אט', out: 'TXT', in: '—' },
 ];

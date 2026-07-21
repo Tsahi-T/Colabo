@@ -17,6 +17,13 @@ export const IconSun = () => (
   </svg>
 );
 
+export const IconProject = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M4 6.5h5.5v11H4zM14.5 6.5H20v6.5h-5.5z" />
+    <path {...S} d="M9.5 10h5M9.5 14h5" />
+  </svg>
+);
+
 export const IconDoc = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M6 3h8l5 5v13H6z" />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun } from './icons.jsx';
+import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
 
 const TYPE_ICON = {
   doc: <span className="ricon doc"><IconDoc /></span>,
@@ -13,7 +13,35 @@ const TYPE_ICON = {
   chat: <span className="ricon chat"><IconChat /></span>,
   tasks: <span className="ricon tasks"><IconTasks /></span>,
   sun: <span className="ricon sun"><IconSun /></span>,
+  project: <span className="ricon project"><IconProject /></span>,
 };
+
+const GROUPS = [
+  {
+    name: 'יום־יומי',
+    tools: [
+      { type: 'doc', cls: 'doc', icon: <IconDoc />, name: 'מסמך', desc: 'מעבד תמלילים משותף' },
+      { type: 'chat', cls: 'chat', icon: <IconChat />, name: "צ'אט", desc: 'התכתבות חיה עם כל מי שמחובר' },
+      { type: 'tasks', cls: 'tasks', icon: <IconTasks />, name: 'ניהול משימות', desc: 'מי אחראי, מה תקוע, מה באיחור' },
+    ],
+  },
+  {
+    name: 'ניהול',
+    tools: [
+      { type: 'risks', cls: 'risks', icon: <IconRisk />, name: 'ניהול סיכונים', desc: 'טבלה ומטריצת חומרה/הסתברות' },
+      { type: 'timeline', cls: 'timeline', icon: <IconTimeline />, name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים' },
+      { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקט', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
+    ],
+  },
+  {
+    name: 'ארגוני',
+    tools: [
+      { type: 'board', cls: 'board', icon: <IconBoard />, name: 'לוח חשיבה', desc: 'פתקים על קנבס משותף' },
+      { type: 'swot', cls: 'swot', icon: <IconSwot />, name: 'ניתוח SWOT', desc: 'חוזקות, חולשות, הזדמנויות, איומים' },
+      { type: 'sun', cls: 'sun', icon: <IconSun />, name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו' },
+    ],
+  },
+];
 
 export default function Home() {
   const nav = useNavigate();
@@ -39,32 +67,18 @@ export default function Home() {
         מומלץ לייצא ולשמור עותק מקומי של תוכן חשוב; ניתן בכל עת לטעון קובץ ולהמשיך לעבוד.{' '}
         <Link to="/about">פרטים נוספים</Link>
       </p>
-      <div className="create-row">
-        <button className="create-card" onClick={() => createDoc('doc')} disabled={busy}>
-          <span className="ico doc"><IconDoc /></span>מסמך<small>מעבד תמלילים משותף</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('board')} disabled={busy}>
-          <span className="ico board"><IconBoard /></span>לוח חשיבה<small>פתקים על קנבס משותף</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('timeline')} disabled={busy}>
-          <span className="ico timeline"><IconTimeline /></span>ציר זמן<small>אבני דרך על ציר תאריכים</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('risks')} disabled={busy}>
-          <span className="ico risks"><IconRisk /></span>ניהול סיכונים<small>טבלה ומטריצת חומרה/הסתברות</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('swot')} disabled={busy}>
-          <span className="ico swot"><IconSwot /></span>ניתוח SWOT<small>חוזקות, חולשות, הזדמנויות, איומים</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('chat')} disabled={busy}>
-          <span className="ico chat"><IconChat /></span>צ'אט<small>התכתבות חיה עם כל מי שמחובר</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('tasks')} disabled={busy}>
-          <span className="ico tasks"><IconTasks /></span>ניהול משימות<small>לוח מעקב — מי אחראי, מה תקוע, מה באיחור</small>
-        </button>
-        <button className="create-card" onClick={() => createDoc('sun')} disabled={busy}>
-          <span className="ico sun"><IconSun /></span>שמש אסוציאציות<small>נושא מרכזי ומילים סביבו לסיעור מוחות</small>
-        </button>
-      </div>
+      {GROUPS.map((g) => (
+        <section key={g.name} className="create-group">
+          <h2 className="group-title"><span>{g.name}</span></h2>
+          <div className="create-row">
+            {g.tools.map((t) => (
+              <button key={t.type} className="create-card" onClick={() => createDoc(t.type)} disabled={busy}>
+                <span className={'ico ' + t.cls}>{t.icon}</span>{t.name}<small>{t.desc}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
       {recents.length > 0 && (
         <div className="recents">
           <h2>מסמכים אחרונים</h2>

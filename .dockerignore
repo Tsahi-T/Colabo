@@ -1,0 +1,11 @@
+# Keep the image build reproducible: never copy host-built artifacts or local state.
+# Without this, `COPY client/ ./` would drop the host's node_modules/dist into the
+# build stage and shadow what `npm ci` + `npm run build` produce inside the image.
+node_modules
+**/node_modules
+client/dist
+data
+.git
+.env
+*.log
+.claude

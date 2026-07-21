@@ -41,6 +41,10 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: colabo
+  annotations:
+    # Realtime sync holds long-lived WebSockets. Without this the router closes
+    # idle connections after ~30s and readers get dropped mid-session.
+    haproxy.router.openshift.io/timeout: 1h
 spec:
   to: { kind: Service, name: colabo }
   port: { targetPort: 3001 }

@@ -666,11 +666,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .pj-row.clickable { cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
 .pj-row.clickable:hover { border-color: var(--accent); box-shadow: var(--shadow-pop); transform: translateY(-1px); }
+/* same treatment as the aspect icons: soft tint surface, coloured glyph */
 .pj-badge {
-  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
-  font-size: 1.5rem; background: radial-gradient(circle at 35% 30%, #fff3, transparent 60%), var(--rag);
-  box-shadow: 0 0 18px var(--ragSoft), var(--shadow-chip);
+  width: 52px; height: 52px; border-radius: 15px; flex-shrink: 0; display: grid; place-items: center;
+  background: var(--ragSoft); color: var(--rag);
 }
+.pj-badge .cicon { width: 27px; height: 27px; }
 .pj-row-main { flex: 1; min-width: 0; }
 .pj-row-main h3 { margin: 0; font-size: 1.25rem; }
 .pj-name-in { font-size: 1.25rem !important; font-weight: 700; color: var(--ink) !important; padding: .1rem .45rem !important; }
@@ -764,8 +765,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-ms-done { --ms: #16a34a; }
 .pj-ms-active { --ms: #eab308; }
 .pj-ms-gap { --ms: #ef4444; }
-.pj-ms-future { --ms: transparent; }
-.pj-legend i.pj-ms-future { border: 1px solid var(--ink3); }
+/* was fully transparent (so invisible) — now a solid neutral that reads on either theme */
+.pj-ms-future { --ms: var(--ink); }
+.pj-legend i.pj-ms-future { background: var(--ink); }
 .pj-legend i.pj-ms-done { background: #16a34a; }
 .pj-legend i.pj-ms-active { background: #eab308; }
 .pj-legend i.pj-ms-gap { background: #ef4444; }

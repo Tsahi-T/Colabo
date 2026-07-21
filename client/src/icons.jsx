@@ -17,6 +17,14 @@ export const IconSun = () => (
   </svg>
 );
 
+export const IconTarget = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.2" {...S} />
+    <circle cx="12" cy="12" r="4" {...S} />
+    <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 // Aspect icons for the project dashboard (לו״ז / תכולה / משאבים)
 export const IconSchedule = () => (
   <svg className="cicon" viewBox="0 0 24 24">

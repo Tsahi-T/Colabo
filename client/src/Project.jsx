@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconSchedule, IconScope, IconResources } from './icons.jsx';
+import { Logo, IconSchedule, IconScope, IconResources, IconTarget } from './icons.jsx';
 import { touchRecent } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import Tasks from './Tasks.jsx';
@@ -80,7 +80,7 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
   const rw = editable && !clickable; // writable only in the detail header
   return (
     <div className={'pj-row' + (clickable ? ' clickable' : '')} onClick={clickable ? onOpen : undefined}>
-      <span className={'pj-badge pj-rag-' + (p.status || 'green')}>🎯</span>
+      <span className={'pj-badge pj-rag-' + (p.status || 'green')}><IconTarget /></span>
       <div className="pj-row-main">
         {rw
           ? <input className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />

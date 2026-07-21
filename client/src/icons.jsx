@@ -1,9 +1,10 @@
 // Flat SVG icon set — self-contained, currentColor-driven.
+// Racing speed stripes — blue / yellow / red, trailing to the left for motion.
 export const Logo = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="COLABO">
-    <rect x="1.5" y="1.5" width="21" height="21" rx="7" fill="var(--accent)" />
-    <rect x="9.5" y="9.5" width="21" height="21" rx="7" fill="#18b26b" fillOpacity=".92" />
-    <path d="M15 21.5h10M15 25.5h6" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="טורבו">
+    <path d="M13 4.5H28.5L24 10.5H8.5Z" fill="#2563eb" />
+    <path d="M8 13H28.5L24 19H3.5Z" fill="#f5b700" />
+    <path d="M13 21.5H28.5L24 27.5H8.5Z" fill="#ef4444" />
   </svg>
 );
 

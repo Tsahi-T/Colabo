@@ -110,4 +110,4 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-server.listen(PORT, () => console.log(`COLABO on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`טורבו on http://localhost:${PORT}`));

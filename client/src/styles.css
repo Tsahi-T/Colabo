@@ -51,8 +51,8 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .home { max-width: 640px; margin: 0 auto; padding: 9vh 1.5rem 3rem; text-align: center; }
 .hero { display: flex; align-items: center; justify-content: center; gap: .9rem; }
 .logo {
-  font-size: 2.7rem; letter-spacing: .12em; margin: 0; font-weight: 800;
-  background: linear-gradient(90deg, var(--accent), #18b26b);
+  font-size: 2.7rem; letter-spacing: .06em; margin: 0; font-weight: 800;
+  background: linear-gradient(90deg, #2563eb, #f5b700 52%, #ef4444);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .tagline { color: var(--ink2); margin: .6rem 0 2rem; }

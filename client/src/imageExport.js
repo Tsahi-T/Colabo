@@ -9,7 +9,7 @@ const PAGE = {
   landscape: { w: 1040, h: 720 },
 };
 
-export function printElementImage(selector, { title = 'COLABO', landscape = false } = {}) {
+export function printElementImage(selector, { title = 'טורבו', landscape = false } = {}) {
   const el = document.querySelector(selector);
   if (!el) return alert('לא נמצא תוכן לייצוא');
 

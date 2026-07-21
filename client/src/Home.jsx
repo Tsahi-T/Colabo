@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <div className="home">
       <span className="home-theme"><ThemeToggle /></span>
-      <div className="hero"><Logo size={58} /><h1 className="logo">COLABO</h1></div>
+      <div className="hero"><Logo size={58} /><h1 className="logo">טורבו</h1></div>
       <p className="tagline">עבודה משותפת בזמן אמת — פותחים, משתפים קישור, עובדים יחד.</p>
       <p className="home-note">
         המערכת מיועדת לעבודה משותפת בזמן אמת — מסמך שאין בו פעילות 30 יום נמחק אוטומטית.

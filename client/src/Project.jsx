@@ -68,6 +68,77 @@ function parseCsv(text) {
   return rows;
 }
 
+// NOTE: these live at module scope on purpose. Defining them inside Project() would
+// create a new component type on every render, so React would remount the subtree and
+// every input would lose focus after a single keystroke.
+function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
+  const rw = editable && !clickable; // writable only in the detail header
+  return (
+    <div className={'pj-row' + (clickable ? ' clickable' : '')} onClick={clickable ? onOpen : undefined}>
+      <span className={'pj-badge pj-rag-' + (p.status || 'green')}>🎯</span>
+      <div className="pj-row-main">
+        {rw
+          ? <input className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />
+          : <h3>{p.name}</h3>}
+        <div className="pj-purpose-l">משפט קיום (מטרה):</div>
+        {rw
+          ? <textarea className="pj-purpose-in" rows="2" value={p.purpose} onChange={(e) => set(p.id, { purpose: e.target.value })} />
+          : <p className="pj-purpose">{p.purpose}</p>}
+      </div>
+      <div className="pj-col">
+        <span className="pj-col-l">שלב הפרויקט</span>
+        {rw
+          ? <select className="pj-phase pj-phase-in" value={p.phase} onChange={(e) => set(p.id, { phase: e.target.value })}>
+              {PHASES.map((x) => <option key={x}>{x}</option>)}
+            </select>
+          : <span className="pj-phase">{p.phase}</span>}
+      </div>
+      <div className="pj-col">
+        <span className="pj-col-l">סטטוס כללי</span>
+        <span className={'pj-pill pj-rag-' + (p.status || 'green')}>
+          {rw
+            ? <select value={p.status} onChange={(e) => set(p.id, { status: e.target.value })}>
+                {Object.entries(RAG).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            : RAG[p.status]}
+          <i />
+        </span>
+      </div>
+      <div className="pj-side">
+        <div><span className="pj-col-l">📅 עדכון אחרון</span><b>{fmtDate(p.updated)}</b></div>
+        <div><span className="pj-col-l">👤 מנהל פרויקט</span>
+          {rw
+            ? <input className="pj-mgr-in" value={p.manager} onChange={(e) => set(p.id, { manager: e.target.value })} />
+            : <b>{p.manager}</b>}
+        </div>
+      </div>
+      {editable && (
+        <button className="pj-edit" title={clickable ? 'פתיחה' : 'מחיקת הפרויקט'}
+          onClick={(e) => { e.stopPropagation(); clickable ? onOpen() : onDelete(); }}>
+          {clickable ? '✎' : '🗑'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function BulletList({ values, editable, onChange, onDelete, onAdd, placeholder }) {
+  return (
+    <div className="pj-bullets">
+      {values.map((v, i) => (
+        <div key={i} className="pj-li">
+          <span className="pj-li-dot" />
+          {editable
+            ? <><input value={v} placeholder={placeholder} onChange={(e) => onChange(i, e.target.value)} />
+                <button className="pj-x" onClick={() => onDelete(i)}>✕</button></>
+            : <span>{v}</span>}
+        </div>
+      ))}
+      {editable && <button className="pj-add-sm" onClick={onAdd}>+ הוספה</button>}
+    </div>
+  );
+}
+
 export default function Project({ info, user, token }) {
   const editable = info.mode === 'edit';
   const [, force] = useReducer((c) => c + 1, 0);
@@ -201,70 +272,6 @@ export default function Project({ info, user, token }) {
 
   const open = openId && list.find((p) => p.id === openId);
 
-  // ---------- pieces ----------
-  const HeadRow = ({ p, clickable }) => (
-    <div className={'pj-row' + (clickable ? ' clickable' : '')} onClick={clickable ? () => setOpenId(p.id) : undefined}>
-      <span className={'pj-badge pj-rag-' + (p.status || 'green')}>🎯</span>
-      <div className="pj-row-main">
-        {editable && !clickable
-          ? <input className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />
-          : <h3>{p.name}</h3>}
-        <div className="pj-purpose-l">משפט קיום (מטרה):</div>
-        {editable && !clickable
-          ? <textarea className="pj-purpose-in" rows="2" value={p.purpose} onChange={(e) => set(p.id, { purpose: e.target.value })} />
-          : <p className="pj-purpose">{p.purpose}</p>}
-      </div>
-      <div className="pj-col">
-        <span className="pj-col-l">שלב הפרויקט</span>
-        {editable && !clickable
-          ? <select className="pj-phase-in" value={p.phase} onChange={(e) => set(p.id, { phase: e.target.value })}>
-              {PHASES.map((x) => <option key={x}>{x}</option>)}
-            </select>
-          : <span className="pj-phase">{p.phase}</span>}
-      </div>
-      <div className="pj-col">
-        <span className="pj-col-l">סטטוס כללי</span>
-        <span className={'pj-pill pj-rag-' + (p.status || 'green')}>
-          {editable && !clickable
-            ? <select value={p.status} onChange={(e) => set(p.id, { status: e.target.value })}>
-                {Object.entries(RAG).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            : RAG[p.status]}
-          <i />
-        </span>
-      </div>
-      <div className="pj-side">
-        <div><span className="pj-col-l">📅 עדכון אחרון</span><b>{fmtDate(p.updated)}</b></div>
-        <div><span className="pj-col-l">👤 מנהל פרויקט</span>
-          {editable && !clickable
-            ? <input className="pj-mgr-in" value={p.manager} onChange={(e) => set(p.id, { manager: e.target.value })} />
-            : <b>{p.manager}</b>}
-        </div>
-      </div>
-      {editable && (
-        <button className="pj-edit" title={clickable ? 'פתיחה' : 'מחיקה'}
-          onClick={(e) => { e.stopPropagation(); clickable ? setOpenId(p.id) : delProject(p); }}>
-          {clickable ? '✎' : '🗑'}
-        </button>
-      )}
-    </div>
-  );
-
-  const List = ({ items }) => (
-    <div className="pj-list-edit">
-      {items.map((it, i) => (
-        <div key={i} className="pj-li">
-          <span className="pj-li-dot" />
-          {editable
-            ? <><input value={it.v} onChange={(e) => it.onChange(e.target.value)} />
-                <button className="pj-x" onClick={it.onDel}>✕</button></>
-            : <span>{it.v}</span>}
-        </div>
-      ))}
-      {editable && <button className="pj-add-sm" onClick={items.onAdd}>+ הוספה</button>}
-    </div>
-  );
-
   return (
     <div className="doc-page">
       <header className="topbar">
@@ -301,13 +308,16 @@ export default function Project({ info, user, token }) {
                 <span className="hint">לחיצה על פרויקט פותחת אותו</span>
               </div>
             )}
-            {list.map((p) => <HeadRow key={p.id} p={p} clickable />)}
+            {list.map((p) => (
+              <HeadRow key={p.id} p={p} clickable editable={editable} set={set}
+                onOpen={() => setOpenId(p.id)} onDelete={() => delProject(p)} />
+            ))}
             {!list.length && <div className="tlr-empty">אין עדיין פרויקטים — מוסיפים בכפתור למעלה</div>}
           </div>
         ) : (
           <div className="pj-detail">
             <button className="btn pj-back" onClick={() => setOpenId(null)}>← חזרה לרשימה</button>
-            <HeadRow p={open} />
+            <HeadRow p={open} editable={editable} set={set} onDelete={() => delProject(open)} />
 
             <div className="pj-aspects">
               {ASPECTS.map((a) => {
@@ -404,11 +414,11 @@ export default function Project({ info, user, token }) {
 
               <div className="pj-card">
                 <div className="pj-card-head"><h3>👤 החלטות נדרשות</h3></div>
-                <List items={Object.assign((open.decisions || []).map((d, i) => ({
-                  v: d,
-                  onChange: (val) => { const ds = [...open.decisions]; ds[i] = val; set(open.id, { decisions: ds }); },
-                  onDel: () => set(open.id, { decisions: open.decisions.filter((_, j) => j !== i) }),
-                })), { onAdd: () => set(open.id, { decisions: [...(open.decisions || []), 'החלטה נדרשת'] }) })} />
+                <BulletList
+                  values={open.decisions || []} editable={editable} placeholder="החלטה שנדרשת"
+                  onChange={(i, val) => { const ds = [...open.decisions]; ds[i] = val; set(open.id, { decisions: ds }); }}
+                  onDelete={(i) => set(open.id, { decisions: open.decisions.filter((_, j) => j !== i) })}
+                  onAdd={() => set(open.id, { decisions: [...(open.decisions || []), ''] })} />
               </div>
 
               <div className="pj-side-col">

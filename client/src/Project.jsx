@@ -4,9 +4,11 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
-import { Logo } from './icons.jsx';
+import { Logo, IconSchedule, IconScope, IconResources } from './icons.jsx';
 import { touchRecent } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import Tasks from './Tasks.jsx';
+import Risks from './Risks.jsx';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const PHASES = ['יזום', 'התנעה', 'מימוש', 'הטמעה', 'שינויים ושיפורים', 'סיום'];
@@ -15,10 +17,13 @@ const TRENDS = { up: 'משתפר', flat: 'יציב', down: 'מחמיר' };
 const TREND_ARROW = { up: '↑', flat: '→', down: '↓' };
 const MS = { done: 'הושלם', active: 'בביצוע', gap: 'בפער', future: 'עתידי' };
 const ASPECTS = [
-  { k: 'schedule', label: 'לו״ז', icon: '📅' },
-  { k: 'scope', label: 'תכולה', icon: '📦' },
-  { k: 'resources', label: 'משאבים', icon: '👥' },
+  { k: 'schedule', label: 'לו״ז', Icon: IconSchedule },
+  { k: 'scope', label: 'תכולה', Icon: IconScope },
+  { k: 'resources', label: 'משאבים', Icon: IconResources },
 ];
+// mirrors of the label maps used by the embedded Tasks/Risks screens, for CSV round-trips
+const TK_ST = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
+const TK_PRI = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
@@ -146,6 +151,7 @@ export default function Project({ info, user, token }) {
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
   const [openId, setOpenId] = useState(null);
+  const [sections, setSections] = useState({}); // accordion open-state, keyed by projectId+section
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -176,8 +182,22 @@ export default function Project({ info, user, token }) {
   useEffect(() => { touchRecent(token, title, info.mode, 'project'); }, [title]);
 
   const list = [...projects.entries()]
-    .map(([id, m]) => ({ id, ...(m.toJSON ? m.toJSON() : m) }))
+    .map(([id, m]) => {
+      const o = m.toJSON ? m.toJSON() : { ...m };
+      delete o.tasksMap; delete o.risksMap; // nested sections are read through subMap, not cloned
+      return { id, ...o };
+    })
     .sort((a, b) => (a.ord || 0) - (b.ord || 0) || a.id.localeCompare(b.id));
+
+  // Nested collaborative maps backing the embedded tasks/risks sections.
+  const getSub = (pid, key) => projects.get(pid)?.get(key);
+  function ensureSub(pid, key) {
+    const m = projects.get(pid);
+    if (!m) return null;
+    let sub = m.get(key);
+    if (!(sub instanceof Y.Map)) { sub = new Y.Map(); m.set(key, sub); }
+    return sub;
+  }
 
   // Any edit stamps "last updated" so the list column stays truthful for free.
   function set(id, patch) {
@@ -225,6 +245,13 @@ export default function Project({ info, user, token }) {
       (p.decisions || []).forEach((d) => lines.push(row(['החלטה נדרשת', d])));
       lines.push(row(['מידע נוסף', p.info]));
       lines.push(row(['קישורים חשובים', p.links]));
+      // embedded sections — same label/value template so the sheet stays one consistent shape
+      const tm = getSub(p.id, 'tasksMap');
+      if (tm) [...tm.values()].map((t) => t.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
+        .forEach((t) => lines.push(row(['משימה', t.title, TK_ST[t.status] || 'חדש', TK_PRI[t.priority] || 'רגילה', t.assignee || '', t.dueCurrent || t.due || ''])));
+      const rm = getSub(p.id, 'risksMap');
+      if (rm) [...rm.values()].map((x) => x.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
+        .forEach((x) => lines.push(row(['סיכון', x.name, x.sev ?? 3, x.prob ?? 3, x.detail || '', x.actions || ''])));
       lines.push('');
     });
     download(lines.join('\r\n') + '\r\n', `${title || 'פרויקטים'}.csv`);
@@ -241,7 +268,7 @@ export default function Project({ info, user, token }) {
       const label = (r[0] || '').trim();
       const v = (r[1] || '').trim();
       if (!label || label === 'שדה') continue;
-      if (label === 'פרויקט') { cur = { ...newProject(parsed.length + 1), name: v || 'פרויקט חדש', milestones: [], gaps: [], decisions: [] }; parsed.push(cur); continue; }
+      if (label === 'פרויקט') { cur = { ...newProject(parsed.length + 1), name: v || 'פרויקט חדש', milestones: [], gaps: [], decisions: [], _tasks: [], _risks: [] }; parsed.push(cur); continue; }
       if (!cur) continue;
       if (label === 'משפט קיום') cur.purpose = v;
       else if (label === 'שלב הפרויקט') cur.phase = PHASES.includes(v) ? v : 'יזום';
@@ -253,6 +280,15 @@ export default function Project({ info, user, token }) {
       else if (label === 'אבן דרך') cur.milestones.push({ name: v, date: (r[2] || '').trim(), st: byLabel(MS, (r[3] || '').trim(), 'future') });
       else if (label === 'פער') cur.gaps.push({ title: v, desc: (r[2] || '').trim() });
       else if (label === 'החלטה נדרשת') cur.decisions.push(v);
+      else if (label === 'משימה') cur._tasks.push({
+        title: v, status: byLabel(TK_ST, (r[2] || '').trim(), 'new'),
+        priority: +byLabel(TK_PRI, (r[3] || '').trim(), 1), assignee: (r[4] || '').trim(),
+        due: (r[5] || '').trim(), dueCurrent: (r[5] || '').trim(), desc: '', log: [],
+      });
+      else if (label === 'סיכון') cur._risks.push({
+        name: v, sev: Math.min(5, Math.max(1, +(r[2] || 3) || 3)), prob: Math.min(5, Math.max(1, +(r[3] || 3) || 3)),
+        detail: (r[4] || '').trim(), actions: (r[5] || '').trim(),
+      });
       else {
         const a = ASPECTS.find((x) => label.startsWith(x.label));
         if (!a) continue;
@@ -265,7 +301,18 @@ export default function Project({ info, user, token }) {
     if (projects.size && !confirm('הטעינה תחליף את כל הפרויקטים הקיימים. להמשיך?')) return;
     ydoc.transact(() => {
       [...projects.keys()].forEach((k) => projects.delete(k));
-      parsed.forEach((p, i) => addProject({ ...p, ord: i + 1 }));
+      parsed.forEach((p, i) => {
+        const { _tasks, _risks, ...rest } = p;
+        const pid = addProject({ ...rest, ord: i + 1 });
+        if (_tasks?.length) {
+          const tm = ensureSub(pid, 'tasksMap');
+          _tasks.forEach((t, j) => { const m = new Y.Map(); Object.entries({ ...t, ord: j + 1 }).forEach(([k2, v2]) => m.set(k2, v2)); tm.set(uid(), m); });
+        }
+        if (_risks?.length) {
+          const rm = ensureSub(pid, 'risksMap');
+          _risks.forEach((x, j) => { const m = new Y.Map(); Object.entries({ ...x, ord: j + 1 }).forEach(([k2, v2]) => m.set(k2, v2)); rm.set(uid(), m); });
+        }
+      });
     });
     setOpenId(null);
   }
@@ -326,7 +373,7 @@ export default function Project({ info, user, token }) {
                   <div key={a.k} className={'pj-aspect pj-rag-' + (v.st || 'green')}>
                     <span className={'pj-dot pj-rag-' + (v.st || 'green')} />
                     <div className="pj-aspect-head">
-                      <span className={'pj-aspect-icon pj-rag-' + (v.st || 'green')}>{a.icon}</span>
+                      <span className="pj-aspect-icon"><a.Icon /></span>
                       <h3>{a.label}</h3>
                     </div>
                     {editable
@@ -367,13 +414,17 @@ export default function Project({ info, user, token }) {
                           const ms = [...open.milestones]; ms[i] = { ...m, name: e.target.value }; set(open.id, { milestones: ms });
                         }} />
                       : <span className="pj-ms-name">{m.name}</span>}
-                    {editable ? (
-                      <select className={'pj-ms-dot pj-ms-' + m.st} value={m.st} onChange={(e) => {
-                        const ms = [...open.milestones]; ms[i] = { ...m, st: e.target.value }; set(open.id, { milestones: ms });
-                      }}>
-                        {Object.entries(MS).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
-                      </select>
-                    ) : <span className={'pj-ms-dot pj-ms-' + m.st} />}
+                    <span className={'pj-ms-mark pj-ms-' + m.st} title={MS[m.st]}>
+                      <span className="pj-ms-dot" />
+                      {editable && (
+                        <select value={m.st} onChange={(e) => {
+                          const ms = [...open.milestones]; ms[i] = { ...m, st: e.target.value }; set(open.id, { milestones: ms });
+                        }}>
+                          {Object.entries(MS).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
+                        </select>
+                      )}
+                    </span>
+                    <span className={'pj-ms-label pj-ms-' + m.st}>{MS[m.st]}</span>
                     {editable
                       ? <input type="date" className="pj-ms-date" value={m.date || ''} onChange={(e) => {
                           const ms = [...open.milestones]; ms[i] = { ...m, date: e.target.value }; set(open.id, { milestones: ms });
@@ -433,10 +484,29 @@ export default function Project({ info, user, token }) {
               </div>
             </div>
 
-            <div className="pj-future">
-              <div className="pj-future-card">📋 ניהול משימות <span>בקרוב</span></div>
-              <div className="pj-future-card">🛡️ ניהול סיכונים <span>בקרוב</span></div>
-            </div>
+            {[
+              { k: 'tasksMap', label: '📋 ניהול משימות', Comp: Tasks },
+              { k: 'risksMap', label: '🛡️ ניהול סיכונים', Comp: Risks },
+            ].map(({ k, label, Comp }) => {
+              const isOpen = sections[open.id + k];
+              return (
+                <div key={k} className={'pj-acc' + (isOpen ? ' open' : '')}>
+                  <button className="pj-acc-head" onClick={() => {
+                    if (!isOpen) ensureSub(open.id, k); // create lazily on open, never during render
+                    setSections((s) => ({ ...s, [open.id + k]: !isOpen }));
+                  }}>
+                    <span>{label}</span>
+                    <span className="pj-acc-chevron">{isOpen ? '⌃' : '⌄'}</span>
+                  </button>
+                  {isOpen && getSub(open.id, k) && (
+                    <div className="pj-acc-body">
+                      <Comp info={info} user={user} token={token}
+                        embed={{ ydoc, map: getSub(open.id, k), editable }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -18,8 +18,11 @@ const download = (text, name) => {
   URL.revokeObjectURL(a.href);
 };
 
-export default function Risks({ info, user, token }) {
-  const editable = info.mode === 'edit';
+// `embed` lets this screen run inside another document (e.g. under a project):
+// it then reuses the host's Y.Doc + a supplied map and renders without its own chrome.
+export default function Risks({ info, user, token, embed }) {
+  const embedded = !!embed;
+  const editable = embedded ? embed.editable : info.mode === 'edit';
   const [, force] = useReducer((c) => c + 1, 0);
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
@@ -27,9 +30,10 @@ export default function Risks({ info, user, token }) {
   const [sel, setSel] = useState(null);
   const fileRef = useRef();
 
-  const ydoc = useMemo(() => new Y.Doc(), []);
-  const risks = ydoc.getMap('risks');
+  const ydoc = useMemo(() => (embedded ? embed.ydoc : new Y.Doc()), []);
+  const risks = useMemo(() => (embedded ? embed.map : ydoc.getMap('risks')), []);
   const provider = useMemo(() => {
+    if (embedded) return null; // the host document already owns the connection
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     return new HocuspocusProvider({
       url: `${proto}://${location.host}/collab`, name: info.docId, token, document: ydoc,
@@ -39,6 +43,7 @@ export default function Risks({ info, user, token }) {
 
   useEffect(() => {
     ydoc.on('update', force);
+    if (embedded) return () => ydoc.off('update', force);
     const meta = ydoc.getMap('meta');
     const syncTitle = () => setTitle(meta.get('title') || '');
     meta.observe(syncTitle);
@@ -52,7 +57,7 @@ export default function Risks({ info, user, token }) {
     return () => { ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
   }, []);
 
-  useEffect(() => { touchRecent(token, title, info.mode, 'risks'); }, [title]);
+  useEffect(() => { if (!embedded) touchRecent(token, title, info.mode, 'risks'); }, [title]);
 
   // Stable numbering by creation order; the number is the identity on the matrix.
   const rows = [...risks.entries()]
@@ -116,31 +121,33 @@ export default function Risks({ info, user, token }) {
   const nums15 = [1, 2, 3, 4, 5];
 
   return (
-    <div className="doc-page">
-      <header className="topbar">
-        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
-        <input className="title-input" placeholder="ניהול סיכונים ללא שם" value={title} readOnly={!editable}
-          onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
-        {!editable && <span className="badge">צפייה בלבד</span>}
-        <span className={'conn ' + status} />
-        <div className="peers">
-          {peers.slice(0, 8).map((p, i) => (
-            <span key={i} className="peer" style={{ background: p.color }} title={p.name}>{p.name[0]}</span>
-          ))}
-        </div>
-        <div className="actions">
-          {editable && <>
-            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
-            <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
-          </>}
-          <Menu label="הורדה">
-            <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
-          </Menu>
-          <ShareMenu info={info} />
-          <ThemeToggle />
-        </div>
-      </header>
+    <div className={embedded ? 'rk-embed' : 'doc-page'}>
+      {!embedded && (
+        <header className="topbar">
+          <Link to="/" className="logo-sm"><Logo size={24} /></Link>
+          <input className="title-input" placeholder="ניהול סיכונים ללא שם" value={title} readOnly={!editable}
+            onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
+          {!editable && <span className="badge">צפייה בלבד</span>}
+          <span className={'conn ' + status} />
+          <div className="peers">
+            {peers.slice(0, 8).map((p, i) => (
+              <span key={i} className="peer" style={{ background: p.color }} title={p.name}>{p.name[0]}</span>
+            ))}
+          </div>
+          <div className="actions">
+            {editable && <>
+              <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
+              <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            </>}
+            <Menu label="הורדה">
+              <button onClick={exportPdf}>PDF (הדפסה)</button>
+              <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            </Menu>
+            <ShareMenu info={info} />
+            <ThemeToggle />
+          </div>
+        </header>
+      )}
       <div className="rk-page">
         <div className="rk-table-wrap">
           <table className="rk-table">

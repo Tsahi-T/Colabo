@@ -44,8 +44,11 @@ function parseCsv(text) {
   return rows.filter((r) => r.some((c) => c !== ''));
 }
 
-export default function Tasks({ info, user, token }) {
-  const editable = info.mode === 'edit';
+// `embed` lets this screen run inside another document (e.g. under a project):
+// it then reuses the host's Y.Doc + a supplied map and renders without its own chrome.
+export default function Tasks({ info, user, token, embed }) {
+  const embedded = !!embed;
+  const editable = embedded ? embed.editable : info.mode === 'edit';
   const [, force] = useReducer((c) => c + 1, 0);
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
@@ -56,9 +59,10 @@ export default function Tasks({ info, user, token }) {
   const [sort, setSort] = useState({ key: null, dir: 1 });
   const fileRef = useRef();
 
-  const ydoc = useMemo(() => new Y.Doc(), []);
-  const tasks = ydoc.getMap('tasks');
+  const ydoc = useMemo(() => (embedded ? embed.ydoc : new Y.Doc()), []);
+  const tasks = useMemo(() => (embedded ? embed.map : ydoc.getMap('tasks')), []);
   const provider = useMemo(() => {
+    if (embedded) return null; // the host document already owns the connection
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     return new HocuspocusProvider({
       url: `${proto}://${location.host}/collab`, name: info.docId, token, document: ydoc,
@@ -68,6 +72,7 @@ export default function Tasks({ info, user, token }) {
 
   useEffect(() => {
     ydoc.on('update', force);
+    if (embedded) return () => ydoc.off('update', force);
     const meta = ydoc.getMap('meta');
     const syncTitle = () => setTitle(meta.get('title') || '');
     meta.observe(syncTitle);
@@ -81,7 +86,7 @@ export default function Tasks({ info, user, token }) {
     return () => { ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
   }, []);
 
-  useEffect(() => { touchRecent(token, title, info.mode, 'tasks'); }, [title]);
+  useEffect(() => { if (!embedded) touchRecent(token, title, info.mode, 'tasks'); }, [title]);
 
   const rows = [...tasks.entries()]
     .map(([id, t]) => ({
@@ -206,28 +211,30 @@ export default function Tasks({ info, user, token }) {
   const rowTone = (t) => (t.status === 'done' ? ' tk-row-done' : overdue(t) ? ' tk-row-late' : upcoming(t) ? ' tk-row-soon' : '');
 
   return (
-    <div className="doc-page">
-      <header className="topbar">
-        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
-        <input className="title-input" placeholder="ניהול משימות ללא שם" value={title} readOnly={!editable}
-          onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
-        {!editable && <span className="badge">צפייה בלבד</span>}
-        <span className={'conn ' + status} />
-        <div className="peers">
-          {peers.slice(0, 8).map((p, i) => (
-            <span key={i} className="peer" style={{ background: p.color }} title={p.name}>{p.name[0]}</span>
-          ))}
-        </div>
-        <div className="actions">
-          {editable && <>
-            <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
-            <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
-          </>}
-          <button className="btn" onClick={exportCsv}>הורדה</button>
-          <ShareMenu info={info} />
-          <ThemeToggle />
-        </div>
-      </header>
+    <div className={embedded ? 'tk-embed' : 'doc-page'}>
+      {!embedded && (
+        <header className="topbar">
+          <Link to="/" className="logo-sm"><Logo size={24} /></Link>
+          <input className="title-input" placeholder="ניהול משימות ללא שם" value={title} readOnly={!editable}
+            onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
+          {!editable && <span className="badge">צפייה בלבד</span>}
+          <span className={'conn ' + status} />
+          <div className="peers">
+            {peers.slice(0, 8).map((p, i) => (
+              <span key={i} className="peer" style={{ background: p.color }} title={p.name}>{p.name[0]}</span>
+            ))}
+          </div>
+          <div className="actions">
+            {editable && <>
+              <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
+              <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+            </>}
+            <button className="btn" onClick={exportCsv}>הורדה</button>
+            <ShareMenu info={info} />
+            <ThemeToggle />
+          </div>
+        </header>
+      )}
 
       <div className="toolbar tk-bar">
         {editable && <button className="btn-primary tk-add" onClick={add}>+ משימה</button>}

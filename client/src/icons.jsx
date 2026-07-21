@@ -17,6 +17,27 @@ export const IconSun = () => (
   </svg>
 );
 
+// Aspect icons for the project dashboard (לו״ז / תכולה / משאבים)
+export const IconSchedule = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <rect x="3.5" y="5" width="17" height="15" rx="2.5" {...S} />
+    <path {...S} d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+  </svg>
+);
+export const IconScope = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+    <path {...S} d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+  </svg>
+);
+export const IconResources = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <circle cx="9" cy="8" r="3.2" {...S} />
+    <path {...S} d="M3 19.5c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
+    <path {...S} d="M16 5.4a3.2 3.2 0 010 5.2M17.5 14.6c2.1.7 3.5 2.5 3.5 4.9" />
+  </svg>
+);
+
 export const IconProject = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M4 6.5h5.5v11H4zM14.5 6.5H20v6.5h-5.5z" />

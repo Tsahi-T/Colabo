@@ -753,6 +753,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-legend span { display: flex; align-items: center; gap: .35rem; }
 .pj-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .pj-card p { margin: 0; font-size: .86rem; line-height: 1.6; color: var(--ink2); white-space: pre-wrap; unicode-bidi: plaintext; }
+.pj-card p a { color: var(--accent); text-decoration: underline; word-break: break-all; }
+.pj-card p a:hover { color: var(--accent-h); }
 
 /* milestones rail — name above, dot on the line, date below */
 .pj-ms-track { position: relative; display: flex; justify-content: space-between; gap: .5rem; padding: .8rem 2rem 0; }

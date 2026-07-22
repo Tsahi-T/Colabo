@@ -28,6 +28,19 @@ const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
 
+// Turns bare URLs typed/pasted into a text field into clickable links (view mode only).
+const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+function linkify(text) {
+  if (!text) return null;
+  return text.split(URL_RE).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const m = part.match(/^(.*?)([.,;:!?)\]}'"]*)$/);
+    const core = m[1], trail = m[2];
+    const href = core.startsWith('www.') ? 'https://' + core : core;
+    return <span key={i}><a href={href} target="_blank" rel="noopener noreferrer">{core}</a>{trail}</span>;
+  });
+}
+
 // Per-project badge: the glyph reflects the project's phase (so it changes as the
 // project progresses), the colour is picked at random (blue/green tones) once at
 // creation and stored on the project — stable across reloads, not tied to status.
@@ -496,7 +509,7 @@ export default function Project({ info, user, token }) {
                     <div className="pj-card-head"><h3>{s.t}</h3></div>
                     {editable
                       ? <textarea rows="3" value={open[s.k] || ''} onChange={(e) => set(open.id, { [s.k]: e.target.value })} />
-                      : <p>{open[s.k]}</p>}
+                      : <p>{linkify(open[s.k])}</p>}
                   </div>
                 ))}
               </div>

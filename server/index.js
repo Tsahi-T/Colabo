@@ -78,8 +78,13 @@ app.post('/api/track', async (req, res) => {
 });
 
 app.get('/api/stats', async (req, res) => {
-  const s = await storage.getStats();
-  res.json({ ...s, online: hocuspocus.getConnectionsCount() });
+  try {
+    const s = await storage.getStats();
+    res.json({ ...s, online: hocuspocus.getConnectionsCount() });
+  } catch (e) {
+    console.error('GET /api/stats failed:', e);
+    res.status(500).json({ error: 'stats unavailable' });
+  }
 });
 
 app.post('/api/export/docx', async (req, res) => {
@@ -117,7 +122,7 @@ server.listen(PORT, () => console.log(`טורבו on http://localhost:${PORT}`))
 // hocuspocus.destroy() force-flushes every open document's pending debounced save to
 // Postgres before resolving, so a pod replacement doesn't lose the last few edits.
 let shuttingDown = false;
-async function shutdown(signal) {
+async function shutdown(signal, exitCode = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`${signal} received — flushing documents and closing…`);
@@ -129,8 +134,16 @@ async function shutdown(signal) {
     console.error('Error during shutdown:', e);
   } finally {
     clearTimeout(timeout);
-    process.exit(0);
+    process.exit(exitCode);
   }
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Last-resort safety net: an uncaught error anywhere (a route handler without its own
+// try/catch, a stray promise rejection) used to kill the process silently and leave it
+// however Node/OpenShift happened to handle it. Now it's logged with a real stack trace,
+// and the process exits cleanly so OpenShift's normal pod-restart-on-crash brings it back
+// — instead of the process wedging in an undefined state.
+process.on('unhandledRejection', (err) => { console.error('Unhandled rejection:', err); shutdown('unhandledRejection', 1); });
+process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); shutdown('uncaughtException', 1); });

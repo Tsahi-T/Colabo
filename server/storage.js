@@ -13,6 +13,9 @@ async function pgStorage(url) {
     connectionString: url,
     ssl: process.env.PGSSL === 'false' ? false : { rejectUnauthorized: false },
   });
+  // Without this, a network blip on an idle pooled connection throws an
+  // unhandled error that crashes the whole process instead of just that query.
+  pool.on('error', (err) => console.error('Postgres pool error (idle client):', err));
   await pool.query(`
     CREATE TABLE IF NOT EXISTS docs(
       id uuid PRIMARY KEY,
@@ -74,7 +77,7 @@ async function pgStorage(url) {
     async getStats() {
       const total = (await pool.query('SELECT COUNT(DISTINCT vid) c FROM visits')).rows[0].c;
       const { rows } = await pool.query(
-        "SELECT to_char(day,'YYYY-MM-DD') day, COUNT(*)::int c FROM visits WHERE day > now() - interval '370 days' GROUP BY day ORDER BY day");
+        "SELECT to_char(day,'YYYY-MM-DD') day, COUNT(*)::int c FROM visits WHERE day > (now() - interval '370 days')::date GROUP BY day ORDER BY day");
       return { total: +total, daily: rows.map((r) => ({ day: r.day, count: r.c })) };
     },
   };

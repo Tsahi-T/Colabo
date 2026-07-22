@@ -9,15 +9,13 @@ import './styles.css';
 
 initTheme();
 
-// Anonymous daily usage ping (browser-unique id, no personal data).
+// Anonymous usage ping (browser-unique id, no personal data). Sent on every load:
+// the server counts it as one visit, and de-duplicates the browser for the
+// unique-users-today figure on its side.
 try {
   let vid = localStorage.getItem('colabo.vid');
   if (!vid) { vid = crypto.randomUUID(); localStorage.setItem('colabo.vid', vid); }
-  const today = new Date().toISOString().slice(0, 10);
-  if (localStorage.getItem('colabo.tracked') !== today) {
-    fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vid }) })
-      .then((r) => r.ok && localStorage.setItem('colabo.tracked', today)).catch(() => {});
-  }
+  fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vid }) }).catch(() => {});
 } catch { /* storage unavailable */ }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

@@ -359,11 +359,41 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .chart-box .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
 .chart-box .crosshair { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart-box .dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+/* two series: filled primary (unique users) + a dashed secondary (raw visits) */
+.chart-box .line.s-visits { stroke: #8b5cf6; stroke-dasharray: 5 3; }
+.chart-box .dot.s-visits { fill: #8b5cf6; }
+.chart-legend { display: flex; gap: 1.1rem; justify-content: center; margin-top: .6rem; font-size: .8rem; color: var(--ink2); }
+.chart-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.chart-legend i, .chart-tip i { width: 10px; height: 3px; border-radius: 2px; background: var(--accent); }
+.chart-legend .s-visits, .chart-tip .s-visits { background: #8b5cf6; }
 .chart-tip {
   position: absolute; top: 4px; transform: translateX(-50%);
-  background: var(--ink); color: var(--panel); border-radius: 6px; padding: .25rem .6rem;
+  background: var(--ink); color: var(--panel); border-radius: 6px; padding: .3rem .6rem;
   font-size: .78rem; pointer-events: none; white-space: nowrap; box-shadow: var(--shadow-pop);
 }
+.chart-tip .tip-row { display: flex; align-items: center; gap: .35rem; margin-top: .15rem; }
+
+/* ---- per-tool open counts (leaderboard bars) ---- */
+.ab-brk { display: flex; flex-direction: column; gap: .5rem; }
+.brk-row { display: flex; align-items: center; gap: .7rem; }
+.brk-row .ico { width: 34px; height: 34px; flex-shrink: 0; }
+.brk-row .ico .cicon { width: 19px; height: 19px; }
+.brk-main { flex: 1; min-width: 0; }
+.brk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: .25rem; }
+.brk-head b { font-size: .86rem; font-weight: 600; }
+.brk-n { font-size: .9rem; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.brk-n small { color: var(--ink3); font-weight: 500; font-size: .74rem; margin-inline-start: .4rem; }
+.brk-bar { height: 8px; border-radius: 99px; background: var(--hover); overflow: hidden; }
+.brk-bar i { display: block; height: 100%; border-radius: 99px; background: var(--c, var(--accent)); transition: width .3s; }
+.brk-doc { --c: #2563eb; }
+.brk-board { --c: #eab308; }
+.brk-timeline { --c: #16a34a; }
+.brk-risks { --c: #ef4444; }
+.brk-swot { --c: #8b5cf6; }
+.brk-tasks { --c: #ec4899; }
+.brk-sun { --c: #f59e0b; }
+.brk-project { --c: #6366f1; }
+.brk-chat { --c: #06b6d4; }
 .about-foot { margin-top: 2.5rem; }
 .about-foot a { color: var(--accent); text-decoration: none; }
 

@@ -35,6 +35,13 @@ async function pgStorage(url) {
       doc_id uuid REFERENCES docs(id) ON DELETE CASCADE,
       mime text NOT NULL,
       data bytea NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS events(
+      day date NOT NULL,
+      kind text NOT NULL,
+      type text NOT NULL DEFAULT '',
+      count integer NOT NULL DEFAULT 0,
+      PRIMARY KEY(day, kind, type)
     );`);
   return {
     async createDoc(type = 'doc') {
@@ -74,11 +81,27 @@ async function pgStorage(url) {
     async trackVisit(vid, day) {
       await pool.query('INSERT INTO visits(vid, day) VALUES($1,$2) ON CONFLICT DO NOTHING', [vid, day]);
     },
+    // Counters are pre-aggregated per (day, kind, type) so the table stays tiny
+    // (a handful of rows a day) no matter how much traffic there is.
+    async bumpEvent(kind, type, day) {
+      await pool.query(
+        `INSERT INTO events(day, kind, type, count) VALUES($1,$2,$3,1)
+         ON CONFLICT (day, kind, type) DO UPDATE SET count = events.count + 1`, [day, kind, type]);
+    },
     async getStats() {
       const total = (await pool.query('SELECT COUNT(DISTINCT vid) c FROM visits')).rows[0].c;
       const { rows } = await pool.query(
         "SELECT to_char(day,'YYYY-MM-DD') day, COUNT(*)::int c FROM visits WHERE day > (now() - interval '370 days')::date GROUP BY day ORDER BY day");
-      return { total: +total, daily: rows.map((r) => ({ day: r.day, count: r.c })) };
+      const { rows: totals } = await pool.query('SELECT kind, type, SUM(count)::int total FROM events GROUP BY kind, type');
+      const { rows: series } = await pool.query(
+        "SELECT to_char(day,'YYYY-MM-DD') day, SUM(count)::int c FROM events WHERE kind='visit' AND day > (now() - interval '370 days')::date GROUP BY day ORDER BY day");
+      return {
+        total: +total,
+        daily: rows.map((r) => ({ day: r.day, count: r.c })),
+        visitsTotal: totals.filter((r) => r.kind === 'visit').reduce((a, r) => a + r.total, 0),
+        visitsDaily: series.map((r) => ({ day: r.day, count: r.c })),
+        opens: totals.filter((r) => r.kind === 'open').map((r) => ({ type: r.type, count: r.total })).sort((a, b) => b.count - a.count),
+      };
     },
   };
 }
@@ -146,12 +169,33 @@ function fsStorage(dir) {
       (v[day] ||= []).includes(vid) || v[day].push(vid);
       fs.writeFileSync(f, JSON.stringify(v));
     },
+    // Same pre-aggregated shape as pgStorage, keyed "day|kind|type".
+    async bumpEvent(kind, type, day) {
+      const f = p('events.json');
+      const e = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
+      const key = `${day}|${kind}|${type}`;
+      e[key] = (e[key] || 0) + 1;
+      fs.writeFileSync(f, JSON.stringify(e));
+    },
     async getStats() {
       const f = p('visits.json');
       const v = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : {};
       const total = new Set(Object.values(v).flat()).size;
       const daily = Object.keys(v).sort().map((day) => ({ day, count: v[day].length }));
-      return { total, daily };
+      const ef = p('events.json');
+      const e = fs.existsSync(ef) ? JSON.parse(fs.readFileSync(ef, 'utf8')) : {};
+      let visitsTotal = 0;
+      const visitsByDay = {}, opensByType = {};
+      for (const [key, n] of Object.entries(e)) {
+        const [day, kind, type = ''] = key.split('|');
+        if (kind === 'visit') { visitsTotal += n; visitsByDay[day] = (visitsByDay[day] || 0) + n; }
+        else if (kind === 'open') opensByType[type] = (opensByType[type] || 0) + n;
+      }
+      return {
+        total, daily, visitsTotal,
+        visitsDaily: Object.keys(visitsByDay).sort().map((day) => ({ day, count: visitsByDay[day] })),
+        opens: Object.entries(opensByType).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
+      };
     },
   };
 }

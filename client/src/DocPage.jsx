@@ -152,7 +152,11 @@ export default function DocPage() {
     // and its Y.Doc/provider (memoized once) would stay wired to the wrong document forever.
     setInfo(null);
     setNotFound(false);
-    fetch(`/api/docs/${token}`).then((r) => (r.ok ? r.json() : Promise.reject())).then(setInfo).catch(() => setNotFound(true));
+    fetch(`/api/docs/${token}`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => {
+      setInfo(d);
+      // anonymous per-tool open counter (see /api/open)
+      fetch('/api/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: d.type }) }).catch(() => {});
+    }).catch(() => setNotFound(true));
   }, [token]);
 
   if (notFound) return <div className="center-msg"><h2>המסמך לא נמצא</h2><Link to="/">← לדף הבית</Link></div>;

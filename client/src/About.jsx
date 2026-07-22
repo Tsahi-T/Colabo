@@ -7,15 +7,15 @@ const RANGES = { week: { days: 7, label: 'שבוע' }, month: { days: 30, label:
 const fmtDay = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
 
 const TOOLS = [
-  { icon: <IconDoc />, cls: 'doc', name: 'מסמך', desc: 'מעבד תמלילים משותף — עיצוב מלא, כותרות, טבלאות ותמונות.' },
-  { icon: <IconBoard />, cls: 'board', name: 'לוח חשיבה', desc: 'פתקים צבעוניים על קנבס אינסופי, עם קווי קשר וגרירה חופשית.' },
-  { icon: <IconTimeline />, cls: 'timeline', name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים יחסי — לתכנון וסקירה.' },
-  { icon: <IconRisk />, cls: 'risks', name: 'ניהול סיכונים', desc: 'טבלת סיכונים ומטריצת חומרה × הסתברות שנצבעת מעצמה.' },
-  { icon: <IconSwot />, cls: 'swot', name: 'ניתוח SWOT', desc: 'ארבעה רבעים — חוזקות, חולשות, הזדמנויות ואיומים.' },
-  { icon: <IconTasks />, cls: 'tasks', name: 'ניהול משימות', desc: 'לוח קנבן וטבלה — אחראי, יעדים, עדיפות ומעקב איחורים.' },
-  { icon: <IconSun />, cls: 'sun', name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו — אסוציאציות, שותפים ומחשבות.' },
-  { icon: <IconProject />, cls: 'project', name: 'ניהול פרויקטים', desc: 'כרטיס פרויקט — מטרה, תכולה, בעלי עניין, אבני דרך ומדדים.' },
-  { icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
+  { type: 'doc', icon: <IconDoc />, cls: 'doc', name: 'מסמך', desc: 'מעבד תמלילים משותף — עיצוב מלא, כותרות, טבלאות ותמונות.' },
+  { type: 'board', icon: <IconBoard />, cls: 'board', name: 'לוח חשיבה', desc: 'פתקים צבעוניים על קנבס אינסופי, עם קווי קשר וגרירה חופשית.' },
+  { type: 'timeline', icon: <IconTimeline />, cls: 'timeline', name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים יחסי — לתכנון וסקירה.' },
+  { type: 'risks', icon: <IconRisk />, cls: 'risks', name: 'ניהול סיכונים', desc: 'טבלת סיכונים ומטריצת חומרה × הסתברות שנצבעת מעצמה.' },
+  { type: 'swot', icon: <IconSwot />, cls: 'swot', name: 'ניתוח SWOT', desc: 'ארבעה רבעים — חוזקות, חולשות, הזדמנויות ואיומים.' },
+  { type: 'tasks', icon: <IconTasks />, cls: 'tasks', name: 'ניהול משימות', desc: 'לוח קנבן וטבלה — אחראי, יעדים, עדיפות ומעקב איחורים.' },
+  { type: 'sun', icon: <IconSun />, cls: 'sun', name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו — אסוציאציות, שותפים ומחשבות.' },
+  { type: 'project', icon: <IconProject />, cls: 'project', name: 'ניהול פרויקטים', desc: 'כרטיס פרויקט — מטרה, תכולה, בעלי עניין, אבני דרך ומדדים.' },
+  { type: 'chat', icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
 ];
 
 const IO = [
@@ -26,30 +26,31 @@ const IO = [
   { name: 'צ\'אט', out: 'TXT', in: '—' },
 ];
 
-// Single-series area chart (SVG, self-contained, hover crosshair + tooltip).
-function UsageChart({ daily, days }) {
+// Two-series area chart (SVG, self-contained, hover crosshair + tooltip).
+// series: [{ key, label, daily }] — the first one is drawn filled, as the primary.
+function UsageChart({ series, days }) {
   const [hover, setHover] = useState(null);
   const W = 720, H = 220, PAD = { t: 14, r: 14, b: 26, l: 34 };
-  const data = useMemo(() => {
-    const byDay = Object.fromEntries(daily.map((d) => [d.day, d.count]));
+  const axis = useMemo(() => {
     const out = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
-      out.push({ day: d, count: byDay[d] || 0 });
-    }
+    for (let i = days - 1; i >= 0; i--) out.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
     return out;
-  }, [daily, days]);
-  const max = Math.max(4, ...data.map((d) => d.count));
-  const x = (i) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(1, data.length - 1);
+  }, [days]);
+  const sets = useMemo(() => series.map((s) => {
+    const byDay = Object.fromEntries((s.daily || []).map((d) => [d.day, d.count]));
+    return { ...s, data: axis.map((day) => byDay[day] || 0) };
+  }), [series, axis]);
+  const max = Math.max(4, ...sets.flatMap((s) => s.data));
+  const x = (i) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(1, axis.length - 1);
   const y = (v) => H - PAD.b - (v * (H - PAD.t - PAD.b)) / max;
-  const line = data.map((d, i) => `${x(i)},${y(d.count)}`).join(' ');
+  const pts = (data) => data.map((v, i) => `${x(i)},${y(v)}`).join(' ');
   const ticksY = [0, Math.round(max / 2), max];
-  const tickEvery = Math.ceil(data.length / 6);
+  const tickEvery = Math.ceil(axis.length / 6);
   function onMove(e) {
     const r = e.currentTarget.getBoundingClientRect();
     const px = ((e.clientX - r.left) / r.width) * W;
-    const i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (data.length - 1));
-    setHover(i >= 0 && i < data.length ? i : null);
+    const i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (axis.length - 1));
+    setHover(i >= 0 && i < axis.length ? i : null);
   }
   return (
     <div className="chart-box" dir="ltr">
@@ -60,23 +61,53 @@ function UsageChart({ daily, days }) {
             <text x={PAD.l - 6} y={y(t) + 3} className="tick" textAnchor="end">{t}</text>
           </g>
         ))}
-        {data.map((d, i) => i % tickEvery === 0 && (
-          <text key={d.day} x={x(i)} y={H - 8} className="tick" textAnchor="middle">{fmtDay(d.day)}</text>
+        {axis.map((day, i) => i % tickEvery === 0 && (
+          <text key={day} x={x(i)} y={H - 8} className="tick" textAnchor="middle">{fmtDay(day)}</text>
         ))}
-        <polygon points={`${PAD.l},${y(0)} ${line} ${x(data.length - 1)},${y(0)}`} className="area" />
-        <polyline points={line} className="line" />
+        {sets.map((s, si) => (
+          <g key={s.key}>
+            {si === 0 && <polygon points={`${PAD.l},${y(0)} ${pts(s.data)} ${x(axis.length - 1)},${y(0)}`} className="area" />}
+            <polyline points={pts(s.data)} className={'line s-' + s.key} />
+          </g>
+        ))}
         {hover != null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={H - PAD.b} className="crosshair" />
-            <circle cx={x(hover)} cy={y(data[hover].count)} r="5" className="dot" />
+            {sets.map((s) => <circle key={s.key} cx={x(hover)} cy={y(s.data[hover])} r="4.5" className={'dot s-' + s.key} />)}
           </g>
         )}
       </svg>
       {hover != null && (
         <div className="chart-tip" style={{ insetInlineStart: `${(x(hover) / W) * 100}%` }} dir="rtl">
-          <b>{data[hover].count}</b> משתמשים · {fmtDay(data[hover].day)}
+          {fmtDay(axis[hover])}
+          {sets.map((s) => <span key={s.key} className="tip-row"><i className={'s-' + s.key} /><b>{s.data[hover]}</b> {s.label}</span>)}
         </div>
       )}
+    </div>
+  );
+}
+
+// Per-tool open counts, as a leaderboard of bars scaled to the busiest tool.
+function OpensBreakdown({ opens }) {
+  const byType = Object.fromEntries((opens || []).map((o) => [o.type, o.count]));
+  const total = (opens || []).reduce((a, o) => a + o.count, 0);
+  const rows = TOOLS.map((t) => ({ ...t, count: byType[t.type] || 0 })).sort((a, b) => b.count - a.count);
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  if (!total) return <p className="ab-fine">עוד לא נפתחו מסכים מאז שהמונה הופעל.</p>;
+  return (
+    <div className="ab-brk">
+      {rows.map((r) => (
+        <div key={r.type} className={'brk-row brk-' + r.cls}>
+          <span className={'ico ' + r.cls}>{r.icon}</span>
+          <div className="brk-main">
+            <div className="brk-head">
+              <b>{r.name}</b>
+              <span className="brk-n">{r.count.toLocaleString('he-IL')}<small>({total ? Math.round((r.count / total) * 100) : 0}%)</small></span>
+            </div>
+            <div className="brk-bar"><i style={{ width: `${(r.count / max) * 100}%` }} /></div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -171,19 +202,38 @@ export default function About() {
           {!stats ? <p>טוען…</p> : stats.error ? <p>הנתונים אינם זמינים כרגע.</p> : (
             <>
               <div className="stat-row">
-                <div className="stat-tile"><span className="stat-num">{stats.total.toLocaleString('he-IL')}</span>משתמשים עד היום</div>
-                <div className="stat-tile"><span className="stat-num live">{stats.online}<i /></span>מחוברים עכשיו</div>
+                <div className="stat-tile"><span className="stat-num">{(stats.total || 0).toLocaleString('he-IL')}</span>משתמשים ייחודיים</div>
+                <div className="stat-tile"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
+                <div className="stat-tile"><span className="stat-num">{(stats.visitsTotal || 0).toLocaleString('he-IL')}</span>סה״כ כניסות לאתר</div>
+                <div className="stat-tile">
+                  <span className="stat-num">{(stats.opens || []).reduce((a, o) => a + o.count, 0).toLocaleString('he-IL')}</span>
+                  סה״כ פתיחות מסכים
+                </div>
               </div>
               <div className="chart-head">
-                <h3>משתמשים פעילים ביום</h3>
+                <h3>פעילות יומית</h3>
                 <div className="range-btns">
                   {Object.entries(RANGES).map(([k, r]) => (
                     <button key={k} className={range === k ? 'act' : ''} onClick={() => setRange(k)}>{r.label}</button>
                   ))}
                 </div>
               </div>
-              <UsageChart daily={stats.daily} days={RANGES[range].days} />
-              <p className="ab-fine">הספירה אנונימית לחלוטין — לפי דפדפן ייחודי, בלי חשבונות ובלי מידע מזהה.</p>
+              <UsageChart days={RANGES[range].days} series={[
+                { key: 'users', label: 'משתמשים ייחודיים', daily: stats.daily },
+                { key: 'visits', label: 'כניסות', daily: stats.visitsDaily },
+              ]} />
+              <div className="chart-legend">
+                <span><i className="s-users" />משתמשים ייחודיים</span>
+                <span><i className="s-visits" />כניסות</span>
+              </div>
+
+              <div className="chart-head"><h3>פילוח פתיחות מסכים לפי כלי</h3></div>
+              <OpensBreakdown opens={stats.opens} />
+
+              <p className="ab-fine">
+                הספירה אנונימית לחלוטין — לפי דפדפן ייחודי, בלי חשבונות ובלי מידע מזהה.
+                המונים נספרים מרגע הפעלתם, כך שנתוני עבר שקדמו להם אינם מופיעים כאן.
+              </p>
             </>
           )}
         </section>

@@ -44,8 +44,10 @@ const app = express();
 app.use(express.json({ limit: '30mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
+const DOC_TYPES = ['doc', 'board', 'timeline', 'risks', 'swot', 'chat', 'tasks', 'sun', 'project'];
+
 app.post('/api/docs', async (req, res) => {
-  const doc = await storage.createDoc(['board', 'timeline', 'risks', 'swot', 'chat', 'tasks', 'sun', 'project'].includes(req.body?.type) ? req.body.type : 'doc');
+  const doc = await storage.createDoc(DOC_TYPES.includes(req.body?.type) ? req.body.type : 'doc');
   res.json({ editToken: doc.editToken, viewToken: doc.viewToken });
 });
 
@@ -69,10 +71,29 @@ app.get('/api/images/:id', async (req, res) => {
   res.set('Content-Type', img.mime).set('Cache-Control', 'public, max-age=31536000, immutable').send(img.data);
 });
 
+const today = () => new Date().toISOString().slice(0, 10);
+
+// Every page load: bumps the raw visit counter, and records the browser as a
+// unique-visitor-for-today (idempotent, so repeat loads don't inflate that number).
 app.post('/api/track', async (req, res) => {
-  const { vid } = req.body || {};
-  if (typeof vid === 'string' && /^[\w-]{8,64}$/.test(vid)) {
-    await storage.trackVisit(vid, new Date().toISOString().slice(0, 10));
+  try {
+    const { vid } = req.body || {};
+    const day = today();
+    await storage.bumpEvent('visit', '', day);
+    if (typeof vid === 'string' && /^[\w-]{8,64}$/.test(vid)) await storage.trackVisit(vid, day);
+  } catch (e) {
+    console.error('POST /api/track failed:', e);
+  }
+  res.json({ ok: true }); // never fail the caller — this is fire-and-forget telemetry
+});
+
+// One screen opened, counted per tool type.
+app.post('/api/open', async (req, res) => {
+  try {
+    const { type } = req.body || {};
+    if (DOC_TYPES.includes(type)) await storage.bumpEvent('open', type, today());
+  } catch (e) {
+    console.error('POST /api/open failed:', e);
   }
   res.json({ ok: true });
 });

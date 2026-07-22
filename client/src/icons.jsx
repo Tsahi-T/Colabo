@@ -25,6 +25,43 @@ export const IconTarget = () => (
   </svg>
 );
 
+// Decorative project-badge glyphs — a varied set assigned per project, not tied to status.
+export const IconStar = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M12 3.3l2.5 5.2 5.7.6-4.2 3.9 1.2 5.6L12 15.8l-5.2 2.8 1.2-5.6-4.2-3.9 5.7-.6z" />
+  </svg>
+);
+export const IconFlag = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M6 3v18" />
+    <path {...S} d="M6 4.5h11.5L15 8l2.5 3.5H6" />
+  </svg>
+);
+export const IconRocket = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M12 2.5c3 2 4.5 5.5 4.5 9 0 2-.6 3.8-1.5 5.3l-3-1.3-3 1.3C7.6 15.3 7 13.5 7 11.5c0-3.5 1.5-7 5-9z" />
+    <circle cx="12" cy="10" r="1.5" {...S} />
+    <path {...S} d="M9 16.5l-1.5 4M15 16.5l1.5 4" />
+  </svg>
+);
+export const IconCompass = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.5" {...S} />
+    <path {...S} d="M15.3 8.7l-2.1 4.9-4.9 2.1 2.1-4.9z" />
+  </svg>
+);
+export const IconGem = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M4.5 9L12 3l7.5 6-7.5 12z" />
+    <path {...S} d="M4.5 9h15M9 9l3 12M15 9l-3 12" />
+  </svg>
+);
+export const IconBolt = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M13 2.5L5 14h5.5L10 21.5 19 10h-5.5z" />
+  </svg>
+);
+
 // Aspect icons for the project dashboard (לו״ז / תכולה / משאבים)
 export const IconSchedule = () => (
   <svg className="cicon" viewBox="0 0 24 24">

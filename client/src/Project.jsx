@@ -4,7 +4,7 @@ import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconSchedule, IconScope, IconResources, IconTarget } from './icons.jsx';
+import { Logo, IconSchedule, IconScope, IconResources, IconStar, IconFlag, IconRocket, IconCompass, IconGem, IconBolt } from './icons.jsx';
 import { touchRecent } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import Tasks from './Tasks.jsx';
@@ -28,6 +28,23 @@ const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
 
+// Per-project badge: the glyph reflects the project's phase (so it changes as the
+// project progresses), the colour is picked at random (blue/green tones) once at
+// creation and stored on the project — stable across reloads, not tied to status.
+const PHASE_ICON = {
+  'יזום': IconCompass, 'התנעה': IconFlag, 'מימוש': IconBolt,
+  'הטמעה': IconRocket, 'שינויים ושיפורים': IconGem, 'סיום': IconStar,
+};
+const BADGE_TONES = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+const randomTone = () => BADGE_TONES[Math.floor(Math.random() * BADGE_TONES.length)];
+// legacy fallback for projects saved before the `badge` field existed
+function toneFor(p) {
+  if (p.badge) return p.badge;
+  let h = 0;
+  for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) >>> 0;
+  return BADGE_TONES[h % BADGE_TONES.length];
+}
+
 // Every field starts with real placeholder copy so an exported sheet is never blank.
 const newProject = (ord) => ({
   ord,
@@ -35,6 +52,7 @@ const newProject = (ord) => ({
   purpose: 'תיאור קצר של מטרת הפרויקט — מה הוא בא להשיג.',
   phase: 'יזום',
   status: 'green',
+  badge: randomTone(),
   manager: 'שם מנהל הפרויקט',
   updated: today(),
   schedule: { st: 'green', trend: 'flat', text: 'תיאור מצב לוח הזמנים.' },
@@ -80,7 +98,7 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
   const rw = editable && !clickable; // writable only in the detail header
   return (
     <div className={'pj-row' + (clickable ? ' clickable' : '')} onClick={clickable ? onOpen : undefined}>
-      <span className={'pj-badge pj-rag-' + (p.status || 'green')}><IconTarget /></span>
+      {(() => { const Icon = PHASE_ICON[p.phase] || IconCompass; return <span className={'pj-badge pj-badge-' + toneFor(p)}><Icon /></span>; })()}
       <div className="pj-row-main">
         {rw
           ? <input className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />

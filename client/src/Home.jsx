@@ -30,7 +30,7 @@ const GROUPS = [
     tools: [
       { type: 'risks', cls: 'risks', icon: <IconRisk />, name: 'ניהול סיכונים', desc: 'טבלה ומטריצת חומרה/הסתברות' },
       { type: 'timeline', cls: 'timeline', icon: <IconTimeline />, name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים' },
-      { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקט', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
+      { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקטים', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
     ],
   },
   {

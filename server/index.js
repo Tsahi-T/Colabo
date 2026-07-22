@@ -111,3 +111,26 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, () => console.log(`טורבו on http://localhost:${PORT}`));
+
+// ---------- Graceful shutdown ----------
+// OpenShift sends SIGTERM before killing a pod (rolling deploy, reschedule, scale-down).
+// hocuspocus.destroy() force-flushes every open document's pending debounced save to
+// Postgres before resolving, so a pod replacement doesn't lose the last few edits.
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received — flushing documents and closing…`);
+  const timeout = setTimeout(() => { console.error('Shutdown timed out — forcing exit'); process.exit(1); }, 8000);
+  try {
+    await hocuspocus.destroy();
+    server.close();
+  } catch (e) {
+    console.error('Error during shutdown:', e);
+  } finally {
+    clearTimeout(timeout);
+    process.exit(0);
+  }
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

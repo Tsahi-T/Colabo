@@ -658,6 +658,14 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-rag-yellow { --rag: #eab308; --ragSoft: rgba(234,179,8,.14); }
 .pj-rag-red { --rag: #ef4444; --ragSoft: rgba(239,68,68,.12); }
 
+/* Decorative badge palette (blue → green) — purely visual variety, not a status signal */
+.pj-badge-c1 { --rag: #2563eb; --ragSoft: rgba(37,99,235,.12); }
+.pj-badge-c2 { --rag: #0284c7; --ragSoft: rgba(2,132,199,.12); }
+.pj-badge-c3 { --rag: #0d9488; --ragSoft: rgba(13,148,136,.12); }
+.pj-badge-c4 { --rag: #059669; --ragSoft: rgba(5,150,105,.12); }
+.pj-badge-c5 { --rag: #16a34a; --ragSoft: rgba(22,163,74,.12); }
+.pj-badge-c6 { --rag: #22c55e; --ragSoft: rgba(34,197,94,.14); }
+
 /* ---- header row (used both as a list item and as the detail header) ---- */
 .pj-row {
   display: flex; align-items: center; gap: 1.2rem; position: relative;
@@ -730,9 +738,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-ms-name:focus, .pj-ms-date:focus { background: var(--panel); border-color: var(--accent); outline: 0; }
 .pj-aspect-foot { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; justify-content: flex-end; }
 .pj-aspect-foot select { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: .78rem; padding: .1rem .25rem; }
-.pj-trend { font-size: 1.15rem; font-weight: 800; }
+.pj-trend { display: inline-block; font-size: 1.6rem; font-weight: 800; line-height: 1; }
 .pj-t-up { color: #16a34a; }
-.pj-t-flat { color: var(--accent); }
+/* stable reads as forward motion, not sideways drift — flipped to point the other way */
+.pj-t-flat { color: var(--accent); transform: rotate(180deg); }
 .pj-t-down { color: #ef4444; }
 
 /* ---- cards ---- */

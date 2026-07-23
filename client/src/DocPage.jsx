@@ -81,7 +81,11 @@ function EditorView({ info, user, token }) {
     meta.observe(syncTitle);
     syncTitle();
     const aw = provider.awareness;
-    const syncPeers = () => setPeers([...aw.getStates().values()].map((s) => s.user).filter(Boolean));
+    // Exclude our own client — the header shows *other* participants, matching every
+    // other screen. Without the clientID filter the editor uniquely counted yourself.
+    const syncPeers = () => setPeers(
+      [...aw.getStates().entries()].filter(([id]) => id !== aw.clientID).map(([, s]) => s.user).filter(Boolean)
+    );
     aw.on('change', syncPeers);
     return () => { meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
   }, []);

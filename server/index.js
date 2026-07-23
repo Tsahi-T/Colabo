@@ -44,31 +44,56 @@ const app = express();
 app.use(express.json({ limit: '30mb' }));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
+// Liveness/readiness target: intentionally touches nothing (no DB, no Hocuspocus) so a
+// storage-layer blip can't fail the probe and cause an unnecessary pod restart — this
+// only answers "is the Node process itself alive and serving HTTP".
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
+
 const DOC_TYPES = ['doc', 'board', 'timeline', 'risks', 'swot', 'chat', 'tasks', 'sun', 'project'];
 
 app.post('/api/docs', async (req, res) => {
-  const doc = await storage.createDoc(DOC_TYPES.includes(req.body?.type) ? req.body.type : 'doc');
-  res.json({ editToken: doc.editToken, viewToken: doc.viewToken });
+  try {
+    const doc = await storage.createDoc(DOC_TYPES.includes(req.body?.type) ? req.body.type : 'doc');
+    res.json({ editToken: doc.editToken, viewToken: doc.viewToken });
+  } catch (e) {
+    console.error('POST /api/docs failed:', e);
+    res.status(500).json({ error: 'create failed' });
+  }
 });
 
 app.get('/api/docs/:token', async (req, res) => {
-  const r = await storage.resolveToken(req.params.token);
-  if (!r) return res.status(404).json({ error: 'not found' });
-  res.json(r);
+  try {
+    const r = await storage.resolveToken(req.params.token);
+    if (!r) return res.status(404).json({ error: 'not found' });
+    res.json(r);
+  } catch (e) {
+    console.error('GET /api/docs/:token failed:', e);
+    res.status(500).json({ error: 'lookup failed' });
+  }
 });
 
 app.post('/api/images', upload.single('image'), async (req, res) => {
-  const r = await storage.resolveToken(req.query.token || '');
-  if (!r || r.mode !== 'edit') return res.status(403).json({ error: 'forbidden' });
-  if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'bad image' });
-  const id = await storage.saveImage(r.docId, req.file.mimetype, req.file.buffer);
-  res.json({ url: `/api/images/${id}` });
+  try {
+    const r = await storage.resolveToken(req.query.token || '');
+    if (!r || r.mode !== 'edit') return res.status(403).json({ error: 'forbidden' });
+    if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'bad image' });
+    const id = await storage.saveImage(r.docId, req.file.mimetype, req.file.buffer);
+    res.json({ url: `/api/images/${id}` });
+  } catch (e) {
+    console.error('POST /api/images failed:', e);
+    res.status(500).json({ error: 'upload failed' });
+  }
 });
 
 app.get('/api/images/:id', async (req, res) => {
-  const img = await storage.loadImage(req.params.id);
-  if (!img) return res.sendStatus(404);
-  res.set('Content-Type', img.mime).set('Cache-Control', 'public, max-age=31536000, immutable').send(img.data);
+  try {
+    const img = await storage.loadImage(req.params.id);
+    if (!img) return res.sendStatus(404);
+    res.set('Content-Type', img.mime).set('Cache-Control', 'public, max-age=31536000, immutable').send(img.data);
+  } catch (e) {
+    console.error('GET /api/images/:id failed:', e);
+    res.sendStatus(500);
+  }
 });
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -109,15 +134,20 @@ app.get('/api/stats', async (req, res) => {
 });
 
 app.post('/api/export/docx', async (req, res) => {
-  const { html, title } = req.body;
-  if (!html) return res.sendStatus(400);
-  // Air-gap guard: html-to-docx downloads <img> URLs; allow only embedded data URIs.
-  const safe = html.replace(/<img\b[^>]*>/gi, (tag) => (/\bsrc\s*=\s*["']data:/i.test(tag) ? tag : ''));
-  const { default: htmlToDocx } = await import('html-to-docx');
-  const buf = await htmlToDocx(safe, null, { lang: 'he-IL', font: 'Arial' });
-  res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    .set('Content-Disposition', `attachment; filename="${encodeURIComponent(title || 'document')}.docx"`)
-    .send(Buffer.from(buf));
+  try {
+    const { html, title } = req.body;
+    if (!html) return res.sendStatus(400);
+    // Air-gap guard: html-to-docx downloads <img> URLs; allow only embedded data URIs.
+    const safe = html.replace(/<img\b[^>]*>/gi, (tag) => (/\bsrc\s*=\s*["']data:/i.test(tag) ? tag : ''));
+    const { default: htmlToDocx } = await import('html-to-docx');
+    const buf = await htmlToDocx(safe, null, { lang: 'he-IL', font: 'Arial' });
+    res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+      .set('Content-Disposition', `attachment; filename="${encodeURIComponent(title || 'document')}.docx"`)
+      .send(Buffer.from(buf));
+  } catch (e) {
+    console.error('POST /api/export/docx failed:', e);
+    res.status(500).json({ error: 'export failed' });
+  }
 });
 
 // ---------- Static frontend (client/dist) + SPA fallback ----------

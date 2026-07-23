@@ -28,7 +28,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
 
-// Turns bare URLs typed/pasted into a text field into clickable links (view mode only).
+// Turns bare URLs typed/pasted into a text field into clickable links (used by
+// the free-text "מידע נוסף" box; the "קישורים חשובים" box is a structured list — see below).
 const URL_RE = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
 function linkify(text) {
   if (!text) return null;
@@ -39,6 +40,17 @@ function linkify(text) {
     const href = core.startsWith('www.') ? 'https://' + core : core;
     return <span key={i}><a href={href} target="_blank" rel="noopener noreferrer">{core}</a>{trail}</span>;
   });
+}
+
+// "links" used to be a single free-text field; older projects still have a string there.
+// Lazily upgraded to a list of {id, title, url} the first time it's read — any edit then
+// writes the array back, so the migration is permanent and non-destructive.
+function normalizeLinks(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  const found = [...raw.matchAll(URL_RE)].map((m) => m[0].replace(/[.,;:!?)\]}'"]+$/, ''));
+  if (!found.length) return [{ id: uid(), title: raw, url: '' }];
+  return found.map((u) => ({ id: uid(), title: '', url: u.startsWith('www.') ? 'https://' + u : u }));
 }
 
 // Per-project badge: the glyph reflects the project's phase (so it changes as the
@@ -78,7 +90,7 @@ const newProject = (ord) => ({
   gaps: [{ title: 'פער מרכזי', desc: 'תיאור הפער והשפעתו.' }],
   decisions: ['החלטה שנדרשת מההנהלה.'],
   info: 'מידע נוסף על הפרויקט.',
-  links: 'קישורים רלוונטיים.',
+  links: [{ id: uid(), title: 'קישור רלוונטי', url: '' }],
 });
 
 const download = (text, name, mime = 'text/csv;charset=utf-8') => {
@@ -171,6 +183,43 @@ function BulletList({ values, editable, onChange, onDelete, onAdd, placeholder }
         </div>
       ))}
       {editable && <button className="pj-add-sm" onClick={onAdd}>+ הוספה</button>}
+    </div>
+  );
+}
+
+// A named-link list: title on one side, a button holding the URL on the other. The button
+// always opens the link (edit mode or not) — editing the URL itself goes through the small
+// pencil, so a click never has to guess whether you meant to navigate or to type.
+function LinksList({ links: raw, editable, onSet }) {
+  const links = Array.isArray(raw) ? raw : normalizeLinks(raw);
+  const [editingId, setEditingId] = useState(null);
+  const update = (id, patch) => onSet(links.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const openUrl = (url) => url && window.open(/^https?:\/\//i.test(url) ? url : 'https://' + url, '_blank', 'noopener,noreferrer');
+
+  if (!editable && !links.length) return <p className="pj-ph">אין קישורים.</p>;
+  return (
+    <div className="pj-links">
+      {links.map((l) => (
+        <div key={l.id} className="pj-link-row">
+          {editable
+            ? <input className="pj-link-title" placeholder="שם הקישור" value={l.title} onChange={(e) => update(l.id, { title: e.target.value })} />
+            : <span className="pj-link-title">{l.title || 'קישור'}</span>}
+          {editingId === l.id ? (
+            <input className="pj-link-url-in" autoFocus placeholder="https://…" value={l.url}
+              onChange={(e) => update(l.id, { url: e.target.value })}
+              onBlur={() => setEditingId(null)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+          ) : (
+            <button type="button" className="pj-link-btn" onClick={() => openUrl(l.url)}>
+              <span className="pj-link-arrow">↗</span>{l.url || (editable ? 'הוספת קישור' : 'ללא קישור')}
+            </button>
+          )}
+          {editable && <>
+            <button type="button" className="pj-link-pencil" title="עריכת הקישור" onClick={() => setEditingId(l.id)}>✎</button>
+            <button type="button" className="pj-x" onClick={() => onSet(links.filter((x) => x.id !== l.id))}>✕</button>
+          </>}
+        </div>
+      ))}
+      {editable && <button type="button" className="pj-add-sm" onClick={() => onSet([...links, { id: uid(), title: '', url: '' }])}>+ קישור</button>}
     </div>
   );
 }
@@ -276,7 +325,7 @@ export default function Project({ info, user, token }) {
       (p.gaps || []).forEach((g) => lines.push(row(['פער', g.title, g.desc])));
       (p.decisions || []).forEach((d) => lines.push(row(['החלטה נדרשת', d])));
       lines.push(row(['מידע נוסף', p.info]));
-      lines.push(row(['קישורים חשובים', p.links]));
+      (Array.isArray(p.links) ? p.links : normalizeLinks(p.links)).forEach((l) => lines.push(row(['קישור', l.title, l.url])));
       // embedded sections — same label/value template so the sheet stays one consistent shape
       const tm = getSub(p.id, 'tasksMap');
       if (tm) [...tm.values()].map((t) => t.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
@@ -300,7 +349,7 @@ export default function Project({ info, user, token }) {
       const label = (r[0] || '').trim();
       const v = (r[1] || '').trim();
       if (!label || label === 'שדה') continue;
-      if (label === 'פרויקט') { cur = { ...newProject(parsed.length + 1), name: v || 'פרויקט חדש', milestones: [], gaps: [], decisions: [], _tasks: [], _risks: [] }; parsed.push(cur); continue; }
+      if (label === 'פרויקט') { cur = { ...newProject(parsed.length + 1), name: v || 'פרויקט חדש', milestones: [], gaps: [], decisions: [], links: [], _tasks: [], _risks: [] }; parsed.push(cur); continue; }
       if (!cur) continue;
       if (label === 'משפט קיום') cur.purpose = v;
       else if (label === 'שלב הפרויקט') cur.phase = PHASES.includes(v) ? v : 'יזום';
@@ -308,7 +357,8 @@ export default function Project({ info, user, token }) {
       else if (label === 'מנהל פרויקט') cur.manager = v;
       else if (label === 'עדכון אחרון') cur.updated = v || today();
       else if (label === 'מידע נוסף') cur.info = v;
-      else if (label === 'קישורים חשובים') cur.links = v;
+      else if (label === 'קישורים חשובים') cur.links = normalizeLinks(v); // pre-list-format exports
+      else if (label === 'קישור') cur.links.push({ id: uid(), title: v, url: (r[2] || '').trim() });
       else if (label === 'אבן דרך') cur.milestones.push({ name: v, date: (r[2] || '').trim(), st: byLabel(MS, (r[3] || '').trim(), 'future') });
       else if (label === 'פער') cur.gaps.push({ title: v, desc: (r[2] || '').trim() });
       else if (label === 'החלטה נדרשת') cur.decisions.push(v);
@@ -505,25 +555,24 @@ export default function Project({ info, user, token }) {
               </div>
 
               <div className="pj-side-col">
-                {[{ k: 'info', t: 'מידע נוסף' }, { k: 'links', t: 'קישורים חשובים' }].map((s) => {
-                  const fieldKey = open.id + s.k;
-                  const editingThis = editable && editingField === fieldKey;
-                  return (
-                    <div key={s.k} className="pj-card pj-soft">
-                      <div className="pj-card-head"><h3>{s.t}</h3></div>
-                      {editingThis ? (
-                        <textarea rows="3" autoFocus value={open[s.k] || ''}
-                          onChange={(e) => set(open.id, { [s.k]: e.target.value })}
-                          onBlur={() => setEditingField(null)} />
-                      ) : (
-                        <p className={editable ? 'pj-click-edit' : ''}
-                          onClick={(e) => editable && e.target.tagName !== 'A' && setEditingField(fieldKey)}>
-                          {open[s.k] ? linkify(open[s.k]) : (editable && <span className="pj-ph">לחיצה להקלדה…</span>)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
+                <div className="pj-card pj-soft">
+                  <div className="pj-card-head"><h3>מידע נוסף</h3></div>
+                  {editable && editingField === open.id + 'info' ? (
+                    <textarea rows="3" autoFocus value={open.info || ''}
+                      onChange={(e) => set(open.id, { info: e.target.value })}
+                      onBlur={() => setEditingField(null)} />
+                  ) : (
+                    <p className={editable ? 'pj-click-edit' : ''}
+                      onClick={(e) => editable && e.target.tagName !== 'A' && setEditingField(open.id + 'info')}>
+                      {open.info ? linkify(open.info) : (editable && <span className="pj-ph">לחיצה להקלדה…</span>)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pj-card pj-soft">
+                  <div className="pj-card-head"><h3>קישורים חשובים</h3></div>
+                  <LinksList links={open.links} editable={editable} onSet={(links) => set(open.id, { links })} />
+                </div>
               </div>
             </div>
 

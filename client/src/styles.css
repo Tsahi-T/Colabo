@@ -279,7 +279,13 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 }
 .note:hover .resizer { opacity: 1; }
 
-.edge-svg { position: absolute; top: 0; left: 0; width: 1px; height: 1px; overflow: visible; }
+/* A large fixed box (not viewBox-scaled) so 1 SVG unit is always exactly 1 CSS px,
+   matching the plain-div note positions it has to line up with pixel-for-pixel.
+   Previously this was a 1x1px box relying on overflow:visible to draw outside it —
+   fragile under some browsers'/zoom levels' SVG layout, and the likely cause of
+   edges drifting from their notes on some screens; a real box removes that guesswork. */
+.edge-svg { position: absolute; top: 0; left: 0; width: 20000px; height: 20000px; overflow: visible; pointer-events: none; }
+.edge-svg > g, .edge-svg .edge-hit { pointer-events: auto; }
 .edge { stroke: var(--ink3); stroke-width: 2.5; }
 .edge.sel { stroke: var(--accent); stroke-width: 3.5; }
 .edge.temp { stroke: var(--accent); stroke-dasharray: 6 5; }

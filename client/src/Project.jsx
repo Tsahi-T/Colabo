@@ -183,6 +183,7 @@ export default function Project({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [sections, setSections] = useState({}); // accordion open-state, keyed by projectId+section
+  const [editingField, setEditingField] = useState(null); // "<projectId><key>" of the info/links box being typed in
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -504,14 +505,25 @@ export default function Project({ info, user, token }) {
               </div>
 
               <div className="pj-side-col">
-                {[{ k: 'info', t: 'מידע נוסף' }, { k: 'links', t: 'קישורים חשובים' }].map((s) => (
-                  <div key={s.k} className="pj-card pj-soft">
-                    <div className="pj-card-head"><h3>{s.t}</h3></div>
-                    {editable
-                      ? <textarea rows="3" value={open[s.k] || ''} onChange={(e) => set(open.id, { [s.k]: e.target.value })} />
-                      : <p>{linkify(open[s.k])}</p>}
-                  </div>
-                ))}
+                {[{ k: 'info', t: 'מידע נוסף' }, { k: 'links', t: 'קישורים חשובים' }].map((s) => {
+                  const fieldKey = open.id + s.k;
+                  const editingThis = editable && editingField === fieldKey;
+                  return (
+                    <div key={s.k} className="pj-card pj-soft">
+                      <div className="pj-card-head"><h3>{s.t}</h3></div>
+                      {editingThis ? (
+                        <textarea rows="3" autoFocus value={open[s.k] || ''}
+                          onChange={(e) => set(open.id, { [s.k]: e.target.value })}
+                          onBlur={() => setEditingField(null)} />
+                      ) : (
+                        <p className={editable ? 'pj-click-edit' : ''}
+                          onClick={(e) => editable && e.target.tagName !== 'A' && setEditingField(fieldKey)}>
+                          {open[s.k] ? linkify(open[s.k]) : (editable && <span className="pj-ph">לחיצה להקלדה…</span>)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

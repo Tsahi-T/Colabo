@@ -857,6 +857,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .pj-link-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .pj-link-arrow { flex-shrink: 0; font-weight: 700; }
+/* no url yet: no chip, no border — just a small underlined word, sized to itself */
+.pj-link-empty {
+  flex: 0 0 auto; border: 0; background: none; color: var(--accent);
+  text-decoration: underline; font-size: .74rem; padding: .3rem 0; cursor: pointer;
+}
+.pj-link-empty:hover { color: var(--accent-h); }
 .pj-link-pencil { border: 0; background: none; color: var(--ink3); border-radius: 6px; padding: 1px 5px; font-size: .8rem; flex-shrink: 0; }
 .pj-link-pencil:hover { background: var(--hover); color: var(--accent); }
 

@@ -208,12 +208,12 @@ function LinksList({ links: raw, editable, onSet }) {
             <input className="pj-link-url-in" autoFocus placeholder="https://…" value={l.url}
               onChange={(e) => update(l.id, { url: e.target.value })}
               onBlur={() => setEditingId(null)} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
-          ) : l.url ? (
-            <button type="button" className="pj-link-btn" onClick={() => openUrl(l.url)}>
-              <span className="pj-link-arrow">↗</span>{l.url}
+          ) : l.url || editable ? (
+            // the url itself is never shown — it's often long/ugly and carries no
+            // information worth reading; only whether the link works matters.
+            <button type="button" className="pj-link-open" onClick={() => (l.url ? openUrl(l.url) : setEditingId(l.id))}>
+              <span className="pj-link-arrow">↗</span>קישור
             </button>
-          ) : editable ? (
-            <button type="button" className="pj-link-empty" onClick={() => setEditingId(l.id)}>קישור</button>
           ) : (
             <span className="pj-ph">ללא קישור</span>
           )}

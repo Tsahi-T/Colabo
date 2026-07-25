@@ -29,7 +29,11 @@ const ASPECTS = [
 const TK_ST = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
 const TK_PRI = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const today = () => new Date().toISOString().slice(0, 10);
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
+const fmtDate = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('he-IL'); // never render "Invalid Date"
+};
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
 
 // Turns bare URLs typed/pasted into a text field into clickable links (used by
@@ -159,9 +163,9 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
       <div className="pj-side">
         <div><span className="pj-col-l">📅 עדכון אחרון</span>
           {rw
-            ? <input className="pj-mgr-in" value={p.updated || ''} placeholder="תאריך עדכון"
+            ? <input type="date" className="pj-mgr-in pj-date-in" value={p.updated || ''}
                 onChange={(e) => set(p.id, { updated: e.target.value, updatedManual: true })} />
-            : <b>{p.updated || '—'}</b>}
+            : <b>{fmtDate(p.updated) || '—'}</b>}
         </div>
         <div><span className="pj-col-l">👤 מוביל הפרויקט</span>
           {rw

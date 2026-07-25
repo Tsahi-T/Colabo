@@ -754,6 +754,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-side { display: flex; flex-direction: column; gap: .45rem; font-size: .82rem; flex-shrink: 0; border-inline-start: 1px solid var(--border); padding-inline-start: 1.2rem; }
 .pj-side > div { display: flex; flex-direction: column; gap: .1rem; }
 .pj-mgr-in { width: 120px !important; font-weight: 700; color: var(--ink) !important; }
+/* native date picker (like the milestone date) sizes to its own DD/MM/YYYY + calendar icon */
+.pj-date-in { width: auto !important; font-weight: 700; }
 .pj-edit { position: absolute; top: .5rem; inset-inline-start: .7rem; border: 0; background: none; color: var(--ink3); font-size: .9rem; border-radius: 6px; padding: 2px 5px; }
 .pj-edit:hover { background: var(--hover); color: var(--accent); }
 

@@ -82,7 +82,7 @@ const newProject = (ord) => ({
   phase: 'יזום',
   status: 'green',
   badge: randomTone(),
-  manager: 'שם מוביל הפרויקט',
+  manager: 'מוביל הפרויקט',
   updated: today(),
   schedule: { st: 'green', trend: 'flat', text: 'תיאור מצב לוח הזמנים.' },
   scope: { st: 'green', trend: 'flat', text: 'תיאור מצב התכולה.' },

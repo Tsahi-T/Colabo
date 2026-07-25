@@ -82,7 +82,7 @@ const newProject = (ord) => ({
   phase: 'יזום',
   status: 'green',
   badge: randomTone(),
-  manager: 'שם מנהל הפרויקט',
+  manager: 'שם מוביל הפרויקט',
   updated: today(),
   schedule: { st: 'green', trend: 'flat', text: 'תיאור מצב לוח הזמנים.' },
   scope: { st: 'green', trend: 'flat', text: 'תיאור מצב התכולה.' },
@@ -157,8 +157,13 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
         </span>
       </div>
       <div className="pj-side">
-        <div><span className="pj-col-l">📅 עדכון אחרון</span><b>{fmtDate(p.updated)}</b></div>
-        <div><span className="pj-col-l">👤 מנהל פרויקט</span>
+        <div><span className="pj-col-l">📅 עדכון אחרון</span>
+          {rw
+            ? <input className="pj-mgr-in" value={p.updated || ''} placeholder="תאריך עדכון"
+                onChange={(e) => set(p.id, { updated: e.target.value, updatedManual: true })} />
+            : <b>{p.updated || '—'}</b>}
+        </div>
+        <div><span className="pj-col-l">👤 מוביל הפרויקט</span>
           {rw
             ? <input className="pj-mgr-in" value={p.manager} onChange={(e) => set(p.id, { manager: e.target.value })} />
             : <b>{p.manager}</b>}
@@ -288,13 +293,14 @@ export default function Project({ info, user, token }) {
     return sub;
   }
 
-  // Any edit stamps "last updated" so the list column stays truthful for free.
+  // "Last updated" auto-tracks edits for free — but it's just a free-text field: once the
+  // user types their own value (or it's set manually), we stop overwriting it.
   function set(id, patch) {
     const m = projects.get(id);
     if (!m) return;
     ydoc.transact(() => {
       Object.entries(patch).forEach(([k, v]) => m.set(k, v));
-      m.set('updated', today());
+      if (!('updated' in patch) && !m.get('updatedManual')) m.set('updated', today());
     });
   }
   const setAspect = (id, ak, patch) => {
@@ -321,7 +327,7 @@ export default function Project({ info, user, token }) {
       lines.push(row(['משפט קיום', p.purpose]));
       lines.push(row(['שלב הפרויקט', p.phase]));
       lines.push(row(['סטטוס כללי', RAG[p.status] || 'ירוק']));
-      lines.push(row(['מנהל פרויקט', p.manager]));
+      lines.push(row(['מוביל הפרויקט', p.manager]));
       lines.push(row(['עדכון אחרון', p.updated]));
       ASPECTS.forEach((a) => {
         const v = p[a.k] || {};
@@ -362,8 +368,8 @@ export default function Project({ info, user, token }) {
       if (label === 'משפט קיום') cur.purpose = v;
       else if (label === 'שלב הפרויקט') cur.phase = PHASES.includes(v) ? v : 'יזום';
       else if (label === 'סטטוס כללי') cur.status = byLabel(RAG, v, 'green');
-      else if (label === 'מנהל פרויקט') cur.manager = v;
-      else if (label === 'עדכון אחרון') cur.updated = v || today();
+      else if (label === 'מוביל הפרויקט' || label === 'מנהל פרויקט') cur.manager = v; // accept the old label too
+      else if (label === 'עדכון אחרון') { cur.updated = v || today(); if (v) cur.updatedManual = true; } // keep the imported date, don't auto-overwrite
       else if (label === 'מידע נוסף') cur.info = v;
       else if (label === 'קישורים חשובים') cur.links = normalizeLinks(v); // pre-list-format exports
       else if (label === 'קישור') cur.links.push({ id: uid(), title: v, url: (r[2] || '').trim() });

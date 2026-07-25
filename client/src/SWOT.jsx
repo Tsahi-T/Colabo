@@ -125,7 +125,7 @@ export default function SWOT({ info, user, token }) {
     });
     download(out, `${title || 'SWOT'}.txt`);
   };
-  const exportPdf = () => printElementImage('.sw-grid', { title: title || 'ניתוח SWOT' });
+  const exportPdf = () => printElementImage('.sw-grid', { title: title || 'ניתוח SWOT', landscape: true });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';

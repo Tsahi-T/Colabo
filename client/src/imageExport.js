@@ -9,13 +9,16 @@ const PAGE = {
   landscape: { w: 1040, h: 720 },
 };
 
-export function printElementImage(selector, { title = 'טורבו', landscape = false } = {}) {
+// `clip`: measure the element's own visible box (offsetWidth/Height) instead of its
+// full scroll extent. Use it for overflow-hidden viewports like the board canvas, whose
+// scroll extent spans the whole infinite canvas and would scale the print to nothing.
+export function printElementImage(selector, { title = 'טורבו', landscape = false, clip = false } = {}) {
   const el = document.querySelector(selector);
   if (!el) return alert('לא נמצא תוכן לייצוא');
 
   const page = landscape ? PAGE.landscape : PAGE.portrait;
-  const ew = el.scrollWidth || el.offsetWidth;
-  const eh = el.scrollHeight || el.offsetHeight;
+  const ew = clip ? el.offsetWidth : (el.scrollWidth || el.offsetWidth);
+  const eh = clip ? el.offsetHeight : (el.scrollHeight || el.offsetHeight);
   const scale = Math.min(page.w / ew, page.h / eh, 1.6); // fill the page; cap so it never overflows
 
   const pageStyle = document.createElement('style');

@@ -1040,6 +1040,13 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   body.printing .print-target.tl-stage,
   body.printing .print-target.sun-stage,
   body.printing .print-target.rk-page { overflow: visible !important; }
+  /* keep SWOT a 2x2 grid in print — the print page is narrower than 760px, which would
+     otherwise trigger the small-screen single-column rule and stack the quadrants */
+  body.printing .print-target.sw-grid { grid-template-columns: 1fr 1fr !important; max-width: none !important; }
+  /* the board prints the framed viewport (WYSIWYG) — keep it clipped and give it a clean
+     white page instead of the on-screen dot grid, and drop the zoom badge */
+  body.printing .print-target.board-wrap { overflow: hidden !important; background: #fff !important; }
+  body.printing .zoom-badge { display: none !important; }
 }
 
 /* ---------- Tasks (tk-) ---------- */

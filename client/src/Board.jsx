@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, useReducer, useCallback } from 'r
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
-import { ShareMenu } from './ShareExport.jsx';
+import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PASTELS, boardToTxt, txtToBoard } from './board-io.js';
 import { touchRecent } from './identity.js';
+import { printElementImage } from './imageExport.js';
 
 const NOTE_W = 190, NOTE_H = 170;
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -227,8 +228,14 @@ export default function Board({ info, user, token }) {
     setView({ s, x: (r.width - bw * s) / 2 - bx * s, y: (r.height - bh * s) / 2 - by * s });
   }
 
-  // ---- TXT import/export ----
+  // ---- TXT / PDF export ----
   const exportTxt = () => download(boardToTxt(title, notes, edges), `${title || 'לוח חשיבה'}.txt`);
+  // Fit everything into the viewport first, then print that framed view (WYSIWYG) — avoids
+  // dealing with notes at arbitrary/negative world coordinates on the infinite canvas.
+  const exportPdf = () => {
+    fitAll();
+    setTimeout(() => printElementImage('.board-wrap', { title: title || 'לוח חשיבה', landscape: true, clip: true }), 150);
+  };
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
@@ -278,7 +285,10 @@ export default function Board({ info, user, token }) {
             <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
           </>}
-          <button className="btn" onClick={exportTxt}>הורדה</button>
+          <Menu label="הורדה">
+            <button onClick={exportPdf}>PDF (הדפסה)</button>
+            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+          </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
         </div>

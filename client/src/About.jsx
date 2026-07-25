@@ -15,14 +15,6 @@ const TOOLS = [
   { type: 'chat', icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
 ];
 
-const IO = [
-  { name: 'מסמך', out: 'Word · PDF · HTML', in: 'Word · HTML · טקסט' },
-  { name: 'ניהול משימות', out: 'Excel (CSV)', in: 'Excel (CSV)' },
-  { name: 'ציר זמן · סיכונים · SWOT · תרשים שמש · פרויקט', out: 'PDF · TXT', in: 'TXT' },
-  { name: 'לוח חשיבה', out: 'TXT', in: 'TXT' },
-  { name: 'צ\'אט', out: 'TXT', in: '—' },
-];
-
 // Same category grouping as the home page, for the per-type creation breakdown.
 const TOOL_BY_TYPE = Object.fromEntries(TOOLS.map((t) => [t.type, t]));
 const CATEGORIES = [
@@ -64,41 +56,6 @@ export default function About() {
             <div className="ab-step"><span className="ab-num">2</span><b>משתפים</b><p>בתפריט "שיתוף" מעתיקים <b>קישור עריכה</b> או <b>קישור לצפייה בלבד</b>. מי שנכנס בוחר שם וצבע, ורואים אותו חי על המסך.</p></div>
             <div className="ab-step"><span className="ab-num">3</span><b>עובדים יחד</b><p>הקלדות, גרירות ושינויים של כולם מופיעים מיד אצל כל המשתתפים, כולל סמן חי ורשימת מי מחובר.</p></div>
           </div>
-        </section>
-
-        <section>
-          <h2>הכלים שבמערכת</h2>
-          <div className="ab-tools">
-            {TOOLS.map((t) => (
-              <div key={t.name} className="ab-tool">
-                <span className={'ico ' + t.cls}>{t.icon}</span>
-                <div><b>{t.name}</b><p>{t.desc}</p></div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h2>ייצוא וטעינה של קבצים</h2>
-          <p className="ab-note">
-            כל כלי מאפשר לשמור עותק מקומי דרך תפריט <b>הורדה</b>, ולטעון חזרה קובץ קיים דרך כפתור <b>טעינה</b>.
-            הפורמטים נבחרו כדי להשתלב עם התוכנות שאתם כבר עובדים איתן: מסמכים ל-Word, משימות ל-Excel, ושאר הכלים לקובצי PDF להצגה ולקובצי טקסט לעבודה.
-          </p>
-          <div className="ab-table-wrap">
-            <table className="ab-table">
-              <thead><tr><th>כלי</th><th>ייצוא (הורדה)</th><th>טעינה חוזרת</th></tr></thead>
-              <tbody>
-                {IO.map((r) => (
-                  <tr key={r.name}><td>{r.name}</td><td>{r.out}</td><td>{r.in}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <ul className="ab-points">
-            <li><b>PDF הוא לייצוא בלבד</b> — הוא נועד להצגה, צילום מסך והדבקה במצגת, ואי אפשר לטעון אותו חזרה.</li>
-            <li><b>טעינה חוזרת אפשרית רק מקובץ שיוצא מהמערכת</b> (TXT או CSV, לפי הכלי) — כדי שהמבנה יישמר במדויק.</li>
-            <li>קובצי ה-TXT קריאים גם כטקסט רגיל, וה-CSV נפתח ונערך ישירות ב-Excel וחוזר פנימה.</li>
-          </ul>
         </section>
 
         <section className="disclaimer">

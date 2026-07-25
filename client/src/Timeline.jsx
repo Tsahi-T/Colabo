@@ -127,7 +127,10 @@ export default function Timeline({ info, user, token }) {
     }
   }
   const todayT = +new Date(today());
-  const showToday = sorted.length && todayT >= minT - 5 * DAY && todayT <= maxT + 5 * DAY;
+  // shared display preference: hide the "today" line for far-future / long-range plans.
+  // Lives in meta so every viewer sees the same thing and it persists.
+  const hideToday = ydoc.getMap('meta').get('hideToday') || false;
+  const showToday = sorted.length && !hideToday && todayT >= minT - 5 * DAY && todayT <= maxT + 5 * DAY;
 
   // ---- mutations ----
   function add() {
@@ -202,6 +205,12 @@ export default function Timeline({ info, user, token }) {
           <button className="tb" title="הקטנה" onClick={() => setZoom((z) => Math.max(1, z / 1.35))}>−</button>
           <button className="tb" title="הגדלה" onClick={() => setZoom((z) => Math.min(12, z * 1.35))}>+</button>
           <button className="btn" onClick={() => setZoom(1)}>התאם למסך</button>
+          <span className="sep" />
+          <label className="tl-check" title="להצגה/הסתרה של קו התאריך הנוכחי — שימושי לתוכניות רחוקות בזמן">
+            <input type="checkbox" checked={!hideToday}
+              onChange={(e) => ydoc.getMap('meta').set('hideToday', !e.target.checked)} />
+            קו "היום"
+          </label>
           <span className="sep" />
           {Object.entries(MARKS).map(([name, hex]) => (
             <button key={hex} title={name} className="swatch-sm" style={{ background: hex }}

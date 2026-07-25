@@ -155,7 +155,7 @@ export default function SWOT({ info, user, token }) {
   return (
     <div className="doc-page">
       <header className="topbar">
-        <Link to="/" className="logo-sm"><Logo size={24} /></Link>
+        <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
         <input className="title-input" placeholder="ניתוח SWOT ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}

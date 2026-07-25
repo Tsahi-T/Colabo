@@ -130,7 +130,16 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
   display: flex; align-items: center; gap: .7rem; padding: .5rem .9rem;
   background: var(--panel); border-bottom: 1px solid var(--border);
 }
-.logo-sm { font-size: 1.3rem; text-decoration: none; }
+/* Home button: logo + wordmark, styled as an obvious clickable chip so it reads as
+   "back to home" rather than a bare (easily-missed) logo. */
+.logo-sm {
+  display: inline-flex; align-items: center; gap: .38rem; flex-shrink: 0;
+  text-decoration: none; padding: .26rem .55rem; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--panel);
+  transition: background-color .12s, border-color .12s;
+}
+.logo-sm:hover { background: var(--hover); border-color: var(--accent); }
+.logo-word { font-weight: 800; font-size: 1.02rem; letter-spacing: .01em; color: var(--accent); }
 .title-input { flex: 1; min-width: 60px; border: 0; font-size: 1.05rem; font-weight: 600; outline: 0; background: transparent; }
 .badge { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--ink2); border-radius: 6px; padding: .15rem .6rem; font-size: .8rem; flex-shrink: 0; }
 .conn { width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }

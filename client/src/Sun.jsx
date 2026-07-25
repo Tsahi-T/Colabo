@@ -72,7 +72,12 @@ export default function Sun({ info, user, token }) {
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => e && setSize({ width: e.contentRect.width, height: e.contentRect.height }));
+    // Measure synchronously on mount so the layout is centred immediately — don't wait
+    // for the first ResizeObserver tick (which can be delayed or, in some embedded
+    // browsers, not fire at all), which would leave the diagram stuck at its seed size.
+    const measure = () => el.clientWidth && setSize({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);

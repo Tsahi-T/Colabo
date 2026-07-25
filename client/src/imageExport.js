@@ -25,6 +25,12 @@ export function printElementImage(selector, { title = 'טורבו', landscape = 
   const prevDocTitle = document.title;
   document.title = title; // browsers use the tab title as the PDF file name
   el.style.setProperty('--print-scale', String(scale));
+  // Pin the target to its exact on-screen size during print. Without this, a target
+  // that was sized by `inset:0` (e.g. the sun stage) keeps its leftover right/bottom
+  // when the print rule flips it to position:fixed + left/top:50%, producing a broken
+  // box that misaligns the SVG coordinate space from the absolutely-positioned nodes.
+  el.style.setProperty('--print-w', ew + 'px');
+  el.style.setProperty('--print-h', eh + 'px');
   el.classList.add('print-target');
   document.body.classList.add('printing');
 
@@ -32,6 +38,8 @@ export function printElementImage(selector, { title = 'טורבו', landscape = 
     document.body.classList.remove('printing');
     el.classList.remove('print-target');
     el.style.removeProperty('--print-scale');
+    el.style.removeProperty('--print-w');
+    el.style.removeProperty('--print-h');
     pageStyle.remove();
     document.title = prevDocTitle;
     window.removeEventListener('afterprint', cleanup);

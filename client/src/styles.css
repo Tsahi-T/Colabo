@@ -916,8 +916,11 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .sun-stage { position: absolute; inset: 0; }
 
-/* animated network edges (SNA look) */
-.sun-net { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+/* animated network edges (SNA look). left/top:0 (not inset:0) — with a width/height
+   attribute set, inset:0 makes RTL anchor the SVG to the right edge, shifting its whole
+   coordinate origin away from the petals (which are left-positioned), so the lines no
+   longer met the nodes. Anchoring at the top-left keeps both in the same space. */
+.sun-net { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .sna-line {
   stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; opacity: .5;
   stroke-dasharray: 5 6; animation: snaflow 9s linear infinite;
@@ -1025,7 +1028,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
     print-color-adjust: exact !important;
   }
   body.printing .print-target {
-    position: fixed !important; left: 50%; top: 50%;
+    position: fixed !important; left: 50%; top: 50%; right: auto !important; bottom: auto !important;
+    /* pin to the exact measured on-screen size so targets sized via inset:0 (sun) or
+       flex don't get a broken box that misaligns their internal coordinate space */
+    width: var(--print-w, auto) !important; height: var(--print-h, auto) !important;
     transform: translate(-50%, -50%) scale(var(--print-scale, 1)) !important;
     transform-origin: center center !important;
     overflow: visible !important; margin: 0 !important; box-shadow: none !important;

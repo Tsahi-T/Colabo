@@ -21,15 +21,17 @@ export function Menu({ label, children }) {
 export function ShareMenu({ info }) {
   const [copied, setCopied] = useState('');
   if (info.mode !== 'edit') return null;
-  function copy(token) {
+  function copy(token, mode) {
     navigator.clipboard.writeText(`${location.origin}/d/${token}`);
+    // count the share (edit vs view-only) — fire-and-forget
+    fetch('/api/share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) }).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   }
   return (
     <Menu label={copied ? '✓ הועתק!' : 'שיתוף'}>
-      <button onClick={() => copy(info.editToken)}>קישור לעריכה</button>
-      <button onClick={() => copy(info.viewToken)}>קישור לצפייה בלבד</button>
+      <button onClick={() => copy(info.editToken, 'edit')}>קישור לעריכה</button>
+      <button onClick={() => copy(info.viewToken, 'view')}>קישור לצפייה בלבד</button>
     </Menu>
   );
 }

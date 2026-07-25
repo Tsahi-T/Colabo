@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
+import { IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
+import turboLogo from './assets/turbo-logo.png';
 
 const TYPE_ICON = {
   doc: <span className="ricon doc"><IconDoc /></span>,
@@ -60,7 +61,7 @@ export default function Home() {
   return (
     <div className="home">
       <span className="home-theme"><ThemeToggle /></span>
-      <div className="hero"><Logo size={58} /><h1 className="logo">טורבו</h1></div>
+      <div className="hero"><img src={turboLogo} alt="טורבו" className="hero-logo" /></div>
       <p className="tagline">עבודה משותפת בזמן אמת — פותחים, משתפים קישור, עובדים יחד.</p>
       <p className="home-note">
         המערכת מיועדת לעבודה משותפת בזמן אמת — מסמך שאין בו פעילות 30 יום נמחק אוטומטית.

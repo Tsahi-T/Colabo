@@ -9,14 +9,8 @@ import './styles.css';
 
 initTheme();
 
-// Anonymous usage ping (browser-unique id, no personal data). Sent on every load:
-// the server counts it as one visit, and de-duplicates the browser for the
-// unique-users-today figure on its side.
-try {
-  let vid = localStorage.getItem('colabo.vid');
-  if (!vid) { vid = crypto.randomUUID(); localStorage.setItem('colabo.vid', vid); }
-  fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vid }) }).catch(() => {});
-} catch { /* storage unavailable */ }
+// Anonymous cumulative site-visit counter — one bump per page load, no id, no personal data.
+fetch('/api/track', { method: 'POST' }).catch(() => {});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>

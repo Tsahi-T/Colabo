@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
 import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
-
-const RANGES = { week: { days: 7, label: 'שבוע' }, month: { days: 30, label: 'חודש' }, year: { days: 365, label: 'שנה' } };
-const fmtDay = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
 
 const TOOLS = [
   { type: 'doc', icon: <IconDoc />, cls: 'doc', name: 'מסמך', desc: 'מעבד תמלילים משותף — עיצוב מלא, כותרות, טבלאות ותמונות.' },
@@ -26,95 +23,16 @@ const IO = [
   { name: 'צ\'אט', out: 'TXT', in: '—' },
 ];
 
-// Two-series area chart (SVG, self-contained, hover crosshair + tooltip).
-// series: [{ key, label, daily }] — the first one is drawn filled, as the primary.
-function UsageChart({ series, days }) {
-  const [hover, setHover] = useState(null);
-  const W = 720, H = 220, PAD = { t: 14, r: 14, b: 26, l: 34 };
-  const axis = useMemo(() => {
-    const out = [];
-    for (let i = days - 1; i >= 0; i--) out.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
-    return out;
-  }, [days]);
-  const sets = useMemo(() => series.map((s) => {
-    const byDay = Object.fromEntries((s.daily || []).map((d) => [d.day, d.count]));
-    return { ...s, data: axis.map((day) => byDay[day] || 0) };
-  }), [series, axis]);
-  const max = Math.max(4, ...sets.flatMap((s) => s.data));
-  const x = (i) => PAD.l + (i * (W - PAD.l - PAD.r)) / Math.max(1, axis.length - 1);
-  const y = (v) => H - PAD.b - (v * (H - PAD.t - PAD.b)) / max;
-  const pts = (data) => data.map((v, i) => `${x(i)},${y(v)}`).join(' ');
-  const ticksY = [0, Math.round(max / 2), max];
-  const tickEvery = Math.ceil(axis.length / 6);
-  function onMove(e) {
-    const r = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - r.left) / r.width) * W;
-    const i = Math.round(((px - PAD.l) / (W - PAD.l - PAD.r)) * (axis.length - 1));
-    setHover(i >= 0 && i < axis.length ? i : null);
-  }
-  return (
-    <div className="chart-box" dir="ltr">
-      <svg viewBox={`0 0 ${W} ${H}`} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
-        {ticksY.map((t) => (
-          <g key={t}>
-            <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="grid" />
-            <text x={PAD.l - 6} y={y(t) + 3} className="tick" textAnchor="end">{t}</text>
-          </g>
-        ))}
-        {axis.map((day, i) => i % tickEvery === 0 && (
-          <text key={day} x={x(i)} y={H - 8} className="tick" textAnchor="middle">{fmtDay(day)}</text>
-        ))}
-        {sets.map((s, si) => (
-          <g key={s.key}>
-            {si === 0 && <polygon points={`${PAD.l},${y(0)} ${pts(s.data)} ${x(axis.length - 1)},${y(0)}`} className="area" />}
-            <polyline points={pts(s.data)} className={'line s-' + s.key} />
-          </g>
-        ))}
-        {hover != null && (
-          <g>
-            <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={H - PAD.b} className="crosshair" />
-            {sets.map((s) => <circle key={s.key} cx={x(hover)} cy={y(s.data[hover])} r="4.5" className={'dot s-' + s.key} />)}
-          </g>
-        )}
-      </svg>
-      {hover != null && (
-        <div className="chart-tip" style={{ insetInlineStart: `${(x(hover) / W) * 100}%` }} dir="rtl">
-          {fmtDay(axis[hover])}
-          {sets.map((s) => <span key={s.key} className="tip-row"><i className={'s-' + s.key} /><b>{s.data[hover]}</b> {s.label}</span>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Per-tool open counts, as a leaderboard of bars scaled to the busiest tool.
-function OpensBreakdown({ opens }) {
-  const byType = Object.fromEntries((opens || []).map((o) => [o.type, o.count]));
-  const total = (opens || []).reduce((a, o) => a + o.count, 0);
-  const rows = TOOLS.map((t) => ({ ...t, count: byType[t.type] || 0 })).sort((a, b) => b.count - a.count);
-  const max = Math.max(1, ...rows.map((r) => r.count));
-  if (!total) return <p className="ab-fine">עוד לא נפתחו מסכים מאז שהמונה הופעל.</p>;
-  return (
-    <div className="ab-brk">
-      {rows.map((r) => (
-        <div key={r.type} className={'brk-row brk-' + r.cls}>
-          <span className={'ico ' + r.cls}>{r.icon}</span>
-          <div className="brk-main">
-            <div className="brk-head">
-              <b>{r.name}</b>
-              <span className="brk-n">{r.count.toLocaleString('he-IL')}<small>({total ? Math.round((r.count / total) * 100) : 0}%)</small></span>
-            </div>
-            <div className="brk-bar"><i style={{ width: `${(r.count / max) * 100}%` }} /></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// Same category grouping as the home page, for the per-type creation breakdown.
+const TOOL_BY_TYPE = Object.fromEntries(TOOLS.map((t) => [t.type, t]));
+const CATEGORIES = [
+  { name: 'יום־יומי', types: ['doc', 'chat', 'tasks'] },
+  { name: 'ניהול', types: ['risks', 'timeline', 'project'] },
+  { name: 'ארגוני', types: ['board', 'swot', 'sun'] },
+];
 
 export default function About() {
   const [stats, setStats] = useState(null);
-  const [range, setRange] = useState('month');
 
   useEffect(() => {
     fetch('/api/stats').then((r) => r.json()).then(setStats).catch(() => setStats({ error: true }));
@@ -199,43 +117,45 @@ export default function About() {
 
         <section>
           <h2>נתוני שימוש</h2>
-          {!stats ? <p>טוען…</p> : stats.error ? <p>הנתונים אינם זמינים כרגע.</p> : (
-            <>
-              <div className="stat-row">
-                <div className="stat-tile"><span className="stat-num">{(stats.total || 0).toLocaleString('he-IL')}</span>משתמשים ייחודיים</div>
-                <div className="stat-tile"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
-                <div className="stat-tile"><span className="stat-num">{(stats.visitsTotal || 0).toLocaleString('he-IL')}</span>סה״כ כניסות לאתר</div>
-                <div className="stat-tile">
-                  <span className="stat-num">{(stats.opens || []).reduce((a, o) => a + o.count, 0).toLocaleString('he-IL')}</span>
-                  סה״כ פתיחות מסכים
+          {!stats ? <p>טוען…</p> : stats.error ? <p>הנתונים אינם זמינים כרגע.</p> : (() => {
+            const c = stats.counters || {};
+            const totalCreated = CATEGORIES.flatMap((g) => g.types).reduce((a, t) => a + (c['create:' + t] || 0), 0);
+            return (
+              <>
+                <div className="stat-row">
+                  <div className="stat-tile"><span className="stat-num">{(c['visit'] || 0).toLocaleString('he-IL')}</span>כניסות לאתר</div>
+                  <div className="stat-tile"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
+                  <div className="stat-tile"><span className="stat-num">{(c['share:edit'] || 0).toLocaleString('he-IL')}</span>שיתופים לעריכה</div>
+                  <div className="stat-tile"><span className="stat-num">{(c['share:view'] || 0).toLocaleString('he-IL')}</span>שיתופים לצפייה בלבד</div>
                 </div>
-              </div>
-              <div className="chart-head">
-                <h3>פעילות יומית</h3>
-                <div className="range-btns">
-                  {Object.entries(RANGES).map(([k, r]) => (
-                    <button key={k} className={range === k ? 'act' : ''} onClick={() => setRange(k)}>{r.label}</button>
+
+                <div className="chart-head"><h3>פריטים שנוצרו לפי סוג מסך</h3><span className="ab-total">סה״כ {totalCreated.toLocaleString('he-IL')}</span></div>
+                <div className="ab-usage">
+                  {CATEGORIES.map((g) => (
+                    <div key={g.name} className="ab-usage-group">
+                      <h4 className="group-title"><span>{g.name}</span></h4>
+                      <div className="ab-usage-row">
+                        {g.types.map((type) => {
+                          const t = TOOL_BY_TYPE[type];
+                          return (
+                            <div key={type} className="ab-usage-card">
+                              <span className={'ico ' + t.cls}>{t.icon}</span>
+                              <b>{t.name}</b>
+                              <span className={'ab-usage-n ab-n-' + t.cls}>{(c['create:' + type] || 0).toLocaleString('he-IL')}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-              <UsageChart days={RANGES[range].days} series={[
-                { key: 'users', label: 'משתמשים ייחודיים', daily: stats.daily },
-                { key: 'visits', label: 'כניסות', daily: stats.visitsDaily },
-              ]} />
-              <div className="chart-legend">
-                <span><i className="s-users" />משתמשים ייחודיים</span>
-                <span><i className="s-visits" />כניסות</span>
-              </div>
 
-              <div className="chart-head"><h3>פילוח פתיחות מסכים לפי כלי</h3></div>
-              <OpensBreakdown opens={stats.opens} />
-
-              <p className="ab-fine">
-                הספירה אנונימית לחלוטין — לפי דפדפן ייחודי, בלי חשבונות ובלי מידע מזהה.
-                המונים נספרים מרגע הפעלתם, כך שנתוני עבר שקדמו להם אינם מופיעים כאן.
-              </p>
-            </>
-          )}
+                <p className="ab-fine">
+                  הספירה אנונימית לחלוטין — מונים צוברים בלבד, בלי חשבונות ובלי מידע מזהה. נספרים מרגע הפעלתם.
+                </p>
+              </>
+            );
+          })()}
         </section>
 
         <footer className="about-foot"><Link to="/">← חזרה לדף הבית</Link></footer>

@@ -49,18 +49,10 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 
 /* ---------- Home ---------- */
 .home { max-width: 640px; margin: 0 auto; padding: 9vh 1.5rem 3rem; text-align: center; }
-.hero { display: flex; align-items: center; justify-content: center; gap: .9rem; }
-.logo {
-  font-size: 3rem; letter-spacing: .045em; margin: 0; font-weight: 800;
-  color: #1d4ed8;
-  -webkit-text-stroke: 1px rgba(15, 23, 42, .3);
-  text-shadow: 0 2px 6px rgba(15, 23, 42, .18);
-}
-[data-theme='dark'] .logo {
-  color: #60a5fa;
-  -webkit-text-stroke-color: rgba(8, 15, 40, .55);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, .5), 0 0 22px rgba(59, 130, 246, .3);
-}
+.hero { display: flex; align-items: center; justify-content: center; }
+/* transparent logo (wordmark + arrow + tagline baked in) — works on light and dark.
+   Sized by width so it scales down gracefully on small screens. */
+.hero-logo { width: min(360px, 78vw); height: auto; display: block; }
 .tagline { color: var(--ink2); margin: .6rem 0 2rem; }
 .btn-primary {
   background: var(--accent); color: #fff; border: 0; border-radius: 10px;
@@ -369,6 +361,23 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 @keyframes pulse { 50% { opacity: .35; } }
 .chart-head { display: flex; align-items: center; justify-content: space-between; margin: 1.4rem 0 .5rem; }
 .chart-head h3 { margin: 0; font-size: .95rem; color: var(--ink2); }
+.ab-total { font-size: .85rem; color: var(--ink3); }
+
+/* usage breakdown: per-type creation counts, grouped by category like the home page */
+.ab-usage { display: flex; flex-direction: column; gap: 1rem; }
+.ab-usage-group .group-title { margin: 0 0 .5rem; }
+.ab-usage-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
+.ab-usage-card {
+  display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: .9rem .6rem; box-shadow: var(--card-shadow);
+}
+.ab-usage-card b { font-size: .84rem; font-weight: 600; color: var(--ink2); }
+.ab-usage-n { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.ab-n-doc { color: #2563eb; } .ab-n-board { color: #b45309; } .ab-n-timeline { color: #16a34a; }
+.ab-n-risks { color: #dc2626; } .ab-n-swot { color: #7c3aed; } .ab-n-tasks { color: #db2777; }
+.ab-n-sun { color: #d97706; } .ab-n-project { color: #4f46e5; } .ab-n-chat { color: #0891b2; }
+@media (max-width: 560px) { .ab-usage-row { grid-template-columns: 1fr 1fr; } }
 .range-btns { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .range-btns button { border: 0; background: none; padding: .35rem .9rem; font-size: .85rem; color: var(--ink2); }
 .range-btns button.act { background: var(--accent); color: #fff; }

@@ -53,7 +53,9 @@ const DOC_TYPES = ['doc', 'board', 'timeline', 'risks', 'swot', 'chat', 'tasks',
 
 app.post('/api/docs', async (req, res) => {
   try {
-    const doc = await storage.createDoc(DOC_TYPES.includes(req.body?.type) ? req.body.type : 'doc');
+    const type = DOC_TYPES.includes(req.body?.type) ? req.body.type : 'doc';
+    const doc = await storage.createDoc(type);
+    storage.bump('create:' + type).catch(() => {}); // per-type creation counter (fire-and-forget)
     res.json({ editToken: doc.editToken, viewToken: doc.viewToken });
   } catch (e) {
     console.error('POST /api/docs failed:', e);
@@ -96,30 +98,18 @@ app.get('/api/images/:id', async (req, res) => {
   }
 });
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-// Every page load: bumps the raw visit counter, and records the browser as a
-// unique-visitor-for-today (idempotent, so repeat loads don't inflate that number).
+// Anonymous cumulative counters — fire-and-forget telemetry, never fails the caller.
 app.post('/api/track', async (req, res) => {
-  try {
-    const { vid } = req.body || {};
-    const day = today();
-    await storage.bumpEvent('visit', '', day);
-    if (typeof vid === 'string' && /^[\w-]{8,64}$/.test(vid)) await storage.trackVisit(vid, day);
-  } catch (e) {
-    console.error('POST /api/track failed:', e);
-  }
-  res.json({ ok: true }); // never fail the caller — this is fire-and-forget telemetry
+  try { await storage.bump('visit'); } catch (e) { console.error('POST /api/track failed:', e); }
+  res.json({ ok: true });
 });
 
-// One screen opened, counted per tool type.
-app.post('/api/open', async (req, res) => {
+// A share link was copied — counted separately for edit vs view-only.
+app.post('/api/share', async (req, res) => {
   try {
-    const { type } = req.body || {};
-    if (DOC_TYPES.includes(type)) await storage.bumpEvent('open', type, today());
-  } catch (e) {
-    console.error('POST /api/open failed:', e);
-  }
+    const mode = req.body?.mode;
+    if (mode === 'edit' || mode === 'view') await storage.bump('share:' + mode);
+  } catch (e) { console.error('POST /api/share failed:', e); }
   res.json({ ok: true });
 });
 

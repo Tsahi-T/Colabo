@@ -13,6 +13,9 @@ import Risks from './Risks.jsx';
 const uid = () => crypto.randomUUID().slice(0, 8);
 const PHASES = ['יזום', 'התנעה', 'מימוש', 'הטמעה', 'שינויים ושיפורים', 'סיום'];
 const RAG = { green: 'ירוק', yellow: 'צהוב', red: 'אדום' };
+// Display labels for the per-aspect status dropdown only — same underlying green/yellow/red
+// value and colours, just worded as a state ("תקין"/"בסיכון"/"בפער") rather than a colour.
+const ASPECT_ST = { green: 'תקין', yellow: 'בסיכון', red: 'בפער' };
 const TRENDS = { up: 'משתפר', flat: 'יציב', down: 'מחמיר' };
 const TREND_ARROW = { up: '↑', flat: '→', down: '↓' };
 const MS = { done: 'הושלם', active: 'בביצוע', gap: 'בפער', future: 'עתידי' };
@@ -472,8 +475,9 @@ export default function Project({ info, user, token }) {
                           <select value={v.trend || 'flat'} onChange={(e) => setAspect(open.id, a.k, { trend: e.target.value })}>
                             {Object.entries(TRENDS).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
                           </select>
+                          <span className="pj-col-l">סטטוס:</span>
                           <select value={v.st || 'green'} onChange={(e) => setAspect(open.id, a.k, { st: e.target.value })}>
-                            {Object.entries(RAG).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
+                            {Object.entries(ASPECT_ST).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
                           </select>
                         </>
                       ) : <b>{TRENDS[v.trend]}</b>}

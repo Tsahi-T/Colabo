@@ -789,7 +789,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .pj-aspect textarea:focus, .pj-card textarea:focus, .pj-card input:focus, .pj-gap input:focus,
 .pj-gap textarea:focus, .pj-li input:focus, .pj-name-in:focus, .pj-purpose-in:focus, .pj-mgr-in:focus,
 .pj-ms-name:focus, .pj-ms-date:focus { background: var(--panel); border-color: var(--accent); outline: 0; }
-.pj-aspect-foot { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; justify-content: flex-end; }
+.pj-aspect-foot { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; justify-content: flex-start; }
 .pj-aspect-foot select { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: .78rem; padding: .1rem .25rem; }
 .pj-trend { display: inline-block; font-size: 1.6rem; font-weight: 800; line-height: 1; }
 .pj-t-up { color: #16a34a; }

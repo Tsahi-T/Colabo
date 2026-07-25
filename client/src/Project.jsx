@@ -13,9 +13,10 @@ import Risks from './Risks.jsx';
 const uid = () => crypto.randomUUID().slice(0, 8);
 const PHASES = ['יזום', 'התנעה', 'מימוש', 'הטמעה', 'שינויים ושיפורים', 'סיום'];
 const RAG = { green: 'ירוק', yellow: 'צהוב', red: 'אדום' };
-// Display labels for the per-aspect status dropdown only — same underlying green/yellow/red
-// value and colours, just worded as a state ("תקין"/"בסיכון"/"בפער") rather than a colour.
-const ASPECT_ST = { green: 'תקין', yellow: 'בסיכון', red: 'בפער' };
+// On-screen status labels (both the per-aspect dropdowns and the overall status pill) —
+// same underlying green/yellow/red value and colours, just worded as a state rather than a
+// colour. RAG (the colour words) is still what the CSV round-trip uses, for back-compat.
+const STATUS_LABELS = { green: 'תקין', yellow: 'בסיכון', red: 'בפער' };
 const TRENDS = { up: 'משתפר', flat: 'יציב', down: 'מחמיר' };
 const TREND_ARROW = { up: '↑', flat: '→', down: '↓' };
 const MS = { done: 'הושלם', active: 'בביצוע', gap: 'בפער', future: 'עתידי' };
@@ -149,9 +150,9 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
         <span className={'pj-pill pj-rag-' + (p.status || 'green')}>
           {rw
             ? <select value={p.status} onChange={(e) => set(p.id, { status: e.target.value })}>
-                {Object.entries(RAG).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
-            : RAG[p.status]}
+            : STATUS_LABELS[p.status]}
           <i />
         </span>
       </div>
@@ -469,18 +470,25 @@ export default function Project({ info, user, token }) {
                       ? <textarea rows="3" value={v.text || ''} onChange={(e) => setAspect(open.id, a.k, { text: e.target.value })} />
                       : <p>{v.text}</p>}
                     <div className="pj-aspect-foot">
-                      <span className="pj-col-l">מגמה:</span>
                       {editable ? (
                         <>
+                          <span className="pj-col-l">סטטוס:</span>
+                          <select value={v.st || 'green'} onChange={(e) => setAspect(open.id, a.k, { st: e.target.value })}>
+                            {Object.entries(STATUS_LABELS).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
+                          </select>
+                          <span className="pj-col-l">מגמה:</span>
                           <select value={v.trend || 'flat'} onChange={(e) => setAspect(open.id, a.k, { trend: e.target.value })}>
                             {Object.entries(TRENDS).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
                           </select>
-                          <span className="pj-col-l">סטטוס:</span>
-                          <select value={v.st || 'green'} onChange={(e) => setAspect(open.id, a.k, { st: e.target.value })}>
-                            {Object.entries(ASPECT_ST).map(([k2, l]) => <option key={k2} value={k2}>{l}</option>)}
-                          </select>
                         </>
-                      ) : <b>{TRENDS[v.trend]}</b>}
+                      ) : (
+                        <>
+                          <span className="pj-col-l">סטטוס:</span>
+                          <b>{STATUS_LABELS[v.st || 'green']}</b>
+                          <span className="pj-col-l">מגמה:</span>
+                          <b>{TRENDS[v.trend]}</b>
+                        </>
+                      )}
                       <span className={'pj-trend pj-t-' + (v.trend || 'flat')}>{TREND_ARROW[v.trend || 'flat']}</span>
                     </div>
                   </div>

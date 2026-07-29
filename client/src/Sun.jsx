@@ -18,6 +18,24 @@ const download = (text, name, mime = 'text/plain;charset=utf-8') => {
   URL.revokeObjectURL(a.href);
 };
 
+// Font shrinks as the text grows, so a whole sentence still fits inside the node
+// instead of being clipped. Values are rem.
+const coreFont = (t) => { const n = (t || '').length; return n <= 14 ? 1.3 : n <= 30 ? 1.1 : n <= 60 ? .95 : n <= 110 ? .84 : .76; };
+const petalFont = (t) => { const n = (t || '').length; return n <= 16 ? .95 : n <= 40 ? .87 : n <= 80 ? .8 : .74; };
+
+// Auto-growing textarea: height follows the content so nothing is ever cut off.
+// Module scope on purpose — an inline component would remount and drop focus per keystroke.
+function AutoText({ value, onChange, placeholder, className }) {
+  const ref = useRef();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, [value]);
+  return <textarea ref={ref} className={className} rows={1} value={value} placeholder={placeholder} onChange={onChange} />;
+}
+
 // Golden-angle spiral (elliptical to use wide screens) — evenly spreads nodes
 // around the center, growing outward as the network gets denser. Ported from Socio.
 function layoutNodes(count, w, h) {
@@ -164,9 +182,9 @@ export default function Sun({ info, user, token }) {
 
           <div className="sun-core-wrap" style={{ left: cx, top: cy }}>
             <span className="sun-halo" aria-hidden="true" />
-            <div className="sun-core">
+            <div className="sun-core" style={{ fontSize: coreFont(core) + 'rem' }}>
               {editable
-                ? <textarea value={core} placeholder="הנושא המרכזי" rows={1} onChange={(e) => meta.set('core', e.target.value)} />
+                ? <AutoText value={core} placeholder="הנושא המרכזי" onChange={(e) => meta.set('core', e.target.value)} />
                 : (core || <span className="sun-ph">הנושא המרכזי</span>)}
             </div>
           </div>
@@ -175,10 +193,10 @@ export default function Sun({ info, user, token }) {
             const pos = positions[i];
             if (!pos) return null;
             return (
-              <div key={p.id} className="sun-petal" style={{ left: pos.x, top: pos.y }}>
+              <div key={p.id} className="sun-petal" style={{ left: pos.x, top: pos.y, fontSize: petalFont(p.text) + 'rem' }}>
                 {editable ? (
                   <>
-                    <textarea value={p.text} placeholder="כתוב כאן" rows={1} onChange={(e) => setPetal(p.id, e.target.value)} />
+                    <AutoText value={p.text} placeholder="כתוב כאן" onChange={(e) => setPetal(p.id, e.target.value)} />
                     <button className="sun-petal-del" title="מחיקה" onClick={() => delPetal(p.id)}>✕</button>
                   </>
                 ) : (

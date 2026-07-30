@@ -19,8 +19,8 @@ const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת
 const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה', taskLinked: true, taskPrefix: 'משימה למימוש לקח' },
-  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · כל שורה הופכת אוטומטית למשימה', taskLinked: true, taskPrefix: 'משימה למימוש המלצה' },
+  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskPrefix: 'משימה למימוש לקח' },
+  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · כל שורה הופכת אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskPrefix: 'משימה למימוש המלצה' },
 ];
 const TASK_PREFIX = Object.fromEntries(SECTIONS.filter((s) => s.taskLinked).map((s) => [s.k, s.taskPrefix]));
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -56,9 +56,11 @@ function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, cl
 // A single growing list of text lines (ממצאים / לקחים / סיכום) — mirrors the SWOT quadrant UX:
 // "+ שורה" or Enter inside a line both open the next one, and a preset menu offers ready phrases.
 // Each item is numbered "<chapter>.<item>" to match the document's chapter/clause numbering.
-// sec.taskLinked sections (לקחים/סיכום) show a passive "☑ משימה" badge once the line has an
-// auto-created linked task — the line's own ✕ is the only way to remove it (see addLine/delLine).
-function LineSection({ sec, items, editable, add, del, edit, taskIdSet }) {
+// sec.taskLinked sections (לקחים/סיכום) show a "☑/☐ משימה" badge — checked when the line has
+// a live linked task (auto-created the moment the line was added), unchecked otherwise. It's
+// a toggle: click to remove the task and leave the line task-free, click again to re-create
+// one from the line's current text. The line's own ✕ still deletes the line and its task together.
+function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdSet }) {
   const [showPresets, setShowPresets] = useState(false);
   const ref = useRef();
   const inputRefs = useRef({});
@@ -97,9 +99,17 @@ function LineSection({ sec, items, editable, add, del, edit, taskIdSet }) {
             ) : (
               <span className="sw-text">{it.text || '—'}</span>
             )}
-            {sec.taskLinked && it.taskId && taskIdSet.has(it.taskId) && (
-              <span className="db-task-badge" title="נוצרה משימה אוטומטית עבור שורה זו — מחיקת השורה (✕) תמחק גם אותה">☑ משימה</span>
-            )}
+            {sec.taskLinked && (() => {
+              const hasTask = it.taskId && taskIdSet.has(it.taskId);
+              const label = (hasTask ? '☑' : '☐') + ' משימה';
+              if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
+              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור אחת';
+              return (
+                <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
+                  {label}
+                </button>
+              );
+            })()}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
         ))}
@@ -207,7 +217,18 @@ export default function Debrief({ info, user, token }) {
     chrono.delete(r.id);
   }
   // לקחים/סיכום lines auto-create (and stay in sync with, and get deleted alongside) a linked
-  // task — see SECTIONS' taskLinked/taskPrefix and TASK_PREFIX above.
+  // task — see SECTIONS' taskLinked/taskPrefix and TASK_PREFIX above. The link can also be
+  // toggled off/on per line (toggleLineTask) for the rare case someone wants a lesson or
+  // recommendation without a task.
+  function createLinkedTask(prefix, text) {
+    const taskId = uid(), t = new Y.Map();
+    const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
+    t.set('ord', maxTaskOrd + 1); t.set('title', `${prefix} - ${text}`); t.set('desc', '');
+    t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
+    t.set('assignee', ''); t.set('log', []);
+    tasks.set(taskId, t);
+    return taskId;
+  }
   function addLine(sec, presetText = '') {
     const id = uid(), m = new Y.Map();
     const rows = bySection(sec);
@@ -215,15 +236,7 @@ export default function Debrief({ info, user, token }) {
     const prefix = TASK_PREFIX[sec];
     ydoc.transact(() => {
       m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText);
-      if (prefix) {
-        const taskId = uid(), t = new Y.Map();
-        const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
-        t.set('ord', maxTaskOrd + 1); t.set('title', `${prefix} - ${presetText}`); t.set('desc', '');
-        t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
-        t.set('assignee', ''); t.set('log', []);
-        tasks.set(taskId, t);
-        m.set('taskId', taskId);
-      }
+      if (prefix) m.set('taskId', createLinkedTask(prefix, presetText));
       lines.set(id, m);
     });
     return id;
@@ -234,6 +247,20 @@ export default function Debrief({ info, user, token }) {
     ydoc.transact(() => {
       lines.delete(id);
       if (taskId) tasks.delete(taskId);
+    });
+  }
+  function toggleLineTask(id) {
+    const m = lines.get(id);
+    const prefix = m && TASK_PREFIX[m.get('section')];
+    if (!prefix) return;
+    const existingTaskId = m.get('taskId');
+    ydoc.transact(() => {
+      if (existingTaskId && tasks.get(existingTaskId)) {
+        tasks.delete(existingTaskId);
+        m.set('taskId', null);
+      } else {
+        m.set('taskId', createLinkedTask(prefix, m.get('text') || ''));
+      }
     });
   }
   function editLine(id, text) {
@@ -445,8 +472,8 @@ export default function Debrief({ info, user, token }) {
         </section>
 
         <LineSection sec={SECTIONS[0]} items={bySection('findings')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
-        <LineSection sec={SECTIONS[1]} items={bySection('lessons')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
-        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[1]} items={bySection('lessons')} editable={editable} add={addLine} del={delLine} edit={editLine} toggleTask={toggleLineTask} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} toggleTask={toggleLineTask} taskIdSet={taskIdSet} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">

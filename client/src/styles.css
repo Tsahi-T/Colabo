@@ -639,12 +639,18 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* A separate flex item, not text concatenated into the heading — mixing a leading digit
    into RTL Hebrew text lets the browser's bidi algorithm reorder it to the wrong side. */
 .db-chnum { flex-shrink: 0; font-size: 1rem; font-weight: 800; color: var(--accent); unicode-bidi: isolate; direction: ltr; }
-/* passive status pill — not a button, the line's own ✕ is the only way to remove the task */
+/* checked = has a live linked task; unchecked = opted out. A <button> (editable) toggles it —
+   click removes the task and leaves the line task-free, click again re-creates one. Read-only
+   mode renders the same look as a plain <span>, not clickable. */
 .db-task-badge {
   flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
   background: var(--accent-soft); color: var(--accent); border-radius: 99px; padding: 1px 9px;
   font-size: .76rem; font-weight: 600; white-space: nowrap;
 }
+.db-task-badge.off { background: var(--hover); color: var(--ink3); border-color: var(--border); }
+button.db-task-badge { cursor: pointer; }
+button.db-task-badge:hover { background: color-mix(in srgb, var(--accent) 22%, var(--accent-soft)); }
+button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
 .db-bg {
   width: 100%; resize: none; overflow: hidden; border: 1px solid var(--border); border-radius: 10px;
   background: var(--bg); padding: .6rem .7rem; font-size: .92rem; line-height: 1.5; unicode-bidi: plaintext;

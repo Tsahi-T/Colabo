@@ -19,10 +19,13 @@ const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת
 const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskPrefix: 'משימה למימוש לקח' },
-  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · כל שורה הופכת אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskPrefix: 'משימה למימוש המלצה' },
+  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskLabel: 'לקח' },
+  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · כל שורה הופכת אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskLabel: 'המלצה' },
 ];
-const TASK_PREFIX = Object.fromEntries(SECTIONS.filter((s) => s.taskLinked).map((s) => [s.k, s.taskPrefix]));
+// the task's title is the short type label ("לקח"/"המלצה"); the line's full text goes in the
+// task's own description field instead — a title long enough to hold a whole sentence was
+// what made kanban cards blow up in the first place.
+const TASK_LABEL = Object.fromEntries(SECTIONS.filter((s) => s.taskLinked).map((s) => [s.k, s.taskLabel]));
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const download = (text, name, type = 'text/plain;charset=utf-8') => {
@@ -77,6 +80,14 @@ function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdS
     }
   });
   function doAdd(presetText = '') {
+    // A preset click reuses an already-open empty line instead of leaving it stranded and
+    // opening a second one — "+ שורה" itself (presetText === '') always opens a fresh line.
+    const last = items[items.length - 1];
+    if (presetText && last && !last.text) {
+      edit(last.id, presetText);
+      focusId.current = last.id;
+      return;
+    }
     focusId.current = add(sec.k, presetText);
   }
   return (
@@ -202,7 +213,7 @@ export default function Debrief({ info, user, token }) {
   const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
   const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
   const taskRows = [...tasks.entries()]
-    .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '' }))
+    .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '' }))
     .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
   const taskIdSet = new Set(taskRows.map((t) => t.id));
 
@@ -212,18 +223,31 @@ export default function Debrief({ info, user, token }) {
     ydoc.transact(() => { m.set('date', today()); m.set('time', nowTime()); m.set('text', presetText); m.set('ord', maxOrd + 1); chrono.set(id, m); });
     return id;
   }
+  // A preset click reuses an already-open empty row (by creation order, since chronoRows is
+  // sorted by date/time) instead of leaving it stranded and opening a second one.
+  function doAddChrono(presetText = '') {
+    if (presetText) {
+      const empties = chronoRows.filter((r) => !r.text);
+      if (empties.length) {
+        const mostRecent = empties.reduce((a, b) => (b.ord > a.ord ? b : a));
+        chrono.get(mostRecent.id)?.set('text', presetText);
+        return mostRecent.id;
+      }
+    }
+    return addChrono(presetText);
+  }
   function delChrono(r) {
     if (r.text && !confirm(`למחוק את הרשומה "${r.text}"?`)) return;
     chrono.delete(r.id);
   }
   // לקחים/סיכום lines auto-create (and stay in sync with, and get deleted alongside) a linked
-  // task — see SECTIONS' taskLinked/taskPrefix and TASK_PREFIX above. The link can also be
+  // task — see SECTIONS' taskLinked/taskLabel and TASK_LABEL above. The link can also be
   // toggled off/on per line (toggleLineTask) for the rare case someone wants a lesson or
   // recommendation without a task.
-  function createLinkedTask(prefix, text) {
+  function createLinkedTask(label, text) {
     const taskId = uid(), t = new Y.Map();
     const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
-    t.set('ord', maxTaskOrd + 1); t.set('title', `${prefix} - ${text}`); t.set('desc', '');
+    t.set('ord', maxTaskOrd + 1); t.set('title', label); t.set('desc', text);
     t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
     t.set('assignee', ''); t.set('log', []);
     tasks.set(taskId, t);
@@ -233,10 +257,10 @@ export default function Debrief({ info, user, token }) {
     const id = uid(), m = new Y.Map();
     const rows = bySection(sec);
     const maxOrd = Math.max(0, ...rows.map((x) => x.ord));
-    const prefix = TASK_PREFIX[sec];
+    const label = TASK_LABEL[sec];
     ydoc.transact(() => {
       m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText);
-      if (prefix) m.set('taskId', createLinkedTask(prefix, presetText));
+      if (label) m.set('taskId', createLinkedTask(label, presetText));
       lines.set(id, m);
     });
     return id;
@@ -251,15 +275,15 @@ export default function Debrief({ info, user, token }) {
   }
   function toggleLineTask(id) {
     const m = lines.get(id);
-    const prefix = m && TASK_PREFIX[m.get('section')];
-    if (!prefix) return;
+    const label = m && TASK_LABEL[m.get('section')];
+    if (!label) return;
     const existingTaskId = m.get('taskId');
     ydoc.transact(() => {
       if (existingTaskId && tasks.get(existingTaskId)) {
         tasks.delete(existingTaskId);
         m.set('taskId', null);
       } else {
-        m.set('taskId', createLinkedTask(prefix, m.get('text') || ''));
+        m.set('taskId', createLinkedTask(label, m.get('text') || ''));
       }
     });
   }
@@ -269,8 +293,7 @@ export default function Debrief({ info, user, token }) {
     ydoc.transact(() => {
       m.set('text', text);
       const taskId = m.get('taskId');
-      const prefix = TASK_PREFIX[m.get('section')];
-      if (taskId && prefix) tasks.get(taskId)?.set('title', `${prefix} - ${text}`);
+      if (taskId) tasks.get(taskId)?.set('desc', text);
     });
   }
 
@@ -294,8 +317,8 @@ export default function Debrief({ info, user, token }) {
       ...chronoRows.map((r) => csvEscape(r.date) + ',' + csvEscape(r.time) + ',' + csvEscape(r.text))].join('\r\n') + '\r\n',
     `${title || 'תחקיר'} - כרונולוגיה.csv`, 'text/csv;charset=utf-8');
   const exportTasksCsv = () => download(
-    [csvEscape('כותרת') + ',' + csvEscape('סטטוס') + ',' + csvEscape('עדיפות') + ',' + csvEscape('אחראי') + ',' + csvEscape('תאריך יעד'),
-      ...taskRows.map((t) => [t.title, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.dueCurrent || t.due].map(csvEscape).join(','))].join('\r\n') + '\r\n',
+    [csvEscape('כותרת') + ',' + csvEscape('תיאור') + ',' + csvEscape('סטטוס') + ',' + csvEscape('עדיפות') + ',' + csvEscape('אחראי') + ',' + csvEscape('תאריך יעד'),
+      ...taskRows.map((t) => [t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.dueCurrent || t.due].map(csvEscape).join(','))].join('\r\n') + '\r\n',
     `${title || 'תחקיר'} - משימות.csv`, 'text/csv;charset=utf-8');
   async function exportWord() {
     const chronoHtml = chronoRows.length
@@ -306,7 +329,7 @@ export default function Debrief({ info, user, token }) {
       return rows.length ? `<ul>${rows.map((r, i) => `<li>${num}.${i + 1} ${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
     };
     const tasksHtml = taskRows.length
-      ? `<table><tr><th>כותרת</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.dueCurrent || t.due))}</td></tr>`).join('')}</table>`
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.dueCurrent || t.due))}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const bgHtml = background.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') || '<p>(אין תוכן)</p>';
     const body = `<h1>${esc(title || 'תחקיר ללא שם')}</h1>` +
@@ -355,10 +378,10 @@ export default function Debrief({ info, user, token }) {
       parsedChrono.forEach((c, i) => { const m = new Y.Map(); m.set('date', c.date); m.set('time', c.time); m.set('text', c.text); m.set('ord', i + 1); chrono.set(uid(), m); });
       Object.entries(parsedLines).forEach(([sec, rows]) => rows.forEach((text, i) => {
         const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1);
-        const prefix = TASK_PREFIX[sec];
-        if (prefix) {
+        const label = TASK_LABEL[sec];
+        if (label) {
           const taskId = uid(), t = new Y.Map();
-          t.set('ord', i + 1); t.set('title', `${prefix} - ${text}`); t.set('desc', '');
+          t.set('ord', i + 1); t.set('title', label); t.set('desc', text);
           t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
           t.set('assignee', ''); t.set('log', []);
           tasks.set(taskId, t);
@@ -463,7 +486,7 @@ export default function Debrief({ info, user, token }) {
               {showChronoPresets && (
                 <div className="menu-items sw-presets">
                   {PRESETS.chronology.map((p) => (
-                    <button key={p} onClick={() => { chronoFocusId.current = addChrono(p); setShowChronoPresets(false); }}>{p}</button>
+                    <button key={p} onClick={() => { chronoFocusId.current = doAddChrono(p); setShowChronoPresets(false); }}>{p}</button>
                   ))}
                 </div>
               )}

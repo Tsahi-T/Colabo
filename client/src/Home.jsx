@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
-import { IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
+import {
+  IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject, IconDebrief,
+  IconTarget, IconFlag, IconCompass, IconGem, IconRocket,
+} from './icons.jsx';
 import turboLogo from './assets/turbo-logo.png';
 
 const TYPE_ICON = {
@@ -15,6 +18,7 @@ const TYPE_ICON = {
   tasks: <span className="ricon tasks"><IconTasks /></span>,
   sun: <span className="ricon sun"><IconSun /></span>,
   project: <span className="ricon project"><IconProject /></span>,
+  debrief: <span className="ricon debrief"><IconDebrief /></span>,
 };
 
 const GROUPS = [
@@ -40,6 +44,22 @@ const GROUPS = [
       { type: 'board', cls: 'board', icon: <IconBoard />, name: 'לוח חשיבה', desc: 'פתקים על קנבס משותף' },
       { type: 'swot', cls: 'swot', icon: <IconSwot />, name: 'ניתוח SWOT', desc: 'חוזקות, חולשות, הזדמנויות, איומים' },
       { type: 'sun', cls: 'sun', icon: <IconSun />, name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו' },
+    ],
+  },
+  {
+    name: 'תבניות',
+    tools: [
+      { type: 'debrief', cls: 'debrief', icon: <IconDebrief />, name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים' },
+      { type: 'discussion', cls: 'soon', icon: <IconFlag />, name: 'סיכום דיון', desc: 'בקרוב', soon: true },
+      { type: 'meeting1on1', cls: 'soon', icon: <IconCompass />, name: 'פגישה אישית', desc: 'בקרוב', soon: true },
+    ],
+  },
+  {
+    name: 'שנתי',
+    tools: [
+      { type: 'goals', cls: 'soon', icon: <IconTarget />, name: 'יעדים', desc: 'בקרוב', soon: true },
+      { type: 'kpi', cls: 'soon', icon: <IconGem />, name: 'ת"ע', desc: 'בקרוב', soon: true },
+      { type: 'natam', cls: 'soon', icon: <IconRocket />, name: 'נע"תים', desc: 'בקרוב', soon: true },
     ],
   },
 ];
@@ -73,7 +93,9 @@ export default function Home() {
           <h2 className="group-title"><span>{g.name}</span></h2>
           <div className="create-row">
             {g.tools.map((t) => (
-              <button key={t.type} className="create-card" onClick={() => createDoc(t.type)} disabled={busy}>
+              <button key={t.type} className={'create-card' + (t.soon ? ' soon' : '')}
+                onClick={() => !t.soon && createDoc(t.type)} disabled={busy || t.soon}
+                title={t.soon ? 'בקרוב' : undefined}>
                 <span className={'ico ' + t.cls}>{t.icon}</span>{t.name}<small>{t.desc}</small>
               </button>
             ))}

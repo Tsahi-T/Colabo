@@ -29,6 +29,7 @@ import Chat from './Chat.jsx';
 import Tasks from './Tasks.jsx';
 import Sun from './Sun.jsx';
 import Project from './Project.jsx';
+import Debrief from './Debrief.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
@@ -173,5 +174,6 @@ export default function DocPage() {
   if (info.type === 'tasks') return <Tasks key={token} info={info} user={user} token={token} />;
   if (info.type === 'sun') return <Sun key={token} info={info} user={user} token={token} />;
   if (info.type === 'project') return <Project key={token} info={info} user={user} token={token} />;
+  if (info.type === 'debrief') return <Debrief key={token} info={info} user={user} token={token} />;
   return <EditorView key={token} info={info} user={user} token={token} />;
 }

@@ -44,8 +44,7 @@ export async function exportHtml(editor, title) {
   download(new Blob([fullHtml(body, title)], { type: 'text/html' }), `${title}.html`);
 }
 
-export async function exportDocx(editor, title) {
-  const html = fullHtml(await inlineImages(editor.getHTML()), title);
+async function postDocx(html, title) {
   const res = await fetch('/api/export/docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -53,6 +52,15 @@ export async function exportDocx(editor, title) {
   });
   if (!res.ok) return alert('הייצוא נכשל');
   download(await res.blob(), `${title}.docx`);
+}
+
+export async function exportDocx(editor, title) {
+  await postDocx(fullHtml(await inlineImages(editor.getHTML()), title), title);
+}
+
+// For screens that build their own HTML body (no editor instance) — e.g. the debrief screen.
+export async function exportDocxHtml(bodyHtml, title) {
+  await postDocx(fullHtml(bodyHtml, title), title);
 }
 
 export async function exportPdf(editor, title) {

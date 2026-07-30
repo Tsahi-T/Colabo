@@ -134,6 +134,14 @@ export const IconTasks = () => (
   </svg>
 );
 
+export const IconDebrief = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <circle cx="10.3" cy="10.3" r="6.3" {...S} />
+    <path {...S} d="M15.1 15.1L20.5 20.5" />
+    <path {...S} d="M7.6 10.3h5.4" />
+  </svg>
+);
+
 export const IconTimeline = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M21 12H4.5M4.5 12l3.2-3.2M4.5 12l3.2 3.2" />

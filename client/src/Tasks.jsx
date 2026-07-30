@@ -278,7 +278,7 @@ export default function Tasks({ info, user, token, embed }) {
                 <div key={t.id} className={'tk-card tk-cs-' + t.status + (overdue(t) ? ' overdue' : upcoming(t) ? ' upcoming' : '')} draggable={editable}
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}
                   onClick={() => setOpen(t.id)}>
-                  <div className="tk-card-title">{t.title || 'משימה ללא שם'}</div>
+                  <div className="tk-card-title" title={t.title || 'משימה ללא שם'}>{t.title || 'משימה ללא שם'}</div>
                   {t.desc && <div className="tk-card-desc">{t.desc}</div>}
                   <div className="tk-card-meta">
                     <span className={'tk-pri tk-p-' + t.priority} title={'עדיפות ' + t.priority + ' — ' + PRIORITIES[t.priority]}>{t.priority}</span>

@@ -1172,7 +1172,13 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 .tk-card:hover { transform: translateY(-1px); border-color: var(--s); box-shadow: var(--shadow-pop); }
 .tk-card.tk-cs-done { opacity: .72; }
 .tk-card.tk-cs-done .tk-card-title { text-decoration: line-through; text-decoration-color: color-mix(in srgb, #16a34a 60%, transparent); }
-.tk-card-title { font-weight: 600; font-size: .9rem; line-height: 1.35; }
+/* long auto-generated titles (e.g. from a debrief lesson) shouldn't blow up the card — clip
+   after a few lines, same technique already used for .tk-card-desc below; the full text is
+   still reachable via the title="" hover tooltip, or by opening the card (growing field). */
+.tk-card-title {
+  font-weight: 600; font-size: .9rem; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
 .tk-card-desc {
   font-size: .74rem; color: var(--ink3); margin-top: .2rem; line-height: 1.4; white-space: pre-line;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;

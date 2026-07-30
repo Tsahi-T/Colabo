@@ -1,9 +1,9 @@
 // Export helpers: HTML / Word / PDF. All offline-safe.
 const DOC_CSS = `
-  body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;color:#1f2328;line-height:1.7;direction:rtl}
-  p,h1,h2,h3,li{unicode-bidi:plaintext}
+  body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;color:#1f2328;line-height:1.7;direction:rtl;text-align:right}
+  p,h1,h2,h3,li{unicode-bidi:plaintext;text-align:right}
   table{border-collapse:collapse;width:100%;margin:1em 0}
-  td,th{border:1px solid #cbd5e1;padding:6px 10px}
+  td,th{border:1px solid #cbd5e1;padding:6px 10px;text-align:right}
   th{background:#f1f5f9}
   img{max-width:100%}
   blockquote{border-inline-start:3px solid #cbd5e1;margin-inline-start:0;padding-inline-start:1em;color:#57606a}
@@ -39,6 +39,20 @@ function download(blob, filename) {
   URL.revokeObjectURL(a.href);
 }
 
+// html-to-docx (the server-side converter) doesn't apply a <style> stylesheet at all — only
+// inline style="" attributes translate to Word paragraph properties (confirmed: a stylesheet
+// "text-align:right" is silently dropped, while an inline one becomes <w:jc w:val="right"/>).
+// exportHtml/exportPdf open real browsers that DO honor the stylesheet, so this only runs
+// for the docx path.
+const DOCX_BLOCK_TAGS = 'p,h1,h2,h3,h4,h5,h6,li,td,th,div,blockquote,caption';
+function alignRightForDocx(fullHtmlString) {
+  const doc = new DOMParser().parseFromString(fullHtmlString, 'text/html');
+  doc.querySelectorAll(DOCX_BLOCK_TAGS).forEach((el) => {
+    el.setAttribute('style', `text-align:right;${el.getAttribute('style') || ''}`);
+  });
+  return '<!doctype html>' + doc.documentElement.outerHTML;
+}
+
 export async function exportHtml(editor, title) {
   const body = await inlineImages(editor.getHTML());
   download(new Blob([fullHtml(body, title)], { type: 'text/html' }), `${title}.html`);
@@ -48,7 +62,7 @@ async function postDocx(html, title) {
   const res = await fetch('/api/export/docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html, title }),
+    body: JSON.stringify({ html: alignRightForDocx(html), title }),
   });
   if (!res.ok) return alert('הייצוא נכשל');
   download(await res.blob(), `${title}.docx`);

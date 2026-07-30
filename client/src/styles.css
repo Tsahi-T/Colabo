@@ -624,9 +624,16 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   border-radius: 14px; padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--border);
   background: var(--panel); box-shadow: var(--card-shadow);
 }
+.db-sec-wide { max-width: 1180px; }
 .db-sec-head { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .6rem; flex-wrap: wrap; }
 .db-sec-title { font-size: 1.02rem; color: var(--ink); margin: 0; }
 .db-hint { font-size: .76rem; color: var(--ink3); }
+.db-num { flex-shrink: 0; font-size: .78rem; font-weight: 700; color: var(--ink3); min-width: 26px; }
+.db-taskify {
+  flex-shrink: 0; border: 1px solid var(--border); background: none; color: var(--ink2);
+  border-radius: 6px; padding: 1px 8px; font-size: .78rem;
+}
+.db-taskify:hover { background: var(--hover); border-color: var(--accent); color: var(--accent); }
 .db-bg {
   width: 100%; resize: none; overflow: hidden; border: 1px solid var(--border); border-radius: 10px;
   background: var(--bg); padding: .6rem .7rem; font-size: .92rem; line-height: 1.5; unicode-bidi: plaintext;
@@ -637,22 +644,25 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   display: flex; gap: .6rem; padding: .3rem .2rem; font-size: .76rem; font-weight: 700; color: var(--ink3);
   border-bottom: 1px solid var(--border); margin-bottom: .3rem;
 }
-.db-chrono-head span:first-child { width: 112px; flex-shrink: 0; }
-.db-chrono-head span:last-child { flex: 1; }
+.db-chrono-head { padding-inline-start: calc(26px + .5rem); } /* aligns with the row number column */
+.db-chrono-head span:nth-child(1) { width: 130px; flex-shrink: 0; }
+.db-chrono-head span:nth-child(2) { width: 130px; flex-shrink: 0; }
+.db-chrono-head span:nth-child(3) { flex: 1; }
 .db-chrono-rows { display: flex; flex-direction: column; gap: .3rem; }
-.db-chrono-row { display: flex; align-items: center; gap: .5rem; }
-.db-chrono-time {
-  width: 112px; flex-shrink: 0; border: 1px solid transparent; border-radius: 6px;
+.db-chrono-row { display: flex; align-items: flex-start; gap: .5rem; }
+.db-chrono-row .db-num { padding-top: .3rem; }
+.db-chrono-date, .db-chrono-time {
+  width: 130px; flex-shrink: 0; border: 1px solid transparent; border-radius: 6px;
   background: transparent; font-size: .84rem; color: var(--ink2); padding: .15rem .3rem;
 }
-.db-chrono-time:hover, .db-chrono-time:focus { border-color: var(--border); background: var(--bg); }
-.db-chrono-time-ro { width: 112px; flex-shrink: 0; font-size: .84rem; color: var(--ink2); }
+.db-chrono-date:hover, .db-chrono-date:focus, .db-chrono-time:hover, .db-chrono-time:focus { border-color: var(--border); background: var(--bg); }
+.db-chrono-date-ro, .db-chrono-time-ro { width: 130px; flex-shrink: 0; font-size: .84rem; color: var(--ink2); padding-top: .15rem; }
 .db-chrono-text {
-  flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; background: transparent;
-  outline: 0; font-size: .92rem; padding: .15rem 0; unicode-bidi: plaintext;
+  flex: 1; min-width: 0; resize: none; overflow: hidden; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; outline: 0; font-size: .92rem; line-height: 1.4; padding: .15rem .3rem; unicode-bidi: plaintext;
 }
-.db-chrono-text:hover, .db-chrono-text:focus { border-bottom-color: var(--border); }
-.db-chrono-text-ro { flex: 1; font-size: .92rem; color: var(--ink2); unicode-bidi: plaintext; }
+.db-chrono-text:hover, .db-chrono-text:focus { border-color: var(--border); background: var(--bg); }
+.db-chrono-text-ro { flex: 1; font-size: .92rem; color: var(--ink2); line-height: 1.4; padding-top: .15rem; white-space: pre-wrap; unicode-bidi: plaintext; }
 
 /* ---------- Chat ---------- */
 .ico.chat { background: rgba(6, 182, 212, .13); color: #0891b2; }

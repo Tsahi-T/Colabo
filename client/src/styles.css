@@ -629,6 +629,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .db-sec-title { font-size: 1.02rem; color: var(--ink); margin: 0; }
 .db-hint { font-size: .76rem; color: var(--ink3); }
 .db-num { flex-shrink: 0; font-size: .78rem; font-weight: 700; color: var(--ink3); min-width: 26px; }
+/* A separate flex item, not text concatenated into the heading — mixing a leading digit
+   into RTL Hebrew text lets the browser's bidi algorithm reorder it to the wrong side. */
+.db-chnum { flex-shrink: 0; font-size: 1rem; font-weight: 800; color: var(--accent); unicode-bidi: isolate; direction: ltr; }
 .db-taskify {
   flex-shrink: 0; border: 1px solid var(--border); background: none; color: var(--ink2);
   border-radius: 6px; padding: 1px 8px; font-size: .78rem;

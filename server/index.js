@@ -6,6 +6,7 @@ import { WebSocketServer } from 'ws';
 import { Server as Hocuspocus } from '@hocuspocus/server';
 import { Database } from '@hocuspocus/extension-database';
 import multer from 'multer';
+import JSZip from 'jszip';
 import { createStorage } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -123,6 +124,29 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// html-to-docx has no RTL/bidi support and completely ignores <style> stylesheets (only
+// inline style="" survives, and even that only ever produces w:jc — never w:bidi). Every
+// paragraph it emits is plain LTR, which is why "text-align:right" alone still rendered
+// numerals/headings on the wrong side. Fix it after the fact by editing the OOXML directly:
+// every paragraph gets marked bidi + right-justified, and every table gets right-to-left
+// column order — this is exactly how Word itself authors a Hebrew RTL document.
+function rtlifyDocumentXml(xml) {
+  xml = xml.replace(/<w:jc\s+w:val="[^"]*"\s*\/>/g, ''); // drop any existing jc so we don't duplicate/misorder it
+  xml = xml.replace(/<w:pPr\s*\/>/g, '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr>');
+  // schema order for CT_PPrBase: bidi comes before spacing/ind, jc comes after them
+  xml = xml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, '<w:pPr><w:bidi/>$1<w:jc w:val="right"/></w:pPr>');
+  xml = xml.replace(/<w:tblPr\s*\/>/g, '<w:tblPr><w:bidiVisual/></w:tblPr>');
+  xml = xml.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/g, '<w:tblPr><w:bidiVisual/>$1</w:tblPr>');
+  return xml;
+}
+async function makeDocxRtl(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const docPath = 'word/document.xml';
+  const xml = await zip.file(docPath).async('string');
+  zip.file(docPath, rtlifyDocumentXml(xml));
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
 app.post('/api/export/docx', async (req, res) => {
   try {
     const { html, title } = req.body;
@@ -131,9 +155,10 @@ app.post('/api/export/docx', async (req, res) => {
     const safe = html.replace(/<img\b[^>]*>/gi, (tag) => (/\bsrc\s*=\s*["']data:/i.test(tag) ? tag : ''));
     const { default: htmlToDocx } = await import('html-to-docx');
     const buf = await htmlToDocx(safe, null, { lang: 'he-IL', font: 'Arial' });
+    const rtlBuf = await makeDocxRtl(Buffer.from(buf));
     res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       .set('Content-Disposition', `attachment; filename="${encodeURIComponent(title || 'document')}.docx"`)
-      .send(Buffer.from(buf));
+      .send(rtlBuf);
   } catch (e) {
     console.error('POST /api/export/docx failed:', e);
     res.status(500).json({ error: 'export failed' });

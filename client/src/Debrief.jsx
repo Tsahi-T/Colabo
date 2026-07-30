@@ -19,8 +19,8 @@ const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת
 const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · אפשר להפוך לקח למשימה' },
-  { k: 'summary', num: 6, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית' },
+  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · אפשר להפוך לקח למשימה', taskifyTitle: 'יצירת משימה למימוש לקח זה' },
+  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · אפשר להפוך המלצה למשימה', taskifyTitle: 'יצירת משימה למימוש המלצה זו' },
 ];
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -76,7 +76,8 @@ function LineSection({ sec, items, editable, add, del, edit, onTaskify }) {
   return (
     <section className="db-sec">
       <div className="db-sec-head">
-        <h2 className="db-sec-title">{sec.num}. {sec.title}</h2>
+        <span className="db-chnum">{sec.num}.</span>
+        <h2 className="db-sec-title">{sec.title}</h2>
         {sec.hint && <span className="db-hint">{sec.hint}</span>}
       </div>
       <div className="sw-lines">
@@ -94,7 +95,7 @@ function LineSection({ sec, items, editable, add, del, edit, onTaskify }) {
               <span className="sw-text">{it.text || '—'}</span>
             )}
             {editable && onTaskify && (
-              <button className="db-taskify" title="יצירת משימה למימוש לקח זה" onClick={() => onTaskify(it.text)}>☑ משימה</button>
+              <button className="db-taskify" title={sec.taskifyTitle} onClick={() => onTaskify(it.text)}>☑ משימה</button>
             )}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
@@ -211,16 +212,18 @@ export default function Debrief({ info, user, token }) {
   const delLine = (id) => lines.delete(id);
   const editLine = (id, text) => lines.get(id)?.set('text', text);
 
-  function addTaskFromLesson(lessonText) {
+  function addTaskWithTitle(titleText) {
     const id = uid(), t = new Y.Map();
     const maxOrd = Math.max(0, ...taskRows.map((x) => x.ord));
     ydoc.transact(() => {
-      t.set('ord', maxOrd + 1); t.set('title', `משימה למימוש לקח - ${lessonText}`); t.set('desc', '');
+      t.set('ord', maxOrd + 1); t.set('title', titleText); t.set('desc', '');
       t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
       t.set('assignee', ''); t.set('log', []);
       tasks.set(id, t);
     });
   }
+  const addTaskFromLesson = (text) => addTaskWithTitle(`משימה למימוש לקח - ${text}`);
+  const addTaskFromSummary = (text) => addTaskWithTitle(`משימה למימוש המלצה - ${text}`);
 
   // ---- exports ----
   function fmtLines(sec, num) {
@@ -234,7 +237,7 @@ export default function Debrief({ info, user, token }) {
     out += chronoRows.length ? chronoRows.map((r) => `${r.date} ${r.time} | ${r.text}`).join('\n') + '\n' : '(אין רשומות)\n';
     out += `\nממצאים:\n${fmtLines('findings', 3)}`;
     out += `\nלקחים:\n${fmtLines('lessons', 4)}`;
-    out += `\nסיכום ומסקנות:\n${fmtLines('summary', 6)}`;
+    out += `\nסיכום ומסקנות:\n${fmtLines('summary', 5)}`;
     download(out, `${title || 'תחקיר'}.txt`);
   };
   const exportChronoCsv = () => download(
@@ -262,8 +265,8 @@ export default function Debrief({ info, user, token }) {
       `<h2>2. כרונולוגיה</h2>${chronoHtml}` +
       `<h2>3. ממצאים</h2>${linesHtml('findings', 3)}` +
       `<h2>4. לקחים</h2>${linesHtml('lessons', 4)}` +
-      `<h2>5. משימות</h2>${tasksHtml}` +
-      `<h2>6. סיכום ומסקנות</h2>${linesHtml('summary', 6)}`;
+      `<h2>5. סיכום ומסקנות</h2>${linesHtml('summary', 5)}` +
+      `<h2>6. משימות</h2>${tasksHtml}`;
     await exportDocxHtml(body, title || 'תחקיר');
   }
   async function importTxt(e) {
@@ -337,7 +340,7 @@ export default function Debrief({ info, user, token }) {
       </header>
       <div className="db-page">
         <section className="db-sec">
-          <div className="db-sec-head"><h2 className="db-sec-title">1. רקע</h2></div>
+          <div className="db-sec-head"><span className="db-chnum">1.</span><h2 className="db-sec-title">רקע</h2></div>
           {editable ? (
             <textarea ref={bgRef} className="db-bg" placeholder="רקע חופשי לתחקיר…" value={background} rows={3}
               onChange={(e) => meta.set('background', e.target.value)} />
@@ -360,7 +363,8 @@ export default function Debrief({ info, user, token }) {
 
         <section className="db-sec">
           <div className="db-sec-head">
-            <h2 className="db-sec-title">2. כרונולוגיה</h2>
+            <span className="db-chnum">2.</span>
+            <h2 className="db-sec-title">כרונולוגיה</h2>
             <span className="db-hint">תאריך ושעה נרשמים אוטומטית בפתיחת שורה, ניתנים לשינוי</span>
           </div>
           <div className="db-chrono">
@@ -410,16 +414,16 @@ export default function Debrief({ info, user, token }) {
 
         <LineSection sec={SECTIONS[0]} items={bySection('findings')} editable={editable} add={addLine} del={delLine} edit={editLine} />
         <LineSection sec={SECTIONS[1]} items={bySection('lessons')} editable={editable} add={addLine} del={delLine} edit={editLine} onTaskify={addTaskFromLesson} />
+        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} onTaskify={addTaskFromSummary} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">
-            <h2 className="db-sec-title">5. משימות</h2>
-            <span className="db-hint">נוצרות אוטומטית מלקחים (☑ משימה), וניתן להוסיף עוד באופן חופשי</span>
+            <span className="db-chnum">6.</span>
+            <h2 className="db-sec-title">משימות</h2>
+            <span className="db-hint">נוצרות אוטומטית מלקחים/המלצות (☑ משימה), וניתן להוסיף עוד באופן חופשי</span>
           </div>
           <Tasks info={info} user={user} token={token} embed={{ ydoc, map: tasks, editable }} />
         </section>
-
-        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} />
       </div>
     </div>
   );

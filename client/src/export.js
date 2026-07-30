@@ -39,30 +39,18 @@ function download(blob, filename) {
   URL.revokeObjectURL(a.href);
 }
 
-// html-to-docx (the server-side converter) doesn't apply a <style> stylesheet at all — only
-// inline style="" attributes translate to Word paragraph properties (confirmed: a stylesheet
-// "text-align:right" is silently dropped, while an inline one becomes <w:jc w:val="right"/>).
-// exportHtml/exportPdf open real browsers that DO honor the stylesheet, so this only runs
-// for the docx path.
-const DOCX_BLOCK_TAGS = 'p,h1,h2,h3,h4,h5,h6,li,td,th,div,blockquote,caption';
-function alignRightForDocx(fullHtmlString) {
-  const doc = new DOMParser().parseFromString(fullHtmlString, 'text/html');
-  doc.querySelectorAll(DOCX_BLOCK_TAGS).forEach((el) => {
-    el.setAttribute('style', `text-align:right;${el.getAttribute('style') || ''}`);
-  });
-  return '<!doctype html>' + doc.documentElement.outerHTML;
-}
-
 export async function exportHtml(editor, title) {
   const body = await inlineImages(editor.getHTML());
   download(new Blob([fullHtml(body, title)], { type: 'text/html' }), `${title}.html`);
 }
 
+// Server-side RTL fixup (see server/index.js) handles alignment + numeral/heading order for
+// the docx path — html-to-docx itself ignores stylesheets and has no RTL/bidi support at all.
 async function postDocx(html, title) {
   const res = await fetch('/api/export/docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html: alignRightForDocx(html), title }),
+    body: JSON.stringify({ html, title }),
   });
   if (!res.ok) return alert('הייצוא נכשל');
   download(await res.blob(), `${title}.docx`);

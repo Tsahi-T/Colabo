@@ -22,6 +22,23 @@ const download = (text, name, mime) => {
   URL.revokeObjectURL(a.href);
 };
 
+// A single-line title that grows downward instead of hiding overflow text — task titles can
+// get long (e.g. auto-generated from a debrief lesson/recommendation), and a plain <input>
+// just scrolls its content out of view.
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function GrowTitle({ value, onChange, className, placeholder, readOnly, autoFocus }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return (
+    <textarea ref={ref} className={className} rows={1} placeholder={placeholder}
+      value={value} onChange={onChange} readOnly={readOnly} autoFocus={autoFocus} />
+  );
+}
+
 // ---- CSV (Excel-compatible: BOM + CRLF), dependency-free ----
 const CSV_HEADERS = ['כותרת', 'תיאור', 'סטטוס', 'עדיפות', 'אחראי', 'תאריך יעד', 'תאריך יעד עדכני'];
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
@@ -318,7 +335,7 @@ export default function Tasks({ info, user, token, embed }) {
                   {editable ? (
                     <>
                       <td>
-                        <input className="tk-in" placeholder="כותרת המשימה…" value={t.title} onChange={(e) => set(t.id, 'title', e.target.value)} />
+                        <GrowTitle className="tk-in tk-title-grow" placeholder="כותרת המשימה…" value={t.title} onChange={(e) => set(t.id, 'title', e.target.value)} />
                         {t.desc && <div className="tk-in-desc">{t.desc.split('\n')[0]}</div>}
                       </td>
                       <td><select className="tk-in" value={t.status} onChange={(e) => setStatusLogged(t.id, e.target.value)}>
@@ -359,7 +376,7 @@ export default function Tasks({ info, user, token, embed }) {
       {cur && (
         <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
           <div className="modal tk-modal">
-            <input className="tk-in tk-title-in" placeholder="כותרת המשימה" value={cur.title} readOnly={!editable}
+            <GrowTitle className="tk-in tk-title-in tk-title-grow" placeholder="כותרת המשימה" value={cur.title} readOnly={!editable}
               autoFocus={!cur.title} onChange={(e) => set(cur.id, 'title', e.target.value)} />
             <textarea className="tk-in" rows="3" placeholder="תיאור…" value={cur.desc} readOnly={!editable}
               onChange={(e) => set(cur.id, 'desc', e.target.value)} />

@@ -603,11 +603,18 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .sw-lines { flex: 1; display: flex; flex-direction: column; gap: .3rem; }
 .sw-line { display: flex; align-items: center; gap: .5rem; }
 .sw-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--q-color); flex-shrink: 0; }
-.sw-line input {
+.sw-line input, .sw-line textarea.sw-grow {
   flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; background: transparent;
   outline: 0; font-size: .92rem; padding: .15rem 0; unicode-bidi: plaintext;
 }
-.sw-line input:hover, .sw-line input:focus { border-bottom-color: var(--border); }
+.sw-line input:hover, .sw-line input:focus,
+.sw-line textarea.sw-grow:hover, .sw-line textarea.sw-grow:focus { border-bottom-color: var(--border); }
+.sw-line textarea.sw-grow { resize: none; overflow: hidden; line-height: 1.4; font-family: inherit; }
+/* .db-line: the Debrief variant can grow to multiple lines (sw-grow), so its row aligns
+   items to the top instead of centering — SWOT's plain .sw-line (always single-line) is
+   untouched. */
+.sw-line.db-line { align-items: flex-start; }
+.sw-line.db-line .db-num, .sw-line.db-line .sw-del, .sw-line.db-line .db-task-badge { margin-top: .15rem; }
 .sw-text { flex: 1; font-size: .92rem; color: var(--ink2); unicode-bidi: plaintext; }
 .sw-del { border: 0; background: none; color: var(--ink3); border-radius: 6px; padding: 1px 6px; flex-shrink: 0; }
 .sw-del:hover { background: var(--hover); color: #ef4444; }
@@ -632,11 +639,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* A separate flex item, not text concatenated into the heading — mixing a leading digit
    into RTL Hebrew text lets the browser's bidi algorithm reorder it to the wrong side. */
 .db-chnum { flex-shrink: 0; font-size: 1rem; font-weight: 800; color: var(--accent); unicode-bidi: isolate; direction: ltr; }
-.db-taskify {
-  flex-shrink: 0; border: 1px solid var(--border); background: none; color: var(--ink2);
-  border-radius: 6px; padding: 1px 8px; font-size: .78rem;
+/* passive status pill — not a button, the line's own ✕ is the only way to remove the task */
+.db-task-badge {
+  flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: var(--accent-soft); color: var(--accent); border-radius: 99px; padding: 1px 9px;
+  font-size: .76rem; font-weight: 600; white-space: nowrap;
 }
-.db-taskify:hover { background: var(--hover); border-color: var(--accent); color: var(--accent); }
 .db-bg {
   width: 100%; resize: none; overflow: hidden; border: 1px solid var(--border); border-radius: 10px;
   background: var(--bg); padding: .6rem .7rem; font-size: .92rem; line-height: 1.5; unicode-bidi: plaintext;
@@ -1217,6 +1225,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .tk-modal { width: min(94vw, 580px); text-align: start; display: flex; flex-direction: column; gap: .7rem; max-height: calc(100vh - 5rem); overflow-y: auto; }
 .tk-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .55rem .75rem; font-family: inherit; font-size: .92rem; box-sizing: border-box; }
 textarea.tk-in { min-height: 80px; resize: vertical; line-height: 1.5; }
+.tk-in.tk-title-grow { min-height: 0; resize: none; overflow: hidden; line-height: 1.4; }
 .tk-title-in { font-size: 1.08rem; font-weight: 600; }
 .tk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 .tk-grid label, .tk-lbl { display: flex; flex-direction: column; gap: .3rem; font-size: .82rem; color: var(--ink2); }

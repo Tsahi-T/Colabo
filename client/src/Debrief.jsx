@@ -19,9 +19,10 @@ const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת
 const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · אפשר להפוך לקח למשימה', taskifyTitle: 'יצירת משימה למימוש לקח זה' },
-  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · אפשר להפוך המלצה למשימה', taskifyTitle: 'יצירת משימה למימוש המלצה זו' },
+  { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה', taskLinked: true, taskPrefix: 'משימה למימוש לקח' },
+  { k: 'summary', num: 5, title: 'סיכום ומסקנות', hint: 'שורות מצטרפות בתחתית · כל שורה הופכת אוטומטית למשימה', taskLinked: true, taskPrefix: 'משימה למימוש המלצה' },
 ];
+const TASK_PREFIX = Object.fromEntries(SECTIONS.filter((s) => s.taskLinked).map((s) => [s.k, s.taskPrefix]));
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const download = (text, name, type = 'text/plain;charset=utf-8') => {
@@ -37,15 +38,16 @@ function autoGrow(el) {
   el.style.height = el.scrollHeight + 'px';
 }
 
-// A growing single-line-turned-multiline field, used for the chronology "details" column —
-// a plain <input> hides overflow text past its width; this expands downward instead.
-function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder }) {
+// A growing single-line-turned-multiline field — a plain <input> hides overflow text past
+// its width; this expands downward instead. Used for every free-text entry field on this
+// screen (chronology details, and the ממצאים/לקחים/סיכום lines below).
+function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, className }) {
   const ref = useRef();
   useEffect(() => { autoGrow(ref.current); }, [value]);
   return (
     <textarea
       ref={(el) => { ref.current = el; registerRef?.(el); }}
-      className="db-chrono-text" rows={1} placeholder={placeholder}
+      className={className} rows={1} placeholder={placeholder}
       value={value} onChange={onChange} onKeyDown={onKeyDown}
     />
   );
@@ -54,7 +56,9 @@ function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder }) 
 // A single growing list of text lines (ממצאים / לקחים / סיכום) — mirrors the SWOT quadrant UX:
 // "+ שורה" or Enter inside a line both open the next one, and a preset menu offers ready phrases.
 // Each item is numbered "<chapter>.<item>" to match the document's chapter/clause numbering.
-function LineSection({ sec, items, editable, add, del, edit, onTaskify }) {
+// sec.taskLinked sections (לקחים/סיכום) show a passive "☑ משימה" badge once the line has an
+// auto-created linked task — the line's own ✕ is the only way to remove it (see addLine/delLine).
+function LineSection({ sec, items, editable, add, del, edit, taskIdSet }) {
   const [showPresets, setShowPresets] = useState(false);
   const ref = useRef();
   const inputRefs = useRef({});
@@ -82,20 +86,19 @@ function LineSection({ sec, items, editable, add, del, edit, onTaskify }) {
       </div>
       <div className="sw-lines">
         {items.map((it, i) => (
-          <div key={it.id} className="sw-line">
+          <div key={it.id} className="sw-line db-line">
             <span className="db-num">{sec.num}.{i + 1}</span>
             {editable ? (
-              <input
-                ref={(el) => { if (el) inputRefs.current[it.id] = el; else delete inputRefs.current[it.id]; }}
-                value={it.text} placeholder="הקלדה חופשית…"
+              <GrowingField className="sw-grow" value={it.text} placeholder="הקלדה חופשית…"
+                registerRef={(el) => { if (el) inputRefs.current[it.id] = el; else delete inputRefs.current[it.id]; }}
                 onChange={(e) => edit(it.id, e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
               />
             ) : (
               <span className="sw-text">{it.text || '—'}</span>
             )}
-            {editable && onTaskify && (
-              <button className="db-taskify" title={sec.taskifyTitle} onClick={() => onTaskify(it.text)}>☑ משימה</button>
+            {sec.taskLinked && it.taskId && taskIdSet.has(it.taskId) && (
+              <span className="db-task-badge" title="נוצרה משימה אוטומטית עבור שורה זו — מחיקת השורה (✕) תמחק גם אותה">☑ משימה</span>
             )}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
@@ -186,11 +189,12 @@ export default function Debrief({ info, user, token }) {
   const chronoRows = [...chrono.entries()]
     .map(([id, m]) => ({ id, date: m.get('date') || today(), time: m.get('time') || nowTime(), text: m.get('text') || '', ord: m.get('ord') || 0 }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time) || a.ord - b.ord || a.id.localeCompare(b.id));
-  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '' }));
+  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
   const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
   const taskRows = [...tasks.entries()]
     .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '' }))
     .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
+  const taskIdSet = new Set(taskRows.map((t) => t.id));
 
   function addChrono(presetText = '') {
     const id = uid(), m = new Y.Map();
@@ -202,28 +206,46 @@ export default function Debrief({ info, user, token }) {
     if (r.text && !confirm(`למחוק את הרשומה "${r.text}"?`)) return;
     chrono.delete(r.id);
   }
+  // לקחים/סיכום lines auto-create (and stay in sync with, and get deleted alongside) a linked
+  // task — see SECTIONS' taskLinked/taskPrefix and TASK_PREFIX above.
   function addLine(sec, presetText = '') {
     const id = uid(), m = new Y.Map();
     const rows = bySection(sec);
     const maxOrd = Math.max(0, ...rows.map((x) => x.ord));
-    ydoc.transact(() => { m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText); lines.set(id, m); });
+    const prefix = TASK_PREFIX[sec];
+    ydoc.transact(() => {
+      m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText);
+      if (prefix) {
+        const taskId = uid(), t = new Y.Map();
+        const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
+        t.set('ord', maxTaskOrd + 1); t.set('title', `${prefix} - ${presetText}`); t.set('desc', '');
+        t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
+        t.set('assignee', ''); t.set('log', []);
+        tasks.set(taskId, t);
+        m.set('taskId', taskId);
+      }
+      lines.set(id, m);
+    });
     return id;
   }
-  const delLine = (id) => lines.delete(id);
-  const editLine = (id, text) => lines.get(id)?.set('text', text);
-
-  function addTaskWithTitle(titleText) {
-    const id = uid(), t = new Y.Map();
-    const maxOrd = Math.max(0, ...taskRows.map((x) => x.ord));
+  function delLine(id) {
+    const m = lines.get(id);
+    const taskId = m?.get('taskId');
     ydoc.transact(() => {
-      t.set('ord', maxOrd + 1); t.set('title', titleText); t.set('desc', '');
-      t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
-      t.set('assignee', ''); t.set('log', []);
-      tasks.set(id, t);
+      lines.delete(id);
+      if (taskId) tasks.delete(taskId);
     });
   }
-  const addTaskFromLesson = (text) => addTaskWithTitle(`משימה למימוש לקח - ${text}`);
-  const addTaskFromSummary = (text) => addTaskWithTitle(`משימה למימוש המלצה - ${text}`);
+  function editLine(id, text) {
+    const m = lines.get(id);
+    if (!m) return;
+    ydoc.transact(() => {
+      m.set('text', text);
+      const taskId = m.get('taskId');
+      const prefix = TASK_PREFIX[m.get('section')];
+      if (taskId && prefix) tasks.get(taskId)?.set('title', `${prefix} - ${text}`);
+    });
+  }
 
   // ---- exports ----
   function fmtLines(sec, num) {
@@ -305,7 +327,17 @@ export default function Debrief({ info, user, token }) {
       [...lines.keys()].forEach((k) => lines.delete(k));
       parsedChrono.forEach((c, i) => { const m = new Y.Map(); m.set('date', c.date); m.set('time', c.time); m.set('text', c.text); m.set('ord', i + 1); chrono.set(uid(), m); });
       Object.entries(parsedLines).forEach(([sec, rows]) => rows.forEach((text, i) => {
-        const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1); lines.set(uid(), m);
+        const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1);
+        const prefix = TASK_PREFIX[sec];
+        if (prefix) {
+          const taskId = uid(), t = new Y.Map();
+          t.set('ord', i + 1); t.set('title', `${prefix} - ${text}`); t.set('desc', '');
+          t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
+          t.set('assignee', ''); t.set('log', []);
+          tasks.set(taskId, t);
+          m.set('taskId', taskId);
+        }
+        lines.set(uid(), m);
       }));
     });
   }
@@ -379,7 +411,7 @@ export default function Debrief({ info, user, token }) {
                         onChange={(e) => e.target.value && chrono.get(r.id)?.set('date', e.target.value)} />
                       <input type="time" step="1" className="db-chrono-time" value={r.time}
                         onChange={(e) => e.target.value && chrono.get(r.id)?.set('time', e.target.value)} />
-                      <GrowingField value={r.text} placeholder="פירוט האירוע…"
+                      <GrowingField className="db-chrono-text" value={r.text} placeholder="פירוט האירוע…"
                         registerRef={(el) => { if (el) chronoRefs.current[r.id] = el; else delete chronoRefs.current[r.id]; }}
                         onChange={(e) => chrono.get(r.id)?.set('text', e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); chronoFocusId.current = addChrono(); } }} />
@@ -412,9 +444,9 @@ export default function Debrief({ info, user, token }) {
           )}
         </section>
 
-        <LineSection sec={SECTIONS[0]} items={bySection('findings')} editable={editable} add={addLine} del={delLine} edit={editLine} />
-        <LineSection sec={SECTIONS[1]} items={bySection('lessons')} editable={editable} add={addLine} del={delLine} edit={editLine} onTaskify={addTaskFromLesson} />
-        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} onTaskify={addTaskFromSummary} />
+        <LineSection sec={SECTIONS[0]} items={bySection('findings')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[1]} items={bySection('lessons')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[2]} items={bySection('summary')} editable={editable} add={addLine} del={delLine} edit={editLine} taskIdSet={taskIdSet} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">

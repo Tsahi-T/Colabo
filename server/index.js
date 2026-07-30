@@ -128,15 +128,35 @@ app.get('/api/stats', async (req, res) => {
 // inline style="" survives, and even that only ever produces w:jc — never w:bidi). Every
 // paragraph it emits is plain LTR, which is why "text-align:right" alone still rendered
 // numerals/headings on the wrong side. Fix it after the fact by editing the OOXML directly:
-// every paragraph gets marked bidi + right-justified, and every table gets right-to-left
-// column order — this is exactly how Word itself authors a Hebrew RTL document.
+// every paragraph gets marked bidi + right-justified, every run gets marked rtl, and every
+// table gets right-to-left column order — this is exactly how Word itself authors a Hebrew
+// RTL document. Also normalizes table borders: html-to-docx gives each cell a 0.125pt border
+// (all but invisible once rendered) and only puts a border around a table's outer edge, never
+// between rows/columns — replaced with a single visible weight and a full inside grid.
+const BORDER_ATTRS = 'w:val="single" w:sz="4" w:space="0" w:color="000000"';
+function ensureTableBorders(tblPrInner) {
+  if (/<w:tblBorders/.test(tblPrInner)) {
+    return tblPrInner.replace(/<w:tblBorders>([\s\S]*?)<\/w:tblBorders>/, (full, sides) =>
+      /<w:insideH/.test(sides) ? full : `<w:tblBorders>${sides}<w:insideH ${BORDER_ATTRS}/><w:insideV ${BORDER_ATTRS}/></w:tblBorders>`);
+  }
+  const sides = ['top', 'bottom', 'left', 'right', 'insideH', 'insideV']
+    .map((side) => `<w:${side} ${BORDER_ATTRS}/>`).join('');
+  return `<w:tblBorders>${sides}</w:tblBorders>${tblPrInner}`;
+}
 function rtlifyDocumentXml(xml) {
   xml = xml.replace(/<w:jc\s+w:val="[^"]*"\s*\/>/g, ''); // drop any existing jc so we don't duplicate/misorder it
   xml = xml.replace(/<w:pPr\s*\/>/g, '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr>');
   // schema order for CT_PPrBase: bidi comes before spacing/ind, jc comes after them
   xml = xml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, '<w:pPr><w:bidi/>$1<w:jc w:val="right"/></w:pPr>');
-  xml = xml.replace(/<w:tblPr\s*\/>/g, '<w:tblPr><w:bidiVisual/></w:tblPr>');
-  xml = xml.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/g, '<w:tblPr><w:bidiVisual/>$1</w:tblPr>');
+  // CT_RPr: rtl slots in near the end, right before cs/lang — appending is close enough for
+  // the simple runs this converter emits, and Word is tolerant of minor property reordering.
+  xml = xml.replace(/<w:rPr\s*\/>/g, '<w:rPr><w:rtl/></w:rPr>');
+  xml = xml.replace(/<w:rPr>([\s\S]*?)<\/w:rPr>/g, (full, inner) => (/<w:rtl\/>/.test(inner) ? full : `<w:rPr>${inner}<w:rtl/></w:rPr>`));
+  xml = xml.replace(/<w:tblPr\s*\/>/g, () => `<w:tblPr><w:bidiVisual/>${ensureTableBorders('')}</w:tblPr>`);
+  xml = xml.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/g, (full, inner) => `<w:tblPr><w:bidiVisual/>${ensureTableBorders(inner)}</w:tblPr>`);
+  // normalize the per-cell borders html-to-docx already adds — same weight/color as the table grid
+  xml = xml.replace(/<w:(top|bottom|left|right)\s+w:val="[^"]*"\s+w:sz="[^"]*"\s+w:space="[^"]*"\s+w:color="[^"]*"\s*\/>/g,
+    (full, side) => `<w:${side} ${BORDER_ATTRS}/>`);
   return xml;
 }
 async function makeDocxRtl(buf) {

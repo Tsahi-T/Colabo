@@ -17,6 +17,17 @@ const fmtDate = (iso) => (iso ? new Date(iso + 'T00:00').toLocaleDateString('he-
 // mirrors of the label maps used by the embedded Tasks screen (kept local, same pattern as Project.jsx)
 const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
 const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
+// same one-cell-per-log serialization as Tasks.jsx's own CSV export — this screen has no task
+// CSV *import*, but the export should still carry the full update history, not just the
+// current fields.
+function logCellOut(log) {
+  return (log || []).map((l) => {
+    const parts = [new Date(l.at || Date.now()).toISOString(), l.by || ''];
+    if (l.from !== l.to) parts.push(`${TK_STATUS[l.from] || l.from}→${TK_STATUS[l.to] || l.to}`);
+    if (l.note) parts.push(l.note);
+    return parts.join(' | ');
+  }).join('\n');
+}
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
   { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskLabel: 'לקח' },
@@ -221,7 +232,7 @@ export default function Debrief({ info, user, token }) {
   const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
   const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
   const taskRows = [...tasks.entries()]
-    .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '' }))
+    .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', log: t.get('log') || [] }))
     .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
   const taskIdSet = new Set(taskRows.map((t) => t.id));
 
@@ -326,8 +337,8 @@ export default function Debrief({ info, user, token }) {
       ...chronoRows.map((r) => csvEscape(r.date) + ',' + csvEscape(r.time) + ',' + csvEscape(r.text))].join('\r\n') + '\r\n',
     `${title || 'תחקיר'} - פירוט וזמנים.csv`, 'text/csv;charset=utf-8');
   const exportTasksCsv = () => download(
-    [csvEscape('כותרת') + ',' + csvEscape('תיאור') + ',' + csvEscape('סטטוס') + ',' + csvEscape('עדיפות') + ',' + csvEscape('אחראי') + ',' + csvEscape('תאריך יעד'),
-      ...taskRows.map((t) => [t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.dueCurrent || t.due].map(csvEscape).join(','))].join('\r\n') + '\r\n',
+    [csvEscape('כותרת') + ',' + csvEscape('תיאור') + ',' + csvEscape('סטטוס') + ',' + csvEscape('עדיפות') + ',' + csvEscape('אחראי') + ',' + csvEscape('תאריך יעד') + ',' + csvEscape('יעד עדכני') + ',' + csvEscape('היסטוריית עדכונים'),
+      ...taskRows.map((t) => [t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)].map(csvEscape).join(','))].join('\r\n') + '\r\n',
     `${title || 'תחקיר'} - משימות.csv`, 'text/csv;charset=utf-8');
   async function exportWord() {
     const chronoNotesHtml = chronoNotes ? chronoNotes.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') : '';
@@ -339,8 +350,14 @@ export default function Debrief({ info, user, token }) {
       const rows = bySection(sec);
       return rows.length ? `<ul>${rows.map((r, i) => `<li>${num}.${i + 1} ${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
     };
+    const logHtmlOut = (log) => (log || []).map((l) => {
+      const bits = [fmtDate(new Date(l.at).toISOString().slice(0, 10)), l.by].filter(Boolean);
+      if (l.from !== l.to) bits.push(`${TK_STATUS[l.from] || l.from}→${TK_STATUS[l.to] || l.to}`);
+      if (l.note) bits.push(l.note);
+      return esc(bits.join(' · '));
+    }).join('<br>');
     const tasksHtml = taskRows.length
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.dueCurrent || t.due))}</td></tr>`).join('')}</table>`
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th><th>היסטוריית עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const bgHtml = background.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') || '<p>(אין תוכן)</p>';
     const body = `<h1>${esc(title || 'תחקיר ללא שם')}</h1>` +

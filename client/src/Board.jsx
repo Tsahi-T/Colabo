@@ -266,7 +266,10 @@ export default function Board({ info, user, token }) {
       const byNum = new Map();
       ns.forEach((v, i) => {
         const id = uid(), n = new Y.Map();
-        Object.entries({ x: v.x, y: v.y, w: v.w, h: v.h, color: v.color, rot: +(Math.random() * 4 - 2).toFixed(1), title: v.title || '', text: v.text, z: i + 1 }).forEach(([k, val]) => n.set(k, val));
+        Object.entries({
+          x: v.x, y: v.y, w: v.w, h: v.h, color: v.color, title: v.title || '', text: v.text,
+          rot: v.rot ?? +(Math.random() * 4 - 2).toFixed(1), z: v.z ?? i + 1,
+        }).forEach(([k, val]) => n.set(k, val));
         notes.set(id, n);
         byNum.set(v.num, id);
       });

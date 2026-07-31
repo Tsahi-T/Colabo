@@ -161,23 +161,28 @@ export default function Timeline({ info, user, token }) {
   }
 
   // ---- TXT / PDF ----
+  const colorName = (hex) => Object.keys(MARKS).find((k) => MARKS[k] === hex) || 'כחול';
   const exportTxt = () => download(
-    `ציר זמן: ${title || 'ללא שם'}\n\n` + sorted.map((m) => `${m.date} | ${m.text.replace(/\n/g, ' / ')}`).join('\n') + '\n',
+    `ציר זמן: ${title || 'ללא שם'}\n\n` + sorted.map((m) => `${m.date} | ${colorName(m.color)} | ${m.text.replace(/\n/g, ' / ')}`).join('\n') + '\n',
     `${title || 'ציר זמן'}.txt`);
   const exportPdf = () => printElementImage('.tl-stage', { title: title || 'ציר זמן', landscape: true });
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    // the color segment is optional in the regex so files exported before this fix (just
+    // "date | text") still load fine — they just fall back to blue, same as before.
+    const colorAlt = Object.keys(MARKS).join('|');
+    const lineRe = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})\\s*\\|\\s*(?:(${colorAlt})\\s*\\|\\s*)?(.*)$`);
     const rows = (await f.text()).split(/\r?\n/)
-      .map((l) => l.match(/^(\d{4}-\d{2}-\d{2})\s*\|\s*(.*)$/)).filter(Boolean);
+      .map((l) => l.match(lineRe)).filter(Boolean);
     if (!rows.length) return alert('לא נמצאו אבני דרך בקובץ (פורמט: YYYY-MM-DD | תיאור)');
     if (items.size && !confirm('הטעינה תחליף את ציר הזמן הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
       [...items.keys()].forEach((k) => items.delete(k));
-      rows.forEach(([, date, text]) => {
+      rows.forEach(([, date, colorNameMatch, text]) => {
         const m = new Y.Map();
-        m.set('date', date); m.set('text', text); m.set('color', MARKS['כחול']);
+        m.set('date', date); m.set('text', text); m.set('color', MARKS[colorNameMatch] || MARKS['כחול']);
         items.set(uid(), m);
       });
     });

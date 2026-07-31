@@ -11,7 +11,7 @@ export function boardToTxt(title, notes, edges) {
   let out = `לוח חשיבה: ${title || 'ללא שם'}\n`;
   for (const id of ids) {
     const n = notes.get(id);
-    out += `\n[${num.get(id)}] מיקום: ${Math.round(n.get('x'))},${Math.round(n.get('y'))} | צבע: ${colorName(n.get('color'))} | גודל: ${Math.round(n.get('w'))}x${Math.round(n.get('h'))}\n`;
+    out += `\n[${num.get(id)}] מיקום: ${Math.round(n.get('x'))},${Math.round(n.get('y'))} | צבע: ${colorName(n.get('color'))} | גודל: ${Math.round(n.get('w'))}x${Math.round(n.get('h'))} | סיבוב: ${n.get('rot') || 0} | שכבה: ${n.get('z') || num.get(id)}\n`;
     if (n.get('title')) out += `# ${n.get('title')}\n`;
     out += (n.get('text') || '').trimEnd() + '\n';
   }
@@ -25,9 +25,17 @@ export function txtToBoard(txt) {
   const edges = [];
   let cur = null, inEdges = false;
   for (const line of txt.split(/\r?\n/)) {
-    const head = line.match(/^\[(\d+)\] מיקום: (-?\d+),(-?\d+)(?: \| צבע: (\S+))?(?: \| גודל: (\d+)x(\d+))?/);
+    // rot/z are optional in the regex — files exported before this fix just don't have them,
+    // and the caller (Board.jsx) falls back to its old behavior (random tilt, stacking by
+    // file order) exactly like it always did when these come back null.
+    const head = line.match(/^\[(\d+)\] מיקום: (-?\d+),(-?\d+)(?: \| צבע: (\S+))?(?: \| גודל: (\d+)x(\d+))?(?: \| סיבוב: (-?[\d.]+))?(?: \| שכבה: (\d+))?/);
     if (head) {
-      cur = { num: +head[1], x: +head[2], y: +head[3], color: PASTELS[head[4]] || PASTELS['צהוב'], w: +(head[5] || 190), h: +(head[6] || 170), title: '', text: '' };
+      cur = {
+        num: +head[1], x: +head[2], y: +head[3], color: PASTELS[head[4]] || PASTELS['צהוב'],
+        w: +(head[5] || 190), h: +(head[6] || 170),
+        rot: head[7] !== undefined ? +head[7] : null, z: head[8] !== undefined ? +head[8] : null,
+        title: '', text: '',
+      };
       notes.push(cur);
       continue;
     }

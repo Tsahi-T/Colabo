@@ -123,6 +123,33 @@ function parseCsv(text) {
   if (f || r.length) { r.push(f); rows.push(r); }
   return rows;
 }
+// an embedded task's update log (an array, not its own Y.Map) packs into one CSV cell — same
+// format as Tasks.jsx's own CSV export, since this is the *only* backup path for embedded
+// tasks (Tasks.jsx hides its own export UI while embedded): "<ISO timestamp> | <author> |
+// [<from>→<to>] | [<note>]" per line, entries newline-separated within the cell.
+function logCellOut(log) {
+  return (log || []).map((l) => {
+    const parts = [new Date(l.at || Date.now()).toISOString(), l.by || ''];
+    if (l.from !== l.to) parts.push(`${TK_ST[l.from] || l.from}→${TK_ST[l.to] || l.to}`);
+    if (l.note) parts.push(l.note);
+    return parts.join(' | ');
+  }).join('\n');
+}
+function logCellIn(cell) {
+  if (!cell) return [];
+  return cell.split('\n').filter((line) => line.trim()).map((line) => {
+    const parts = line.split(' | ');
+    const at = new Date(parts[0]).getTime() || Date.now();
+    const by = parts[1] || '';
+    let from = 'new', to = 'new', note = '';
+    parts.slice(2).forEach((p) => {
+      const m = p.match(/^(.+)→(.+)$/);
+      if (m) { from = byLabel(TK_ST, m[1].trim(), 'new'); to = byLabel(TK_ST, m[2].trim(), 'new'); }
+      else note = p;
+    });
+    return { at, by, from, to, note };
+  });
+}
 
 // NOTE: these live at module scope on purpose. Defining them inside Project() would
 // create a new component type on every render, so React would remount the subtree and
@@ -349,6 +376,8 @@ export default function Project({ info, user, token }) {
       lines.push(row(['סטטוס כללי', RAG[p.status] || 'ירוק']));
       lines.push(row(['מוביל הפרויקט', p.manager]));
       lines.push(row(['עדכון אחרון', p.updated]));
+      lines.push(row(['עדכון ידני', p.updatedManual ? 'כן' : 'לא']));
+      lines.push(row(['תגית', p.badge || '']));
       ASPECTS.forEach((a) => {
         const v = p[a.k] || {};
         lines.push(row([`${a.label} סטטוס`, RAG[v.st] || 'ירוק']));
@@ -363,7 +392,7 @@ export default function Project({ info, user, token }) {
       // embedded sections — same label/value template so the sheet stays one consistent shape
       const tm = getSub(p.id, 'tasksMap');
       if (tm) [...tm.values()].map((t) => t.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
-        .forEach((t) => lines.push(row(['משימה', t.title, TK_ST[t.status] || 'חדש', TK_PRI[t.priority] || 'רגילה', t.assignee || '', t.dueCurrent || t.due || ''])));
+        .forEach((t) => lines.push(row(['משימה', t.title, TK_ST[t.status] || 'חדש', TK_PRI[t.priority] || 'רגילה', t.assignee || '', t.due || '', t.dueCurrent || '', t.desc || '', logCellOut(t.log)])));
       const rm = getSub(p.id, 'risksMap');
       if (rm) [...rm.values()].map((x) => x.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
         .forEach((x) => lines.push(row(['סיכון', x.name, x.sev ?? 3, x.prob ?? 3, x.detail || '', x.actions || ''])));
@@ -389,7 +418,9 @@ export default function Project({ info, user, token }) {
       else if (label === 'שלב הפרויקט') cur.phase = PHASES.includes(v) ? v : 'יזום';
       else if (label === 'סטטוס כללי') cur.status = byLabel(RAG, v, 'green');
       else if (label === 'מוביל הפרויקט' || label === 'מנהל פרויקט') cur.manager = v; // accept the old label too
-      else if (label === 'עדכון אחרון') { cur.updated = v || today(); if (v) cur.updatedManual = true; } // keep the imported date, don't auto-overwrite
+      else if (label === 'עדכון אחרון') cur.updated = v || today(); // keep the imported date, don't auto-overwrite
+      else if (label === 'עדכון ידני') cur.updatedManual = v === 'כן';
+      else if (label === 'תגית') cur.badge = BADGE_TONES.includes(v) ? v : cur.badge;
       else if (label === 'מידע נוסף') cur.info = v;
       else if (label === 'קישורים חשובים') cur.links = normalizeLinks(v); // pre-list-format exports
       else if (label === 'קישור') cur.links.push({ id: uid(), title: v, url: (r[2] || '').trim() });
@@ -399,7 +430,9 @@ export default function Project({ info, user, token }) {
       else if (label === 'משימה') cur._tasks.push({
         title: v, status: byLabel(TK_ST, (r[2] || '').trim(), 'new'),
         priority: +byLabel(TK_PRI, (r[3] || '').trim(), 1), assignee: (r[4] || '').trim(),
-        due: (r[5] || '').trim(), dueCurrent: (r[5] || '').trim(), desc: '', log: [],
+        // r[6]/r[7]/r[8] (dueCurrent/desc/log) are absent in exports made before this fix —
+        // fall back to r[5] for dueCurrent the same way the old single-column export worked.
+        due: (r[5] || '').trim(), dueCurrent: (r[6] || r[5] || '').trim(), desc: (r[7] || '').trim(), log: logCellIn(r[8]),
       });
       else if (label === 'סיכון') cur._risks.push({
         name: v, sev: Math.min(5, Math.max(1, +(r[2] || 3) || 3)), prob: Math.min(5, Math.max(1, +(r[3] || 3) || 3)),

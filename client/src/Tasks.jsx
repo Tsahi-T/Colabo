@@ -53,9 +53,36 @@ function GrowTitle({ value, onChange, className, placeholder, readOnly, autoFocu
 }
 
 // ---- CSV (Excel-compatible: BOM + CRLF), dependency-free ----
-const CSV_HEADERS = ['כותרת', 'תיאור', 'סטטוס', 'עדיפות', 'אחראי', 'תאריך יעד', 'תאריך יעד עדכני'];
+const CSV_HEADERS = ['כותרת', 'תיאור', 'סטטוס', 'עדיפות', 'אחראי', 'תאריך יעד', 'תאריך יעד עדכני', 'היסטוריית עדכונים'];
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const csvRow = (arr) => arr.map(csvEscape).join(',');
+// the update log (an array on the task, not its own Y.Map) packs into one cell — CSV already
+// supports embedded newlines via quoting, so each entry gets its own line within the cell:
+// "<ISO timestamp> | <author> | [<from status>→<to status>] | [<note>]". The timestamp is kept
+// as full ISO (not the locale date shown on screen) purely so re-importing loses no precision.
+function logCellOut(log) {
+  return (log || []).map((l) => {
+    const parts = [new Date(l.at || Date.now()).toISOString(), l.by || ''];
+    if (l.from !== l.to) parts.push(`${STATUSES[l.from] || l.from}→${STATUSES[l.to] || l.to}`);
+    if (l.note) parts.push(l.note);
+    return parts.join(' | ');
+  }).join('\n');
+}
+function logCellIn(cell, revStatus) {
+  if (!cell) return [];
+  return cell.split('\n').filter((line) => line.trim()).map((line) => {
+    const parts = line.split(' | ');
+    const at = new Date(parts[0]).getTime() || Date.now();
+    const by = parts[1] || '';
+    let from = 'new', to = 'new', note = '';
+    parts.slice(2).forEach((p) => {
+      const m = p.match(/^(.+)→(.+)$/);
+      if (m) { from = revStatus[m[1].trim()] || 'new'; to = revStatus[m[2].trim()] || 'new'; }
+      else note = p;
+    });
+    return { at, by, from, to, note };
+  });
+}
 function parseCsv(text) {
   const rows = []; let row = [], field = '', inQ = false;
   for (let i = 0; i < text.length; i++) {
@@ -199,7 +226,7 @@ export default function Tasks({ info, user, token, embed }) {
   }
 
   const exportCsv = () => download(
-    [csvRow(CSV_HEADERS), ...rows.map((t) => csvRow([t.title, t.desc, STATUSES[t.status], PRIORITIES[t.priority], t.assignee, t.due, t.dueCurrent]))].join('\r\n') + '\r\n',
+    [csvRow(CSV_HEADERS), ...rows.map((t) => csvRow([t.title, t.desc, STATUSES[t.status], PRIORITIES[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]))].join('\r\n') + '\r\n',
     `${title || 'ניהול משימות'}.csv`, 'text/csv;charset=utf-8');
 
   async function importCsv(e) {
@@ -211,17 +238,19 @@ export default function Tasks({ info, user, token, embed }) {
     const revPri = Object.fromEntries(Object.entries(PRIORITIES).map(([k, v]) => [v, +k]));
     const parsed = grid.filter((r) => r[0]?.trim()).map((r) => ({
       title: r[0] || '', desc: r[1] || '', status: revStatus[r[2]] || 'new', priority: revPri[r[3]] || 1,
-      assignee: r[4] || '', due: r[5] || '', dueCurrent: r[6] || r[5] || '',
+      assignee: r[4] || '', due: r[5] || '', dueCurrent: r[6] || r[5] || '', log: logCellIn(r[7], revStatus),
     }));
     if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
     if (tasks.size && !confirm('הטעינה תחליף את כל המשימות הקיימות. להמשיך?')) return;
     ydoc.transact(() => {
       [...tasks.keys()].forEach((k) => tasks.delete(k));
+      // rows (and so the export) list newest-first (highest ord first) — assigning ord in
+      // the same "first row = highest" direction on the way back in keeps that order instead
+      // of silently reversing it.
       parsed.forEach((p, i) => {
         const t = new Y.Map();
-        t.set('ord', i + 1);
+        t.set('ord', parsed.length - i);
         Object.entries(p).forEach(([k, v]) => t.set(k, v));
-        t.set('log', []);
         tasks.set(uid(), t);
       });
     });
@@ -444,7 +473,8 @@ export default function Tasks({ info, user, token, embed }) {
                   if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); autoGrow(e.target.note); }
                 }}>
                   <textarea className="tk-in tk-note-in" name="note" rows={1} placeholder="הערת עדכון — מה קרה?"
-                    onInput={(e) => autoGrow(e.target)} />
+                    onInput={(e) => autoGrow(e.target)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form.requestSubmit(); } }} />
                   <button className="btn" type="submit">הוספה</button>
                 </form>
               )}

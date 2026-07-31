@@ -1254,6 +1254,12 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 }
 .tk-modal-x:hover { background: var(--hover); color: #ef4444; border-color: #ef4444; }
 .tk-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .7rem; }
+/* flex-shrink defaults to 1 — without this, when everything doesn't fit the modal's own
+   max-height, the flex algorithm squeezes every field down instead of letting THIS element
+   (which already scrolls on its own) scroll instead. .tk-log was the visible casualty: its
+   own max-height:150px never got a chance to apply because it kept getting compressed to a
+   near-invisible sliver first, well before the outer scrollbar ever kicked in. */
+.tk-modal-body > * { flex-shrink: 0; }
 /* the generic .modal input rule (margin: .8rem 0, meant for the small centered auth-style
    modals) doesn't belong here — spacing inside the task modal is handled by .tk-modal-body's
    own gap, so bare <input>s (dates, אחראי, note) getting that extra margin on top made the

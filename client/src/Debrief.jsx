@@ -151,8 +151,11 @@ export default function Debrief({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [showBgPresets, setShowBgPresets] = useState(false);
   const [showChronoPresets, setShowChronoPresets] = useState(false);
+  const [showChronoNotesPresets, setShowChronoNotesPresets] = useState(false);
   const bgRef = useRef();
   const bgMenuRef = useRef();
+  const chronoNotesRef = useRef();
+  const chronoNotesMenuRef = useRef();
   const chronoMenuRef = useRef();
   const chronoRefs = useRef({});
   const chronoFocusId = useRef(null);
@@ -189,17 +192,22 @@ export default function Debrief({ info, user, token }) {
 
   useEffect(() => {
     document.addEventListener('mousedown', closeBg);
+    document.addEventListener('mousedown', closeChronoNotes);
     document.addEventListener('mousedown', closeChrono);
     return () => {
       document.removeEventListener('mousedown', closeBg);
+      document.removeEventListener('mousedown', closeChronoNotes);
       document.removeEventListener('mousedown', closeChrono);
     };
     function closeBg(e) { if (!bgMenuRef.current?.contains(e.target)) setShowBgPresets(false); }
+    function closeChronoNotes(e) { if (!chronoNotesMenuRef.current?.contains(e.target)) setShowChronoNotesPresets(false); }
     function closeChrono(e) { if (!chronoMenuRef.current?.contains(e.target)) setShowChronoPresets(false); }
   }, []);
 
   const background = meta.get('background') || '';
   useEffect(() => { autoGrow(bgRef.current); }, [background]);
+  const chronoNotes = meta.get('chronoNotes') || '';
+  useEffect(() => { autoGrow(chronoNotesRef.current); }, [chronoNotes]);
   useEffect(() => {
     if (chronoFocusId.current && chronoRefs.current[chronoFocusId.current]) {
       chronoRefs.current[chronoFocusId.current].focus();
@@ -305,7 +313,8 @@ export default function Debrief({ info, user, token }) {
   const exportTxt = () => {
     let out = `תחקיר: ${title || 'ללא שם'}\n\n`;
     out += `רקע:\n${background}\n\n`;
-    out += `כרונולוגיה:\n`;
+    out += `פירוט וזמנים:\n`;
+    out += chronoNotes ? chronoNotes + '\n\n' : '';
     out += chronoRows.length ? chronoRows.map((r) => `${r.date} ${r.time} | ${r.text}`).join('\n') + '\n' : '(אין רשומות)\n';
     out += `\nממצאים:\n${fmtLines('findings', 3)}`;
     out += `\nלקחים:\n${fmtLines('lessons', 4)}`;
@@ -315,15 +324,17 @@ export default function Debrief({ info, user, token }) {
   const exportChronoCsv = () => download(
     [csvEscape('תאריך') + ',' + csvEscape('שעה') + ',' + csvEscape('פירוט'),
       ...chronoRows.map((r) => csvEscape(r.date) + ',' + csvEscape(r.time) + ',' + csvEscape(r.text))].join('\r\n') + '\r\n',
-    `${title || 'תחקיר'} - כרונולוגיה.csv`, 'text/csv;charset=utf-8');
+    `${title || 'תחקיר'} - פירוט וזמנים.csv`, 'text/csv;charset=utf-8');
   const exportTasksCsv = () => download(
     [csvEscape('כותרת') + ',' + csvEscape('תיאור') + ',' + csvEscape('סטטוס') + ',' + csvEscape('עדיפות') + ',' + csvEscape('אחראי') + ',' + csvEscape('תאריך יעד'),
       ...taskRows.map((t) => [t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.dueCurrent || t.due].map(csvEscape).join(','))].join('\r\n') + '\r\n',
     `${title || 'תחקיר'} - משימות.csv`, 'text/csv;charset=utf-8');
   async function exportWord() {
-    const chronoHtml = chronoRows.length
+    const chronoNotesHtml = chronoNotes ? chronoNotes.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') : '';
+    const chronoTableHtml = chronoRows.length
       ? `<table><tr><th>תאריך</th><th>שעה</th><th>פירוט</th></tr>${chronoRows.map((r) => `<tr><td>${esc(fmtDate(r.date))}</td><td>${esc(r.time)}</td><td>${esc(r.text)}</td></tr>`).join('')}</table>`
       : '<p>(אין רשומות)</p>';
+    const chronoHtml = chronoNotesHtml + chronoTableHtml;
     const linesHtml = (sec, num) => {
       const rows = bySection(sec);
       return rows.length ? `<ul>${rows.map((r, i) => `<li>${num}.${i + 1} ${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
@@ -334,7 +345,7 @@ export default function Debrief({ info, user, token }) {
     const bgHtml = background.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') || '<p>(אין תוכן)</p>';
     const body = `<h1>${esc(title || 'תחקיר ללא שם')}</h1>` +
       `<h2>1. רקע</h2>${bgHtml}` +
-      `<h2>2. כרונולוגיה</h2>${chronoHtml}` +
+      `<h2>2. פירוט וזמנים</h2>${chronoHtml}` +
       `<h2>3. ממצאים</h2>${linesHtml('findings', 3)}` +
       `<h2>4. לקחים</h2>${linesHtml('lessons', 4)}` +
       `<h2>5. סיכום ומסקנות</h2>${linesHtml('summary', 5)}` +
@@ -348,11 +359,13 @@ export default function Debrief({ info, user, token }) {
     const rawLines = (await f.text()).split(/\r?\n/);
     let section = null;
     const bg = [];
+    const chronoNotesLines = [];
     const parsedChrono = [];
     const parsedLines = { findings: [], lessons: [], summary: [] };
     for (const line of rawLines) {
       if (line.startsWith('רקע:')) { section = 'background'; continue; }
-      if (line.startsWith('כרונולוגיה:')) { section = 'chrono'; continue; }
+      // "כרונולוגיה:" is the old marker (pre free-text-notes) — still accepted so older exports reload fine
+      if (line.startsWith('פירוט וזמנים:') || line.startsWith('כרונולוגיה:')) { section = 'chrono'; continue; }
       if (line.startsWith('ממצאים:')) { section = 'findings'; continue; }
       if (line.startsWith('לקחים:')) { section = 'lessons'; continue; }
       if (line.startsWith('סיכום ומסקנות:')) { section = 'summary'; continue; }
@@ -360,6 +373,7 @@ export default function Debrief({ info, user, token }) {
       if (section === 'chrono') {
         const m = line.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s*\|\s*(.*)$/);
         if (m) parsedChrono.push({ date: m[1], time: m[2], text: m[3] });
+        else if (line !== '(אין רשומות)') chronoNotesLines.push(line);
         continue;
       }
       if (section === 'findings' || section === 'lessons' || section === 'summary') {
@@ -368,11 +382,13 @@ export default function Debrief({ info, user, token }) {
       }
     }
     const bgText = bg.join('\n').trim();
+    const chronoNotesText = chronoNotesLines.join('\n').trim();
     const total = parsedChrono.length + Object.values(parsedLines).flat().length;
-    if (!bgText && !total) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
-    if ((chrono.size || lines.size || background) && !confirm('הטעינה תחליף את התחקיר הנוכחי (למעט המשימות). להמשיך?')) return;
+    if (!bgText && !chronoNotesText && !total) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
+    if ((chrono.size || lines.size || background || chronoNotes) && !confirm('הטעינה תחליף את התחקיר הנוכחי (למעט המשימות). להמשיך?')) return;
     ydoc.transact(() => {
       meta.set('background', bgText);
+      meta.set('chronoNotes', chronoNotesText);
       [...chrono.keys()].forEach((k) => chrono.delete(k));
       [...lines.keys()].forEach((k) => lines.delete(k));
       parsedChrono.forEach((c, i) => { const m = new Y.Map(); m.set('date', c.date); m.set('time', c.time); m.set('text', c.text); m.set('ord', i + 1); chrono.set(uid(), m); });
@@ -412,7 +428,7 @@ export default function Debrief({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
-            <button onClick={exportChronoCsv}>כרונולוגיה — CSV</button>
+            <button onClick={exportChronoCsv}>פירוט וזמנים — CSV</button>
             <button onClick={exportTasksCsv}>משימות — CSV</button>
             <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
           </Menu>
@@ -446,10 +462,31 @@ export default function Debrief({ info, user, token }) {
         <section className="db-sec">
           <div className="db-sec-head">
             <span className="db-chnum">2.</span>
-            <h2 className="db-sec-title">כרונולוגיה</h2>
-            <span className="db-hint">תאריך ושעה נרשמים אוטומטית בפתיחת שורה, ניתנים לשינוי</span>
+            <h2 className="db-sec-title">פירוט וזמנים</h2>
           </div>
-          <div className="db-chrono">
+          {editable ? (
+            <textarea ref={chronoNotesRef} className="db-bg" placeholder="פירוט חופשי — ניסוח האירוע, העמקה במקרה…" rows={3}
+              value={chronoNotes} onChange={(e) => meta.set('chronoNotes', e.target.value)} />
+          ) : (
+            <p className="db-bg-ro">{chronoNotes || '—'}</p>
+          )}
+          {editable && (
+            <div className="sw-add-row" ref={chronoNotesMenuRef}>
+              <button className="btn sw-add" onClick={() => setShowChronoNotesPresets((v) => !v)}>הצעות ✦</button>
+              {showChronoNotesPresets && (
+                <div className="menu-items sw-presets">
+                  {PRESETS.chronoDetails.map((p) => (
+                    <button key={p} onClick={() => {
+                      meta.set('chronoNotes', chronoNotes ? chronoNotes + '\n' + p : p);
+                      setShowChronoNotesPresets(false); chronoNotesRef.current?.focus();
+                    }}>{p}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="db-chrono db-chrono-timeline">
+            <div className="db-hint db-chrono-timeline-hint">ציר זמן — תאריך ושעה נרשמים אוטומטית בפתיחת שורה, ניתנים לשינוי</div>
             <div className="db-chrono-head"><span>תאריך</span><span>שעה</span><span>פירוט</span></div>
             <div className="db-chrono-rows">
               {chronoRows.map((r, i) => (

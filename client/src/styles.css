@@ -657,6 +657,8 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 }
 .db-bg:focus { border-color: var(--accent); outline: 0; }
 .db-bg-ro { font-size: .92rem; color: var(--ink2); line-height: 1.5; white-space: pre-wrap; unicode-bidi: plaintext; margin: 0; overflow-wrap: anywhere; }
+.db-chrono-timeline { margin-top: 1rem; }
+.db-chrono-timeline-hint { margin-bottom: .4rem; }
 .db-chrono-head {
   display: flex; gap: .6rem; padding: .3rem .2rem; font-size: .76rem; font-weight: 700; color: var(--ink3);
   border-bottom: 1px solid var(--border); margin-bottom: .3rem;

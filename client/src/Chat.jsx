@@ -14,6 +14,11 @@ const fmtDay = (ts) => new Date(ts).toLocaleDateString('he-IL', { day: 'numeric'
 const dayKey = (ts) => new Date(ts).toDateString();
 const SIDE_MIN = 180, SIDE_MAX = 420, SIDE_DEFAULT = 250;
 const POLL_MS = 20000;
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
 
 // Right-hand panel: chats visited on this browser. Polls each doc's updatedAt to sort by
 // last activity (newest message rises to top) and flag unread. The open chat is always
@@ -137,6 +142,7 @@ export default function Chat({ info, user, token }) {
   }, []);
 
   useEffect(() => { touchRecent(token, title, info.mode, 'chat'); }, [title]);
+  useEffect(() => { autoGrow(inputRef.current); }, [draft]);
 
   const msgs = messages.toArray();
 
@@ -186,7 +192,7 @@ export default function Chat({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="צ'אט ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="צ'אט ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />

@@ -23,6 +23,17 @@ const download = (text, name) => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// a plain <input> hides overflow text past its width — this grows downward instead
+function GrowingText({ className, value, onChange, placeholder }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return <textarea ref={ref} className={className} rows={1} placeholder={placeholder} value={value} onChange={onChange} />;
+}
 
 export default function Timeline({ info, user, token }) {
   const editable = info.mode === 'edit';
@@ -176,7 +187,7 @@ export default function Timeline({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="ציר זמן ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="ציר זמן ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />
@@ -228,7 +239,7 @@ export default function Timeline({ info, user, token }) {
                 <span className="tlr-idx" style={{ background: m.color }}>{i + 1}</span>
                 {editable ? (
                   <>
-                    <input className="tlr-text" placeholder="שם אבן הדרך…" value={m.text}
+                    <GrowingText className="tlr-text" placeholder="שם אבן הדרך…" value={m.text}
                       onChange={(e) => items.get(m.id)?.set('text', e.target.value)} />
                     <input className="tlr-date" type="date" value={m.date}
                       onChange={(e) => e.target.value && items.get(m.id)?.set('date', e.target.value)} />

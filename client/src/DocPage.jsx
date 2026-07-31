@@ -127,7 +127,7 @@ function EditorView({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="מסמך ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="מסמך ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} title={status === 'connected' ? 'מחובר' : 'מתחבר…'} />

@@ -263,7 +263,7 @@ export default function Tasks({ info, user, token, embed }) {
       {!embedded && (
         <header className="topbar">
           <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-          <input className="title-input" placeholder="ניהול משימות ללא שם" value={title} readOnly={!editable}
+          <input className="title-input" title={title || undefined} placeholder="ניהול משימות ללא שם" value={title} readOnly={!editable}
             onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
           {!editable && <span className="badge">צפייה בלבד</span>}
           <span className={'conn ' + status} />
@@ -441,9 +441,10 @@ export default function Tasks({ info, user, token, embed }) {
                 <form className="tk-note-row" onSubmit={(e) => {
                   e.preventDefault();
                   const note = e.target.note.value.trim();
-                  if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); }
+                  if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); autoGrow(e.target.note); }
                 }}>
-                  <input className="tk-in" name="note" placeholder="הערת עדכון — מה קרה?" />
+                  <textarea className="tk-in tk-note-in" name="note" rows={1} placeholder="הערת עדכון — מה קרה?"
+                    onInput={(e) => autoGrow(e.target)} />
                   <button className="btn" type="submit">הוספה</button>
                 </form>
               )}
@@ -453,13 +454,15 @@ export default function Tasks({ info, user, token, embed }) {
                     <div key={i} className={'tk-log-row' + (editable ? ' tk-log-row-edit' : '')}>
                       {editable ? (
                         <>
-                          <input type="date" className="tk-log-date" value={dateInputValue(l.at)}
-                            onChange={(e) => e.target.value && editLogEntry(cur.id, i, { at: withNewDate(l.at, e.target.value) })} />
-                          <span className="tk-log-by">{l.by}</span>
-                          {l.from !== l.to && <span className="tk-log-by">{STATUSES[l.from]} ← {STATUSES[l.to]}</span>}
-                          <input className="tk-log-note" placeholder="הערה…" value={l.note}
+                          <div className="tk-log-meta">
+                            <input type="date" className="tk-log-date" value={dateInputValue(l.at)}
+                              onChange={(e) => e.target.value && editLogEntry(cur.id, i, { at: withNewDate(l.at, e.target.value) })} />
+                            <span className="tk-log-by">{l.by}</span>
+                            {l.from !== l.to && <span className="tk-log-by">{STATUSES[l.from]} ← {STATUSES[l.to]}</span>}
+                            <button className="tlr-del" title="מחיקת הרשומה" onClick={() => deleteLogEntry(cur.id, i)}>✕</button>
+                          </div>
+                          <GrowTitle className="tk-log-note" placeholder="הערה…" value={l.note}
                             onChange={(e) => editLogEntry(cur.id, i, { note: e.target.value })} />
-                          <button className="tlr-del" title="מחיקת הרשומה" onClick={() => deleteLogEntry(cur.id, i)}>✕</button>
                         </>
                       ) : (
                         <>

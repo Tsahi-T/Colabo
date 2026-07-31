@@ -23,6 +23,17 @@ const download = (text, name) => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// a plain <input> hides overflow text past its width — this grows downward instead
+function GrowingLine({ value, onChange }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return <textarea ref={ref} className="sw-grow" rows={1} placeholder="הקלדה חופשית…" value={value} onChange={onChange} />;
+}
 
 function Quadrant({ q, items, editable, add, del, edit }) {
   const [showPresets, setShowPresets] = useState(false);
@@ -43,7 +54,7 @@ function Quadrant({ q, items, editable, add, del, edit }) {
           <div key={it.id} className="sw-line">
             <span className="sw-dot" />
             {editable ? (
-              <input value={it.text} placeholder="הקלדה חופשית…" onChange={(e) => edit(it.id, e.target.value)} />
+              <GrowingLine value={it.text} onChange={(e) => edit(it.id, e.target.value)} />
             ) : (
               <span className="sw-text">{it.text || '—'}</span>
             )}
@@ -156,7 +167,7 @@ export default function SWOT({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="ניתוח SWOT ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="ניתוח SWOT ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />

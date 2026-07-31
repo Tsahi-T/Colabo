@@ -127,6 +127,22 @@ function parseCsv(text) {
 // NOTE: these live at module scope on purpose. Defining them inside Project() would
 // create a new component type on every render, so React would remount the subtree and
 // every input would lose focus after a single keystroke.
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// a plain <input>/manually-resized <textarea> hides overflow text past its size — this grows
+// downward on its own instead. Also module-scope, for the same reason as the comment above.
+function GrowingField({ className, rows, value, onChange, placeholder, autoFocus, onBlur }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return (
+    <textarea ref={ref} className={className} rows={rows || 1} placeholder={placeholder}
+      value={value} onChange={onChange} autoFocus={autoFocus} onBlur={onBlur} />
+  );
+}
+
 function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
   const rw = editable && !clickable; // writable only in the detail header
   return (
@@ -134,11 +150,11 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
       {(() => { const Icon = PHASE_ICON[p.phase] || IconCompass; return <span className={'pj-badge pj-badge-' + toneFor(p)}><Icon /></span>; })()}
       <div className="pj-row-main">
         {rw
-          ? <input className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />
+          ? <GrowingField className="pj-name-in" value={p.name} onChange={(e) => set(p.id, { name: e.target.value })} />
           : <h3>{p.name}</h3>}
         <div className="pj-purpose-l">משפט קיום (מטרה):</div>
         {rw
-          ? <textarea className="pj-purpose-in" rows="2" value={p.purpose} onChange={(e) => set(p.id, { purpose: e.target.value })} />
+          ? <GrowingField className="pj-purpose-in" rows={2} value={p.purpose} onChange={(e) => set(p.id, { purpose: e.target.value })} />
           : <p className="pj-purpose">{p.purpose}</p>}
       </div>
       <div className="pj-col">
@@ -190,7 +206,7 @@ function BulletList({ values, editable, onChange, onDelete, onAdd, placeholder }
         <div key={i} className="pj-li">
           <span className="pj-li-dot" />
           {editable
-            ? <><input value={v} placeholder={placeholder} onChange={(e) => onChange(i, e.target.value)} />
+            ? <><GrowingField value={v} placeholder={placeholder} onChange={(e) => onChange(i, e.target.value)} />
                 <button className="pj-x" onClick={() => onDelete(i)}>✕</button></>
             : <span>{v}</span>}
         </div>
@@ -215,7 +231,7 @@ function LinksList({ links: raw, editable, onSet }) {
       {links.map((l) => (
         <div key={l.id} className="pj-link-row">
           {editable
-            ? <input className="pj-link-title" placeholder="שם הקישור" value={l.title} onChange={(e) => update(l.id, { title: e.target.value })} />
+            ? <GrowingField className="pj-link-title" placeholder="שם הקישור" value={l.title} onChange={(e) => update(l.id, { title: e.target.value })} />
             : <span className="pj-link-title">{l.title || 'קישור'}</span>}
           {editingId === l.id ? (
             <input className="pj-link-url-in" autoFocus placeholder="https://…" value={l.url}
@@ -423,7 +439,7 @@ export default function Project({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="תיק פרויקטים ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="תיק פרויקטים ללא שם" value={title} readOnly={!editable}
           onChange={(e) => meta.set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />
@@ -477,7 +493,7 @@ export default function Project({ info, user, token }) {
                       <h3>{a.label}</h3>
                     </div>
                     {editable
-                      ? <textarea rows="3" value={v.text || ''} onChange={(e) => setAspect(open.id, a.k, { text: e.target.value })} />
+                      ? <GrowingField rows={3} value={v.text || ''} onChange={(e) => setAspect(open.id, a.k, { text: e.target.value })} />
                       : <p>{v.text}</p>}
                     <div className="pj-aspect-foot">
                       {editable ? (
@@ -518,7 +534,7 @@ export default function Project({ info, user, token }) {
                 {(open.milestones || []).map((m, i) => (
                   <div key={i} className="pj-ms">
                     {editable
-                      ? <input className="pj-ms-name" value={m.name} onChange={(e) => {
+                      ? <GrowingField className="pj-ms-name" value={m.name} onChange={(e) => {
                           const ms = [...open.milestones]; ms[i] = { ...m, name: e.target.value }; set(open.id, { milestones: ms });
                         }} />
                       : <span className="pj-ms-name">{m.name}</span>}
@@ -554,10 +570,10 @@ export default function Project({ info, user, token }) {
                     <div className="pj-gap-body">
                       {editable ? (
                         <>
-                          <input value={g.title} placeholder="כותרת הפער" onChange={(e) => {
+                          <GrowingField value={g.title} placeholder="כותרת הפער" onChange={(e) => {
                             const gs = [...open.gaps]; gs[i] = { ...g, title: e.target.value }; set(open.id, { gaps: gs });
                           }} />
-                          <textarea rows="2" value={g.desc} placeholder="תיאור והשפעה" onChange={(e) => {
+                          <GrowingField rows={2} value={g.desc} placeholder="תיאור והשפעה" onChange={(e) => {
                             const gs = [...open.gaps]; gs[i] = { ...g, desc: e.target.value }; set(open.id, { gaps: gs });
                           }} />
                         </>
@@ -584,7 +600,7 @@ export default function Project({ info, user, token }) {
                 <div className="pj-card pj-soft">
                   <div className="pj-card-head"><h3>מידע נוסף</h3></div>
                   {editable && editingField === open.id + 'info' ? (
-                    <textarea rows="3" autoFocus value={open.info || ''}
+                    <GrowingField rows={3} autoFocus value={open.info || ''}
                       onChange={(e) => set(open.id, { info: e.target.value })}
                       onBlur={() => setEditingField(null)} />
                   ) : (

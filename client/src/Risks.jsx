@@ -17,6 +17,18 @@ const download = (text, name) => {
   a.click();
   URL.revokeObjectURL(a.href);
 };
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// a plain <input>/manually-resized <textarea> hides overflow text past its size — this grows
+// downward on its own instead.
+function GrowingField({ className, rows, value, onChange, placeholder }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return <textarea ref={ref} className={className} rows={rows} placeholder={placeholder} value={value} onChange={onChange} />;
+}
 
 // `embed` lets this screen run inside another document (e.g. under a project):
 // it then reuses the host's Y.Doc + a supplied map and renders without its own chrome.
@@ -125,7 +137,7 @@ export default function Risks({ info, user, token, embed }) {
       {!embedded && (
         <header className="topbar">
           <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-          <input className="title-input" placeholder="ניהול סיכונים ללא שם" value={title} readOnly={!editable}
+          <input className="title-input" title={title || undefined} placeholder="ניהול סיכונים ללא שם" value={title} readOnly={!editable}
             onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
           {!editable && <span className="badge">צפייה בלבד</span>}
           <span className={'conn ' + status} />
@@ -164,9 +176,9 @@ export default function Risks({ info, user, token, embed }) {
                   <td className="rk-c"><span className="rk-num">{r.num}</span></td>
                   {editable ? (
                     <>
-                      <td><input className="rk-in rk-name" placeholder="לוחות זמנים" value={r.name} onChange={(e) => set(r.id, 'name', e.target.value)} /></td>
-                      <td><textarea className="rk-in" rows="2" placeholder="משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
-                      <td><textarea className="rk-in" rows="2" placeholder="גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים" value={r.actions} onChange={(e) => set(r.id, 'actions', e.target.value)} /></td>
+                      <td><GrowingField className="rk-in rk-name" rows={1} placeholder="לוחות זמנים" value={r.name} onChange={(e) => set(r.id, 'name', e.target.value)} /></td>
+                      <td><GrowingField className="rk-in" rows={2} placeholder="משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
+                      <td><GrowingField className="rk-in" rows={2} placeholder="גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים" value={r.actions} onChange={(e) => set(r.id, 'actions', e.target.value)} /></td>
                       <td className="rk-c"><select className="rk-sel" value={r.sev} onChange={(e) => set(r.id, 'sev', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                       <td className="rk-c"><select className="rk-sel" value={r.prob} onChange={(e) => set(r.id, 'prob', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                     </>

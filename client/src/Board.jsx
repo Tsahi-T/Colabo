@@ -11,6 +11,23 @@ import { printElementImage } from './imageExport.js';
 
 const NOTE_W = 190, NOTE_H = 170;
 const uid = () => crypto.randomUUID().slice(0, 8);
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// Notes have a fixed w/h on the canvas, so unlike the rest of the app this can't grow the
+// whole box — it grows the title within the note's own width instead (wrapping to more
+// lines), and the note-edit/note-body containers scroll internally if content still doesn't
+// fit, so nothing is ever silently clipped.
+function GrowingTitle({ value, onInput, onBlur, onKeyDown, placeholder, autoFocus }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return (
+    <textarea ref={ref} className="note-title-in" rows={1} autoFocus={autoFocus} placeholder={placeholder}
+      defaultValue={value} onInput={(e) => { autoGrow(e.target); onInput(e); }} onBlur={onBlur} onKeyDown={onKeyDown} />
+  );
+}
 const download = (text, name) => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
@@ -270,7 +287,7 @@ export default function Board({ info, user, token }) {
     <div className="doc-page">
       <header className="topbar">
         <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
-        <input className="title-input" placeholder="לוח ללא שם" value={title} readOnly={!editable}
+        <input className="title-input" title={title || undefined} placeholder="לוח ללא שם" value={title} readOnly={!editable}
           onChange={(e) => ydoc.getMap('meta').set('title', e.target.value)} />
         {!editable && <span className="badge">צפייה בלבד</span>}
         <span className={'conn ' + status} />
@@ -339,10 +356,10 @@ export default function Board({ info, user, token }) {
               onDoubleClick={(e) => { e.stopPropagation(); editable && setEditing(id); }}>
               {editing === id ? (
                 <div className="note-edit" onPointerDown={(e) => e.stopPropagation()}>
-                  <input className="note-title-in" autoFocus placeholder="כותרת" defaultValue={n.get('title')}
+                  <GrowingTitle autoFocus placeholder="כותרת" value={n.get('title')}
                     onInput={(e) => n.set('title', e.target.value)} onBlur={closeEditIfLeft}
                     onKeyDown={(e) => { if (e.key === 'Escape') setEditing(null); if (e.key === 'Enter') e.currentTarget.nextElementSibling?.focus(); }} />
-                  <textarea placeholder="כותבים כאן…" defaultValue={n.get('text')}
+                  <textarea className="note-text-in" placeholder="כותבים כאן…" defaultValue={n.get('text')}
                     onInput={(e) => n.set('text', e.target.value)} onBlur={closeEditIfLeft}
                     onKeyDown={(e) => e.key === 'Escape' && setEditing(null)} />
                 </div>

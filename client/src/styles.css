@@ -114,7 +114,12 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .modal { background: var(--panel); border-radius: 14px; padding: 2rem; width: min(92vw, 380px); text-align: center; box-shadow: var(--shadow-pop); }
 .modal h2 { margin-top: 0; }
 .modal p { color: var(--ink2); font-size: .92rem; }
-.modal input { width: 100%; padding: .7rem 1rem; border: 1px solid var(--border); border-radius: 8px; margin: .8rem 0; background: var(--bg); }
+/* :not(.tk-modal) — the task modal has its own complete input styling system (.tk-in and
+   friends, including deliberately-narrow ones like .tk-log-date); this generic rule is only
+   for the small centered auth-style modals (e.g. "מי את/ה?") and was silently overriding
+   width/margin on task-modal fields that never meant to inherit it, since an element+class
+   selector like this one beats a plain single class on specificity. */
+.modal:not(.tk-modal) input { width: 100%; padding: .7rem 1rem; border: 1px solid var(--border); border-radius: 8px; margin: .8rem 0; background: var(--bg); }
 .swatches { display: flex; gap: .5rem; justify-content: center; margin-bottom: 1.2rem; }
 .swatch { width: 28px; height: 28px; border-radius: 50%; border: 3px solid transparent; }
 .swatch.sel { border-color: var(--ink); }
@@ -244,22 +249,29 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 @keyframes pop { from { opacity: 0; scale: .7; } }
 .note.sel { outline: 2px solid var(--accent); outline-offset: 3px; }
 .note.editing { cursor: text; }
-.note-body { width: 100%; height: 100%; overflow: hidden; }
+/* the note itself has a fixed w/h (resizable by hand, not by content) — content that doesn't
+   fit scrolls inside the note instead of being clipped, so nothing is silently lost. */
+.note-body { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
 .note-title {
   font-weight: 700; font-size: 1.02rem; color: #111827; margin-bottom: .3rem;
-  border-bottom: 1px solid rgba(0,0,0,.14); padding-bottom: .25rem; unicode-bidi: plaintext;
+  border-bottom: 1px solid rgba(0,0,0,.14); padding-bottom: .25rem; unicode-bidi: plaintext; overflow-wrap: anywhere;
 }
 .note-text {
-  white-space: pre-wrap; overflow-wrap: break-word;
+  white-space: pre-wrap; overflow-wrap: anywhere;
   font-size: .95rem; line-height: 1.5; color: #1f2937; unicode-bidi: plaintext;
 }
-.note-edit { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 4px; }
+.note-edit { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
 .note-edit input, .note-edit textarea {
   border: 0; background: rgba(255,255,255,.45); border-radius: 4px; outline: 0;
-  padding: 2px 6px; color: #1f2937; unicode-bidi: plaintext;
+  padding: 2px 6px; color: #1f2937; unicode-bidi: plaintext; overflow-wrap: anywhere;
 }
-.note-title-in { font-weight: 700; font-size: 1.02rem; }
-.note-edit textarea { flex: 1; resize: none; font-size: .95rem; line-height: 1.5; }
+/* .note-text-in (not the generic "textarea inside .note-edit") on purpose — the title is
+   also a <textarea> now (it grows to wrap instead of hiding overflow text), and it used to
+   pick up this rule's flex:1/line-height too since an element selector beats a plain class
+   in specificity, which fought GrowingTitle's own sizing and left it a fixed, wrong height
+   regardless of its actual (empty, one-line) content. */
+.note-title-in { font-weight: 700; font-size: 1.02rem; flex-shrink: 0; resize: none; overflow: hidden; font-family: inherit; }
+.note-text-in { flex: 1; resize: none; font-size: .95rem; line-height: 1.5; }
 .note-actions {
   position: absolute; top: -34px; inset-inline-end: 0; display: flex; gap: 2px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
@@ -449,7 +461,10 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
   width: 20px; height: 20px; border-radius: 50%; color: #fff; font-size: .7rem; font-weight: 700;
   display: grid; place-items: center; flex-shrink: 0;
 }
-.tlr-text { flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font-size: .9rem; unicode-bidi: plaintext; }
+.tlr-text {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: 0; font-size: .9rem; unicode-bidi: plaintext;
+}
+textarea.tlr-text { resize: none; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; padding: .1rem 0; font-family: inherit; }
 input.tlr-date { border: 1px solid transparent; border-radius: 6px; background: transparent; font-size: .78rem; color: var(--ink2); width: 112px; }
 input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); background: var(--bg); }
 .tlr-date-ro { font-size: .78rem; color: var(--ink2); flex-shrink: 0; }
@@ -527,7 +542,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
   background: var(--ink); color: var(--panel); font-weight: 800; font-size: .76rem;
 }
-.rk-in { width: 100%; border: 0; background: transparent; outline: 0; resize: vertical; font-size: .88rem; line-height: 1.45; unicode-bidi: plaintext; }
+.rk-in { width: 100%; border: 0; background: transparent; outline: 0; resize: none; overflow: hidden; overflow-wrap: anywhere; font-family: inherit; font-size: .88rem; line-height: 1.45; unicode-bidi: plaintext; }
 .rk-in::placeholder { color: var(--ink3); }
 .rk-name { font-weight: 700; }
 .rk-ro { white-space: pre-wrap; color: var(--ink2); }
@@ -759,7 +774,7 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 .ch-input-row textarea {
   flex: 1; resize: none; border: 1px solid var(--border); border-radius: 20px;
   background: var(--bg); padding: .55rem 1rem; outline: 0; font-size: .95rem; line-height: 1.4;
-  max-height: 120px; unicode-bidi: plaintext;
+  max-height: 120px; overflow-y: auto; overflow-wrap: anywhere; unicode-bidi: plaintext;
 }
 .ch-input-row textarea:focus { border-color: var(--accent); }
 .ch-emoji-btn { border: 0; background: none; font-size: 1.35rem; padding: .2rem; }
@@ -859,18 +874,21 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 }
 .pj-aspect-icon .cicon { width: 23px; height: 23px; }
 .pj-aspect p { margin: 0; font-size: .86rem; line-height: 1.6; color: var(--ink2); white-space: pre-wrap; unicode-bidi: plaintext; }
-/* Seamless fields: this is a dashboard, not a form — inputs stay invisible until touched. */
-.pj-aspect textarea, .pj-card textarea, .pj-card input, .pj-gap input, .pj-gap textarea, .pj-li input,
+/* Seamless fields: this is a dashboard, not a form — inputs stay invisible until touched.
+   All the freeform textareas here grow with their content (JS autoGrow, see GrowingField)
+   instead of relying on a manual resize handle, so resize is off and overflow-wrap makes sure
+   even an unbroken run of characters wraps instead of forcing the field wider than its box. */
+.pj-aspect textarea, .pj-card textarea, .pj-card input, .pj-gap input, .pj-gap textarea, .pj-li input, .pj-li textarea,
 .pj-name-in, .pj-purpose-in, .pj-mgr-in, .pj-ms-name, .pj-ms-date {
   width: 100%; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink2);
-  font: inherit; font-size: .86rem; line-height: 1.6; padding: .3rem .45rem; resize: vertical;
+  font: inherit; font-size: .86rem; line-height: 1.6; padding: .3rem .45rem; resize: none; overflow: hidden; overflow-wrap: anywhere;
   unicode-bidi: plaintext; box-sizing: border-box; transition: background-color .12s, border-color .12s;
 }
 .pj-aspect textarea:hover, .pj-card textarea:hover, .pj-card input:hover, .pj-gap input:hover,
-.pj-gap textarea:hover, .pj-li input:hover, .pj-name-in:hover, .pj-purpose-in:hover, .pj-mgr-in:hover,
+.pj-gap textarea:hover, .pj-li input:hover, .pj-li textarea:hover, .pj-name-in:hover, .pj-purpose-in:hover, .pj-mgr-in:hover,
 .pj-ms-name:hover, .pj-ms-date:hover { background: var(--hover); }
 .pj-aspect textarea:focus, .pj-card textarea:focus, .pj-card input:focus, .pj-gap input:focus,
-.pj-gap textarea:focus, .pj-li input:focus, .pj-name-in:focus, .pj-purpose-in:focus, .pj-mgr-in:focus,
+.pj-gap textarea:focus, .pj-li input:focus, .pj-li textarea:focus, .pj-name-in:focus, .pj-purpose-in:focus, .pj-mgr-in:focus,
 .pj-ms-name:focus, .pj-ms-date:focus { background: var(--panel); border-color: var(--accent); outline: 0; }
 .pj-aspect-foot { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; justify-content: flex-start; }
 .pj-aspect-foot select { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); font-size: .78rem; padding: .1rem .25rem; }
@@ -947,6 +965,7 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 .pj-links { display: flex; flex-direction: column; gap: .3rem; }
 .pj-link-row { display: flex; align-items: center; gap: .4rem; }
 .pj-link-title { flex: 1; min-width: 0; font-size: .78rem !important; }
+textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere; font-family: inherit; line-height: 1.4; padding: .2rem .3rem; }
 .pj-link-row span.pj-link-title { color: var(--ink2); padding: .3rem .45rem; }
 .pj-link-url-in { flex: 1.3; min-width: 0; font-size: .74rem !important; direction: ltr; text-align: right; }
 .pj-link-arrow { flex-shrink: 0; font-weight: 700; }
@@ -1260,35 +1279,37 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
    own max-height:150px never got a chance to apply because it kept getting compressed to a
    near-invisible sliver first, well before the outer scrollbar ever kicked in. */
 .tk-modal-body > * { flex-shrink: 0; }
-/* the generic .modal input rule (margin: .8rem 0, meant for the small centered auth-style
-   modals) doesn't belong here — spacing inside the task modal is handled by .tk-modal-body's
-   own gap, so bare <input>s (dates, אחראי, note) getting that extra margin on top made the
-   gaps between fields inconsistent with the textareas/selects that don't get it. */
-.tk-modal-body input { margin: 0; }
 .tk-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--ink); border-radius: 8px; padding: .55rem .75rem; font-family: inherit; font-size: .92rem; box-sizing: border-box; overflow-wrap: anywhere; }
 textarea.tk-in { min-height: 80px; resize: vertical; line-height: 1.5; }
 .tk-in.tk-title-grow { min-height: 0; resize: none; overflow: hidden; line-height: 1.4; }
 .tk-title-in { font-size: 1.08rem; font-weight: 600; }
 .tk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 .tk-grid label, .tk-lbl { display: flex; flex-direction: column; gap: .3rem; font-size: .82rem; color: var(--ink2); }
-.tk-note-row { display: flex; gap: .5rem; }
-.tk-note-row input { flex: 1; }
+.tk-note-row { display: flex; align-items: flex-end; gap: .5rem; }
+.tk-note-row textarea { flex: 1; }
 .tk-note-row button { flex-shrink: 0; }
+.tk-in.tk-note-in { min-height: 0; resize: none; overflow: hidden; line-height: 1.4; }
 .tk-log { max-height: 150px; overflow-y: auto; font-size: .8rem; color: var(--ink2); border-top: 1px solid var(--border); }
 .tk-log-row { padding: .35rem 0; border-bottom: 1px solid var(--border); }
 .tk-log-row b { color: var(--ink); }
-/* editable log row: date + author/status (fixed-width) + note (grows) + delete, one line */
-.tk-log-row-edit { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+/* editable log row: a meta line (date + author/status + delete) above a growing note field —
+   same minimal, borderless-until-hover date style as .db-chrono-date/.tlr-date elsewhere,
+   not a heavy always-visible box. */
+.tk-log-row-edit { display: flex; flex-direction: column; gap: .25rem; }
+.tk-log-meta { display: flex; align-items: center; gap: .4rem; }
 .tk-log-date {
-  flex-shrink: 0; width: 116px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg); color: var(--ink2); font-size: .76rem; padding: .15rem .3rem;
+  flex-shrink: 0; width: 108px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--ink2); font-size: .76rem; padding: .05rem .2rem;
 }
-.tk-log-by { flex-shrink: 0; white-space: nowrap; }
+.tk-log-date:hover, .tk-log-date:focus { border-color: var(--border); background: var(--bg); }
+.tk-log-by { flex-shrink: 0; white-space: nowrap; font-size: .78rem; color: var(--ink2); }
+.tk-log-meta .tlr-del { margin-inline-start: auto; }
 .tk-log-note {
-  flex: 1; min-width: 100px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg); color: var(--ink); font-size: .78rem; padding: .15rem .4rem; overflow-wrap: anywhere;
+  width: 100%; border: 1px solid transparent; border-radius: 6px; resize: none; overflow: hidden;
+  background: transparent; color: var(--ink); font-size: .78rem; line-height: 1.4;
+  padding: .1rem .3rem; overflow-wrap: anywhere; font-family: inherit;
 }
-.tk-log-row-edit .tlr-del { flex-shrink: 0; }
+.tk-log-note:hover, .tk-log-note:focus { border-color: var(--border); background: var(--bg); }
 .tk-actions { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem; border-top: 1px solid var(--border); }
 .tk-actions .btn-primary { margin-inline-start: auto; }
 

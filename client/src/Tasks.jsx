@@ -12,6 +12,19 @@ const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממת�
 const PRIORITIES = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
 const today = () => new Date().toISOString().slice(0, 10);
 const fmt = (d) => (d ? new Date(d).toLocaleDateString('he-IL') : '');
+// local (not UTC) calendar date for a timestamp, for a date input's value — toISOString()
+// would shift the date near midnight depending on timezone offset.
+const dateInputValue = (ts) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+// keeps the original time-of-day, only the calendar date changes
+const withNewDate = (ts, dateStr) => {
+  const [y, m, day] = dateStr.split('-').map(Number);
+  const d = new Date(ts);
+  d.setFullYear(y, m - 1, day);
+  return d.getTime();
+};
 const UPCOMING_DAYS = 3;
 
 const download = (text, name, mime) => {
@@ -133,6 +146,24 @@ export default function Tasks({ info, user, token, embed }) {
     const t = tasks.get(id);
     if (!t) return;
     t.set('log', [{ at: Date.now(), by: user.name, from, to, note }, ...(t.get('log') || [])].slice(0, 50));
+  }
+  // log is a plain array (not a Y.Map of Y.Maps), so an edit means writing the whole array back
+  // with one entry patched — this is what lets someone fix a typo or the wrong date instead of
+  // it sitting there wrong forever.
+  function editLogEntry(id, index, patch) {
+    const t = tasks.get(id);
+    if (!t) return;
+    const log = [...(t.get('log') || [])];
+    if (!log[index]) return;
+    log[index] = { ...log[index], ...patch };
+    t.set('log', log);
+  }
+  function deleteLogEntry(id, index) {
+    const t = tasks.get(id);
+    if (!t) return;
+    const log = [...(t.get('log') || [])];
+    log.splice(index, 1);
+    t.set('log', log);
   }
   function setStatusLogged(id, s) {
     const t = tasks.get(id);
@@ -419,10 +450,24 @@ export default function Tasks({ info, user, token, embed }) {
               {cur.log.length > 0 && (
                 <div className="tk-log">
                   {cur.log.map((l, i) => (
-                    <div key={i} className="tk-log-row">
-                      <b>{fmt(l.at)}</b> · {l.by}
-                      {l.from !== l.to && <> · {STATUSES[l.from]} ← {STATUSES[l.to]}</>}
-                      {l.note && <> · {l.note}</>}
+                    <div key={i} className={'tk-log-row' + (editable ? ' tk-log-row-edit' : '')}>
+                      {editable ? (
+                        <>
+                          <input type="date" className="tk-log-date" value={dateInputValue(l.at)}
+                            onChange={(e) => e.target.value && editLogEntry(cur.id, i, { at: withNewDate(l.at, e.target.value) })} />
+                          <span className="tk-log-by">{l.by}</span>
+                          {l.from !== l.to && <span className="tk-log-by">{STATUSES[l.from]} ← {STATUSES[l.to]}</span>}
+                          <input className="tk-log-note" placeholder="הערה…" value={l.note}
+                            onChange={(e) => editLogEntry(cur.id, i, { note: e.target.value })} />
+                          <button className="tlr-del" title="מחיקת הרשומה" onClick={() => deleteLogEntry(cur.id, i)}>✕</button>
+                        </>
+                      ) : (
+                        <>
+                          <b>{fmt(l.at)}</b> · {l.by}
+                          {l.from !== l.to && <> · {STATUSES[l.from]} ← {STATUSES[l.to]}</>}
+                          {l.note && <> · {l.note}</>}
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

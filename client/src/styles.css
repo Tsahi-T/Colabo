@@ -1277,6 +1277,18 @@ textarea.tk-in { min-height: 80px; resize: vertical; line-height: 1.5; }
 .tk-log { max-height: 150px; overflow-y: auto; font-size: .8rem; color: var(--ink2); border-top: 1px solid var(--border); }
 .tk-log-row { padding: .35rem 0; border-bottom: 1px solid var(--border); }
 .tk-log-row b { color: var(--ink); }
+/* editable log row: date + author/status (fixed-width) + note (grows) + delete, one line */
+.tk-log-row-edit { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.tk-log-date {
+  flex-shrink: 0; width: 116px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--ink2); font-size: .76rem; padding: .15rem .3rem;
+}
+.tk-log-by { flex-shrink: 0; white-space: nowrap; }
+.tk-log-note {
+  flex: 1; min-width: 100px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--ink); font-size: .78rem; padding: .15rem .4rem; overflow-wrap: anywhere;
+}
+.tk-log-row-edit .tlr-del { flex-shrink: 0; }
 .tk-actions { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding: .8rem 1rem; border-top: 1px solid var(--border); }
 .tk-actions .btn-primary { margin-inline-start: auto; }
 

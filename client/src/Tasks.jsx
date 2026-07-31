@@ -376,53 +376,58 @@ export default function Tasks({ info, user, token, embed }) {
       {cur && (
         <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setOpen(null)}>
           <div className="modal tk-modal">
-            <GrowTitle className="tk-in tk-title-in tk-title-grow" placeholder="כותרת המשימה" value={cur.title} readOnly={!editable}
-              autoFocus={!cur.title} onChange={(e) => set(cur.id, 'title', e.target.value)} />
-            <textarea className="tk-in" rows="3" placeholder="תיאור…" value={cur.desc} readOnly={!editable}
-              onChange={(e) => set(cur.id, 'desc', e.target.value)} />
-            <div className="tk-grid">
-              <label>סטטוס
-                <select className="tk-in" value={cur.status} disabled={!editable} onChange={(e) => setStatusLogged(cur.id, e.target.value)}>
-                  {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </label>
-              <label>עדיפות
-                <select className="tk-in" value={cur.priority} disabled={!editable} onChange={(e) => set(cur.id, 'priority', +e.target.value)}>
-                  {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
-                </select>
-              </label>
-              <label>תאריך יעד
-                <input className="tk-in" type="date" value={cur.due} readOnly={!editable} onChange={(e) => setDue(cur.id, e.target.value)} />
-              </label>
-              <label>יעד עדכני
-                <input className="tk-in" type="date" value={cur.dueCurrent} readOnly={!editable} onChange={(e) => set(cur.id, 'dueCurrent', e.target.value)} />
-              </label>
+            <div className="tk-modal-head">
+              <GrowTitle className="tk-in tk-title-in tk-title-grow" placeholder="כותרת המשימה" value={cur.title} readOnly={!editable}
+                autoFocus={!cur.title} onChange={(e) => set(cur.id, 'title', e.target.value)} />
+              <button className="tk-modal-x" title="סגירה" onClick={() => setOpen(null)}>✕</button>
             </div>
-            <label className="tk-lbl">אחראי
-              <input className="tk-in" list="tk-people" placeholder="שם האחראי" value={cur.assignee} readOnly={!editable}
-                onChange={(e) => set(cur.id, 'assignee', e.target.value)} />
-            </label>
-            {editable && (
-              <form className="tk-note-row" onSubmit={(e) => {
-                e.preventDefault();
-                const note = e.target.note.value.trim();
-                if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); }
-              }}>
-                <input className="tk-in" name="note" placeholder="הערת עדכון — מה קרה?" />
-                <button className="btn" type="submit">הוספה</button>
-              </form>
-            )}
-            {cur.log.length > 0 && (
-              <div className="tk-log">
-                {cur.log.map((l, i) => (
-                  <div key={i} className="tk-log-row">
-                    <b>{fmt(l.at)}</b> · {l.by}
-                    {l.from !== l.to && <> · {STATUSES[l.from]} ← {STATUSES[l.to]}</>}
-                    {l.note && <> · {l.note}</>}
-                  </div>
-                ))}
+            <div className="tk-modal-body">
+              <textarea className="tk-in" rows="3" placeholder="תיאור…" value={cur.desc} readOnly={!editable}
+                onChange={(e) => set(cur.id, 'desc', e.target.value)} />
+              <div className="tk-grid">
+                <label>סטטוס
+                  <select className="tk-in" value={cur.status} disabled={!editable} onChange={(e) => setStatusLogged(cur.id, e.target.value)}>
+                    {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+                <label>עדיפות
+                  <select className="tk-in" value={cur.priority} disabled={!editable} onChange={(e) => set(cur.id, 'priority', +e.target.value)}>
+                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
+                  </select>
+                </label>
+                <label>תאריך יעד
+                  <input className="tk-in" type="date" value={cur.due} readOnly={!editable} onChange={(e) => setDue(cur.id, e.target.value)} />
+                </label>
+                <label>יעד עדכני
+                  <input className="tk-in" type="date" value={cur.dueCurrent} readOnly={!editable} onChange={(e) => set(cur.id, 'dueCurrent', e.target.value)} />
+                </label>
               </div>
-            )}
+              <label className="tk-lbl">אחראי
+                <input className="tk-in" list="tk-people" placeholder="שם האחראי" value={cur.assignee} readOnly={!editable}
+                  onChange={(e) => set(cur.id, 'assignee', e.target.value)} />
+              </label>
+              {editable && (
+                <form className="tk-note-row" onSubmit={(e) => {
+                  e.preventDefault();
+                  const note = e.target.note.value.trim();
+                  if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); }
+                }}>
+                  <input className="tk-in" name="note" placeholder="הערת עדכון — מה קרה?" />
+                  <button className="btn" type="submit">הוספה</button>
+                </form>
+              )}
+              {cur.log.length > 0 && (
+                <div className="tk-log">
+                  {cur.log.map((l, i) => (
+                    <div key={i} className="tk-log-row">
+                      <b>{fmt(l.at)}</b> · {l.by}
+                      {l.from !== l.to && <> · {STATUSES[l.from]} ← {STATUSES[l.to]}</>}
+                      {l.note && <> · {l.note}</>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="tk-actions">
               {editable && <button className="tlr-del" onClick={() => del(cur)}>🗑 מחיקה</button>}
               <button className="btn-primary" onClick={() => setOpen(null)}>סגירה</button>

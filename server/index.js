@@ -143,11 +143,43 @@ function ensureTableBorders(tblPrInner) {
     .map((side) => `<w:${side} ${BORDER_ATTRS}/>`).join('');
   return `<w:tblBorders>${sides}</w:tblBorders>${tblPrInner}`;
 }
+// html-to-docx emits <w:sectPr> as the FIRST child of <w:body> instead of the last — its only
+// schema-valid position there. Word treats a body that doesn't end with sectPr as structurally
+// broken and silently "repairs" the file on open, which discards direct paragraph formatting
+// wholesale — this is why bidi/jc="right" showed up correctly in the raw XML but never actually
+// rendered: Word never got that far before the repair pass stripped it. A section also needs
+// its own <w:bidi/> (confirmed by diffing against a Word-native RTL document — every one of
+// Word's own RTL docs carries this on the section, not just on each paragraph); without it
+// Word doesn't treat the document as fundamentally RTL even with per-paragraph bidi present.
+function fixSectPrPosition(xml) {
+  const m = xml.match(/<w:sectPr>([\s\S]*?)<\/w:sectPr>/);
+  if (!m) return xml;
+  const sectPr = /<w:bidi\/>/.test(m[1]) ? m[0] : `<w:sectPr>${m[1]}<w:bidi/></w:sectPr>`;
+  const withoutSectPr = xml.replace(m[0], '');
+  return withoutSectPr.replace('</w:body>', `${sectPr}</w:body>`);
+}
 function rtlifyDocumentXml(xml) {
-  xml = xml.replace(/<w:jc\s+w:val="[^"]*"\s*\/>/g, ''); // drop any existing jc so we don't duplicate/misorder it
-  xml = xml.replace(/<w:pPr\s*\/>/g, '<w:pPr><w:bidi/><w:jc w:val="right"/></w:pPr>');
-  // schema order for CT_PPrBase: bidi comes before spacing/ind, jc comes after them
-  xml = xml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, '<w:pPr><w:bidi/>$1<w:jc w:val="right"/></w:pPr>');
+  xml = fixSectPrPosition(xml);
+  // Bidi only — NOT jc="right". This looks backwards (jc is literally "alignment: right"), but
+  // it's empirically what works: verified by round-tripping through actual Word (COM automation
+  // reading ParagraphFormat.Alignment/ReadingOrder back out, then rendering to PDF) that adding
+  // an explicit jc="right" alongside bidi makes Word report Alignment=0 (left) for EVERY
+  // paragraph carrying it, while bidi alone makes Word report Alignment=2 (right) — Word
+  // resolves an RTL paragraph's unset alignment to right on its own, and something about the
+  // combination of both properties together breaks that resolution instead of just being
+  // redundant. Confirmed the same effect on a minimal 2-paragraph docx, isolating it to this
+  // exact combination.
+  xml = xml.replace(/<w:jc\s+w:val="[^"]*"\s*\/>/g, ''); // strip any jc html-to-docx already added
+  xml = xml.replace(/<w:pPr\s*\/>/g, '<w:pPr><w:bidi/></w:pPr>');
+  // schema order for CT_PPrBase: pStyle MUST be the very first child. Unconditionally
+  // prepending <w:bidi/> pushed it ahead of pStyle on every styled paragraph — Word doesn't
+  // error on that, it just silently drops the whole out-of-order pPr.
+  xml = xml.replace(/<w:pPr>([\s\S]*?)<\/w:pPr>/g, (full, inner) => {
+    const m = inner.match(/^\s*<w:pStyle[^>]*\/>/);
+    const pStyle = m ? m[0] : '';
+    const rest = m ? inner.slice(m[0].length) : inner;
+    return `<w:pPr>${pStyle}<w:bidi/>${rest}</w:pPr>`;
+  });
   // CT_RPr: rtl slots in near the end, right before cs/lang — appending is close enough for
   // the simple runs this converter emits, and Word is tolerant of minor property reordering.
   xml = xml.replace(/<w:rPr\s*\/>/g, '<w:rPr><w:rtl/></w:rPr>');

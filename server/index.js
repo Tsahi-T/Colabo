@@ -114,6 +114,18 @@ app.post('/api/share', async (req, res) => {
   res.json({ ok: true });
 });
 
+// A file was downloaded/exported (CSV, TXT, Word, HTML — any screen) — one simple aggregate
+// counter, not broken down per type, per the "keep it simple" ask.
+app.post('/api/download', async (req, res) => {
+  try { await storage.bump('download'); } catch (e) { console.error('POST /api/download failed:', e); }
+  res.json({ ok: true });
+});
+// A file was loaded back in (CSV/TXT reload) — same simple aggregate approach.
+app.post('/api/reimport', async (req, res) => {
+  try { await storage.bump('reimport'); } catch (e) { console.error('POST /api/reimport failed:', e); }
+  res.json({ ok: true });
+});
+
 app.get('/api/stats', async (req, res) => {
   try {
     const s = await storage.getStats();

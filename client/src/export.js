@@ -1,4 +1,6 @@
 // Export helpers: HTML / Word / PDF. All offline-safe.
+import { bumpDownload } from './identity.js';
+
 const DOC_CSS = `
   body{font-family:'Segoe UI',Arial,sans-serif;max-width:800px;margin:2rem auto;padding:0 1rem;color:#1f2328;line-height:1.7;direction:rtl;text-align:right}
   p,h1,h2,h3,li{unicode-bidi:plaintext;text-align:right}
@@ -32,6 +34,7 @@ function fullHtml(body, title) {
 }
 
 function download(blob, filename) {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;

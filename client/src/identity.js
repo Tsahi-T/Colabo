@@ -25,3 +25,12 @@ export function touchRecent(token, title, mode, type = 'doc') {
   list.unshift({ token, title: title || DEFAULT_TITLE[type] || 'ללא שם', mode, type, at: Date.now() });
   localStorage.setItem(RECENTS, JSON.stringify(list.slice(0, 30)));
 }
+
+// Simple anonymous usage counters (see /api/download, /api/reimport, /api/stats on the
+// server) — fire-and-forget, never blocks or fails the caller.
+export function bumpDownload() {
+  fetch('/api/download', { method: 'POST' }).catch(() => {});
+}
+export function bumpReimport() {
+  fetch('/api/reimport', { method: 'POST' }).catch(() => {});
+}

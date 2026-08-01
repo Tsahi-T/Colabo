@@ -5,7 +5,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
@@ -28,6 +28,7 @@ const withNewDate = (ts, dateStr) => {
 const UPCOMING_DAYS = 3;
 
 const download = (text, name, mime) => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
@@ -233,6 +234,7 @@ export default function Tasks({ info, user, token, embed }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const grid = parseCsv((await f.text()).replace(/^﻿/, '')).slice(1); // drop header row
     const revStatus = Object.fromEntries(Object.entries(STATUSES).map(([k, v]) => [v, k]));
     const revPri = Object.fromEntries(Object.entries(PRIORITIES).map(([k, v]) => [v, +k]));

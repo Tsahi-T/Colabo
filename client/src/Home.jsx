@@ -4,7 +4,7 @@ import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
 import {
   IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject, IconDebrief,
-  IconTarget, IconFlag, IconCompass, IconGem, IconRocket,
+  IconTarget, IconFlag, IconCompass,
 } from './icons.jsx';
 import turboLogo from './assets/turbo-logo.png';
 
@@ -55,14 +55,6 @@ const GROUPS = [
       { type: 'debrief', cls: 'debrief', icon: <IconDebrief />, name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים' },
       { type: 'discussion', cls: 'discussion', icon: <IconFlag />, name: 'סיכום דיון', desc: 'סיכום, החלטות ומשתתפים' },
       { type: 'meeting1on1', cls: 'meeting1on1', icon: <IconCompass />, name: 'פגישה אישית', desc: 'רקע, דברי הפרט, יעדים ומשימות' },
-    ],
-  },
-  {
-    name: 'שנתי',
-    tools: [
-      { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'יעדים', desc: 'יעד ראשי, מדדים ומשימות' },
-      { type: 'kpi', cls: 'soon', icon: <IconGem />, name: 'ת"ע', desc: 'בקרוב', soon: true },
-      { type: 'natam', cls: 'soon', icon: <IconRocket />, name: 'נע"תים', desc: 'בקרוב', soon: true },
     ],
   },
 ];

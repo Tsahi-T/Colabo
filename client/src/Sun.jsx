@@ -5,12 +5,13 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const GOLDEN_ANGLE = (137.508 * Math.PI) / 180;
 const download = (text, name, mime = 'text/plain;charset=utf-8') => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
@@ -125,6 +126,7 @@ export default function Sun({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const lines = (await f.text()).split(/\r?\n/);
     // accept both the current header and the older "שמש אסוציאציות" one
     const coreLine = lines.find((l) => /^(תרשים שמש|שמש אסוציאציות):/.test(l));

@@ -5,7 +5,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 
 const DAY = 864e5;
@@ -17,6 +17,7 @@ export const MARKS = {
 };
 const fmt = (iso) => new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' });
 const download = (text, name) => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
   a.download = name;
@@ -170,6 +171,7 @@ export default function Timeline({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     // the color segment is optional in the regex so files exported before this fix (just
     // "date | text") still load fine — they just fall back to blue, same as before.
     const colorAlt = Object.keys(MARKS).join('|');

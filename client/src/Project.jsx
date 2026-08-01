@@ -5,7 +5,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo, IconSchedule, IconScope, IconResources, IconStar, IconFlag, IconRocket, IconCompass, IconGem, IconBolt } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import Tasks from './Tasks.jsx';
 import Risks from './Risks.jsx';
@@ -102,6 +102,7 @@ const newProject = (ord) => ({
 });
 
 const download = (text, name, mime = 'text/csv;charset=utf-8') => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
@@ -405,6 +406,7 @@ export default function Project({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
     const parsed = [];
     let cur = null;

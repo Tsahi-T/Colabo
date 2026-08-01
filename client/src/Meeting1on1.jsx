@@ -6,7 +6,7 @@ import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PRESETS, backgroundPresets } from './meeting1on1-presets.js';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { exportDocxHtml } from './export.js';
 import Tasks from './Tasks.jsx';
 
@@ -59,6 +59,7 @@ function parseCsv(text) {
 }
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const download = (text, name, type = 'text/plain;charset=utf-8') => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type }));
   a.download = name;
@@ -459,6 +460,7 @@ export default function Meeting1on1({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     if (!f.name.toLowerCase().endsWith('.csv')) return alert('ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד');
     return importCsv(f);
   }

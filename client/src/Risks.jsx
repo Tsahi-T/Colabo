@@ -5,12 +5,13 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const level = (score) => (score > 14 ? 'r' : score >= 12 ? 'o' : score >= 7 ? 'y' : 'g');
 const download = (text, name) => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
   a.download = name;
@@ -107,6 +108,7 @@ export default function Risks({ info, user, token, embed }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const parsed = [];
     let cur = null;
     for (const line of (await f.text()).split(/\r?\n/)) {

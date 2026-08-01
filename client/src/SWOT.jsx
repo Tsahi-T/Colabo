@@ -6,7 +6,7 @@ import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PRESETS } from './swot-presets.js';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -17,6 +17,7 @@ const QUADS = [
   { k: 'T', he: 'איומים', en: 'Threats', cls: 'sw-t', color: '#f97316' },
 ];
 const download = (text, name) => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
   a.download = name;
@@ -141,6 +142,7 @@ export default function SWOT({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const lines = (await f.text()).split(/\r?\n/);
     const parsed = { S: [], W: [], O: [], T: [] };
     let cur = null;

@@ -6,7 +6,7 @@ import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { PASTELS, boardToTxt, txtToBoard } from './board-io.js';
-import { touchRecent } from './identity.js';
+import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 
 const NOTE_W = 190, NOTE_H = 170;
@@ -29,6 +29,7 @@ function GrowingTitle({ value, onInput, onBlur, onKeyDown, placeholder, autoFocu
   );
 }
 const download = (text, name) => {
+  bumpDownload();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
   a.download = name;
@@ -257,6 +258,7 @@ export default function Board({ info, user, token }) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
+    bumpReimport();
     const { notes: ns, edges: es } = txtToBoard(await f.text());
     if (!ns.length) return alert('לא נמצאו פתקים בקובץ');
     if (notes.size && !confirm('הטעינה תחליף את הלוח הנוכחי. להמשיך?')) return;

@@ -85,7 +85,7 @@ function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, cl
 
 const SECTIONS = [
   { k: 'background', num: 2, title: 'רקע', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'goals', num: 4, title: 'יעדים אישיים ותיאום ציפיות', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
+  { k: 'goals', num: 4, title: 'יעדים אישיים ותיאום ציפיות', hint: 'שורת טקסט חדשה בכל פלוס או Enter · לחיצה על "☐ משימה" הופכת שורה למשימה (מבקש כותרת)', taskLinked: true },
 ];
 // The four "דברי הפרט" categories — growing lists nested inside one db-sec card instead of
 // being their own top-level numbered chapter. Personal/emotional categories first, תחביבים
@@ -97,7 +97,7 @@ const DETAIL_CATS = [
   { k: 'hobbies', sub: '3.4', title: 'תחביבים' },
 ];
 
-function LineSection({ sec, items, editable, add, del, edit, presets }) {
+function LineSection({ sec, items, editable, add, del, edit, presets, toggleTask, taskIdSet }) {
   const [showPresets, setShowPresets] = useState(false);
   const ref = useRef();
   const inputRefs = useRef({});
@@ -142,6 +142,17 @@ function LineSection({ sec, items, editable, add, del, edit, presets }) {
             ) : (
               <span className="sw-text">{it.text || '—'}</span>
             )}
+            {sec.taskLinked && (() => {
+              const hasTask = it.taskId && taskIdSet.has(it.taskId);
+              const label = (hasTask ? '☑' : '☐') + ' משימה';
+              if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
+              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור משימה (יבקש כותרת)';
+              return (
+                <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
+                  {label}
+                </button>
+              );
+            })()}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
         ))}
@@ -267,25 +278,66 @@ export default function Meeting1on1({ info, user, token }) {
   const closing = meta.get('closing') || '';
   const signerName = meta.get('signerName') || '';
 
-  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '' }));
+  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
   const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
   const taskRows = [...tasks.entries()]
     .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', log: t.get('log') || [] }))
     .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
+  const taskIdSet = new Set(taskRows.map((t) => t.id));
 
   function addLine(sec, presetText = '') {
     const id = uid(), m = new Y.Map();
     const rows = bySection(sec);
     const maxOrd = Math.max(0, ...rows.map((x) => x.ord));
-    m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText);
+    m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText); m.set('taskId', null);
     lines.set(id, m);
     return id;
   }
-  function delLine(id) { lines.delete(id); }
-  function editLine(id, text) { lines.get(id)?.set('text', text); }
+  function delLine(id) {
+    const m = lines.get(id);
+    const taskId = m?.get('taskId');
+    ydoc.transact(() => { lines.delete(id); if (taskId) tasks.delete(taskId); });
+  }
+  function editLine(id, text) {
+    const m = lines.get(id);
+    if (!m) return;
+    ydoc.transact(() => {
+      m.set('text', text);
+      const taskId = m.get('taskId');
+      if (taskId) tasks.get(taskId)?.set('desc', text);
+    });
+  }
+  function createLinkedTask(label, text) {
+    const taskId = uid(), t = new Y.Map();
+    const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
+    t.set('ord', maxTaskOrd + 1); t.set('title', label); t.set('desc', text);
+    t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
+    t.set('assignee', ''); t.set('log', []);
+    tasks.set(taskId, t);
+    return taskId;
+  }
+  function toggleGoalTask(id) {
+    const m = lines.get(id);
+    if (!m) return;
+    const existingTaskId = m.get('taskId');
+    if (existingTaskId && tasks.get(existingTaskId)) {
+      ydoc.transact(() => { tasks.delete(existingTaskId); m.set('taskId', null); });
+      return;
+    }
+    const label = prompt('כותרת המשימה:', '');
+    if (!label || !label.trim()) return;
+    ydoc.transact(() => { m.set('taskId', createLinkedTask(label.trim(), m.get('text') || '')); });
+  }
 
   // ---- exports ----
   const exportCsv = () => {
+    const linkedTaskIds = new Set(allLines.map((l) => l.taskId).filter(Boolean));
+    const taskById = new Map(taskRows.map((t) => [t.id, t]));
+    const goalRow = (line) => {
+      const t = taskById.get(line.taskId);
+      return ['יעד', line.text, t?.title || '', t ? TK_STATUS[t.status] : '', t ? TK_PRIORITY[t.priority] : '',
+        t?.assignee || '', t?.due || '', t?.dueCurrent || '', t ? logCellOut(t.log) : ''];
+    };
     const rows = [
       ['כותרת', title],
       ['שם', personName],
@@ -295,10 +347,11 @@ export default function Meeting1on1({ info, user, token }) {
       ...bySection('needs').map((r) => ['צורך מיוחד', r.text]),
       ...bySection('issues').map((r) => ['סוגיה אישית', r.text]),
       ...bySection('requests').map((r) => ['בקשה', r.text]),
-      ...bySection('goals').map((r) => ['יעד', r.text]),
+      ...bySection('goals').map(goalRow),
       ['בברכה', closing],
       ['שם חותם', signerName],
-      ...taskRows.map((t) => ['משימה', t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]),
+      ...taskRows.filter((t) => !linkedTaskIds.has(t.id))
+        .map((t) => ['משימה', t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]),
     ];
     download(rows.map(csvRow).join('\r\n') + '\r\n', `${title || 'פגישה אישית'}.csv`, 'text/csv;charset=utf-8');
   };
@@ -341,6 +394,11 @@ export default function Meeting1on1({ info, user, token }) {
     const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
     let newTitle = '', newPersonName = '', newMeetingDate = '', newClosing = '', newSignerName = '';
     const parsedBg = [], parsedHobbies = [], parsedNeeds = [], parsedIssues = [], parsedRequests = [], parsedGoals = [], parsedTasks = [];
+    const parseGoal = (r) => ({
+      text: r[1] || '', taskTitle: (r[2] || '').trim(),
+      status: byLabel(TK_STATUS, (r[3] || '').trim(), 'new'), priority: +byLabel(TK_PRIORITY, (r[4] || '').trim(), 1),
+      assignee: (r[5] || '').trim(), due: (r[6] || '').trim(), dueCurrent: (r[7] || '').trim(), log: logCellIn(r[8]),
+    });
     for (const r of rows) {
       const label = (r[0] || '').trim();
       if (label === 'כותרת') newTitle = (r[1] || '').trim();
@@ -351,7 +409,7 @@ export default function Meeting1on1({ info, user, token }) {
       else if (label === 'צורך מיוחד') parsedNeeds.push(r[1] || '');
       else if (label === 'סוגיה אישית') parsedIssues.push(r[1] || '');
       else if (label === 'בקשה') parsedRequests.push(r[1] || '');
-      else if (label === 'יעד') parsedGoals.push(r[1] || '');
+      else if (label === 'יעד') parsedGoals.push(parseGoal(r));
       else if (label === 'בברכה') newClosing = r[1] || '';
       else if (label === 'שם חותם') newSignerName = r[1] || '';
       else if (label === 'משימה') parsedTasks.push({
@@ -369,16 +427,28 @@ export default function Meeting1on1({ info, user, token }) {
       meta.set('closing', newClosing); meta.set('signerName', newSignerName);
       [...lines.keys()].forEach((k) => lines.delete(k));
       [...tasks.keys()].forEach((k) => tasks.delete(k));
-      const seed = (sec, rows2) => rows2.forEach((text, i) => { const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1); lines.set(uid(), m); });
+      const seed = (sec, rows2) => rows2.forEach((text, i) => { const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
       seed('background', parsedBg);
       seed('hobbies', parsedHobbies);
       seed('needs', parsedNeeds);
       seed('issues', parsedIssues);
       seed('requests', parsedRequests);
-      seed('goals', parsedGoals);
-      parsedTasks.forEach((t, i) => {
+      let taskOrd = 0;
+      parsedGoals.forEach((row, i) => {
+        const m = new Y.Map(); m.set('section', 'goals'); m.set('text', row.text); m.set('ord', i + 1);
+        if (row.taskTitle) {
+          const taskId = uid(), t = new Y.Map();
+          t.set('ord', ++taskOrd); t.set('title', row.taskTitle); t.set('desc', row.text);
+          t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+          t.set('assignee', row.assignee); t.set('log', row.log);
+          tasks.set(taskId, t);
+          m.set('taskId', taskId);
+        } else m.set('taskId', null);
+        lines.set(uid(), m);
+      });
+      parsedTasks.forEach((t) => {
         const m = new Y.Map();
-        m.set('ord', i + 1); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
         m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
         m.set('assignee', t.assignee); m.set('log', t.log);
         tasks.set(uid(), m);
@@ -445,7 +515,7 @@ export default function Meeting1on1({ info, user, token }) {
           ))}
         </section>
 
-        <LineSection sec={SECTIONS[1]} items={bySection('goals')} editable={editable} add={addLine} del={delLine} edit={editLine} presets={PRESETS.goals} />
+        <LineSection sec={SECTIONS[1]} items={bySection('goals')} editable={editable} add={addLine} del={delLine} edit={editLine} presets={PRESETS.goals} toggleTask={toggleGoalTask} taskIdSet={taskIdSet} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">

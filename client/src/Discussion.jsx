@@ -84,17 +84,20 @@ function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, cl
 }
 
 const SECTIONS = [
+  { k: 'proceedings', num: 3, title: 'מהלך הדיון', hint: 'שורת טקסט חדשה בכל פלוס או Enter · ניתן לצרף קישור לכל שורה', linkable: true },
   { k: 'decisions', num: 4, title: 'סיכום והחלטות', hint: 'שורת טקסט חדשה בכל פלוס או Enter · לחיצה על "☐ משימה" הופכת שורה למשימה (מבקש כותרת החלטה)', taskLinked: true },
   { k: 'participants', num: 5, title: 'משתתפי הדיון', hint: 'שם חדש בכל פלוס או Enter' },
   { k: 'distribution', num: 6, title: 'רשימת תפוצה', hint: 'נמען נוסף בכל פלוס או Enter', fixedFirst: 'משתתפי הדיון' },
 ];
+const openUrl = (url) => url && window.open(/^https?:\/\//i.test(url) ? url : 'https://' + url, '_blank', 'noopener,noreferrer');
 
 // Same row-list UX as Debrief's LineSection, generalized: taskLinked sections show a
 // "☐/☑ משימה" toggle (off by default here — unlike תחקיר's לקחים/summary, a decision line
 // does NOT auto-create a task), and fixedFirst renders a permanent, non-deletable first row
 // ("משתתפי הדיון") ahead of the real stored items — the distribution list's implicit default.
-function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdSet, numOffset = 0 }) {
+function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdSet, editUrl, numOffset = 0 }) {
   const [showPresets, setShowPresets] = useState(false);
+  const [editingUrlId, setEditingUrlId] = useState(null);
   const ref = useRef();
   const inputRefs = useRef({});
   const focusId = useRef(null);
@@ -155,6 +158,23 @@ function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdS
                 </button>
               );
             })()}
+            {sec.linkable && (() => {
+              if (editingUrlId === it.id) {
+                return (
+                  <input className="pj-link-url-in" autoFocus placeholder="https://…" value={it.url || ''}
+                    onChange={(e) => editUrl(it.id, e.target.value)}
+                    onBlur={() => setEditingUrlId(null)}
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+                );
+              }
+              if (!editable) return it.url ? <button type="button" className="pj-link-open" onClick={() => openUrl(it.url)}><span className="pj-link-arrow">↗</span>קישור</button> : null;
+              return (
+                <>
+                  {it.url && <button type="button" className="pj-link-open" onClick={() => openUrl(it.url)}><span className="pj-link-arrow">↗</span>קישור</button>}
+                  <button type="button" className="pj-link-pencil" title="צירוף/עריכת קישור" onClick={() => setEditingUrlId(it.id)}>🔗</button>
+                </>
+              );
+            })()}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
         ))}
@@ -183,7 +203,6 @@ export default function Discussion({ info, user, token }) {
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
-  const scopeRef = useRef();
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -217,10 +236,8 @@ export default function Discussion({ info, user, token }) {
   const subject = meta.get('subject') || '';
   const chair = meta.get('chair') || '';
   const date = meta.get('date') || '';
-  const scope = meta.get('scope') || '';
-  useEffect(() => { autoGrow(scopeRef.current); }, [scope]);
 
-  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
+  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null, url: m.get('url') || '' }));
   const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
   const taskRows = [...tasks.entries()]
     .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', log: t.get('log') || [] }))
@@ -240,7 +257,7 @@ export default function Discussion({ info, user, token }) {
     const id = uid(), m = new Y.Map();
     const rows = bySection(sec);
     const maxOrd = Math.max(0, ...rows.map((x) => x.ord));
-    m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText); m.set('taskId', null);
+    m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText); m.set('taskId', null); m.set('url', '');
     lines.set(id, m);
     return id;
   }
@@ -257,6 +274,9 @@ export default function Discussion({ info, user, token }) {
       const taskId = m.get('taskId');
       if (taskId) tasks.get(taskId)?.set('desc', text);
     });
+  }
+  function editLineUrl(id, url) {
+    lines.get(id)?.set('url', url);
   }
   function toggleDecisionTask(id) {
     const m = lines.get(id);
@@ -285,7 +305,7 @@ export default function Discussion({ info, user, token }) {
       ['נושא', subject],
       ['בראשות', chair],
       ['תאריך', date],
-      ['משתתפים ותפוצה', scope],
+      ...bySection('proceedings').map((r) => ['מהלך הדיון', r.text, r.url || '']),
       ...bySection('decisions').map(decisionRow),
       ...bySection('participants').map((r) => ['משתתף', r.text]),
       ...bySection('distribution').map((r) => ['תפוצה', r.text]),
@@ -295,9 +315,12 @@ export default function Discussion({ info, user, token }) {
     download(rows.map(csvRow).join('\r\n') + '\r\n', `${title || 'סיכום דיון'}.csv`, 'text/csv;charset=utf-8');
   };
   async function exportWord() {
-    const linesHtml = (sec) => {
+    // Plain numbered paragraphs, not <ul><li> — see the identical note in Debrief.jsx's
+    // exportWord: html-to-docx's list numbering has no RTL support (bullet always renders on
+    // the left), so matching the live UI's own "num.i" labels as plain text sidesteps it.
+    const linesHtml = (sec, num) => {
       const rows = bySection(sec);
-      return rows.length ? `<ul>${rows.map((r) => `<li>${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
+      return rows.length ? rows.map((r, i) => `<p>${num}.${i + 1} ${esc(r.text)}${r.url ? ` — <a href="${esc(r.url)}">${esc(r.url)}</a>` : ''}</p>`).join('') : '<p>(אין שורות)</p>';
     };
     const logHtmlOut = (log) => (log || []).map((l) => {
       const bits = [fmtDate(new Date(l.at).toISOString().slice(0, 10)), l.by].filter(Boolean);
@@ -308,21 +331,21 @@ export default function Discussion({ info, user, token }) {
     const tasksHtml = taskRows.length
       ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th><th>היסטוריית עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
-    const distributionHtml = `<ul><li>${esc('משתתפי הדיון')}</li>${bySection('distribution').map((r) => `<li>${esc(r.text)}</li>`).join('')}</ul>`;
+    const distributionHtml = [`<p>6.1 ${esc('משתתפי הדיון')}</p>`, ...bySection('distribution').map((r, i) => `<p>6.${i + 2} ${esc(r.text)}</p>`)].join('');
     const body = `<h1>${esc(title || 'סיכום דיון ללא שם')}</h1>` +
-      `<p>סיכום דיון בנושא ${esc(subject || '—')}. הדיון התקיים בראשות ${esc(chair || '—')}.</p>` +
-      `<p>הדיון התקיים בתאריך ${esc(fmtDate(date) || '—')}.</p>` +
-      (scope ? `<p>${scope.split('\n').map((l) => esc(l)).join('<br>')}</p>` : '') +
-      `<h2>סיכום והחלטות</h2>${linesHtml('decisions')}` +
-      `<h2>משתתפי הדיון</h2>${linesHtml('participants')}` +
-      `<h2>רשימת תפוצה</h2>${distributionHtml}` +
-      `<h2>משימות</h2>${tasksHtml}`;
+      `<p>1. סיכום דיון בנושא ${esc(subject || '—')}. הדיון התקיים בראשות ${esc(chair || '—')}.</p>` +
+      `<p>2. הדיון התקיים בתאריך ${esc(fmtDate(date) || '—')}.</p>` +
+      `<h2>3. מהלך הדיון</h2>${linesHtml('proceedings', 3)}` +
+      `<h2>4. סיכום והחלטות</h2>${linesHtml('decisions', 4)}` +
+      `<h2>5. משתתפי הדיון</h2>${linesHtml('participants', 5)}` +
+      `<h2>6. רשימת תפוצה</h2>${distributionHtml}` +
+      `<h2>7. משימות</h2>${tasksHtml}`;
     await exportDocxHtml(body, title || 'סיכום דיון');
   }
   async function importCsv(f) {
     const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
-    let newTitle = '', newSubject = '', newChair = '', newDate = '', newScope = '';
-    const parsedDecisions = [], parsedParticipants = [], parsedDistribution = [], parsedTasks = [];
+    let newTitle = '', newSubject = '', newChair = '', newDate = '';
+    const parsedProceedings = [], parsedDecisions = [], parsedParticipants = [], parsedDistribution = [], parsedTasks = [];
     const parseDecision = (r) => ({
       text: r[1] || '', taskTitle: (r[2] || '').trim(),
       status: byLabel(TK_STATUS, (r[3] || '').trim(), 'new'), priority: +byLabel(TK_PRIORITY, (r[4] || '').trim(), 1),
@@ -334,7 +357,7 @@ export default function Discussion({ info, user, token }) {
       else if (label === 'נושא') newSubject = r[1] || '';
       else if (label === 'בראשות') newChair = r[1] || '';
       else if (label === 'תאריך') newDate = (r[1] || '').trim();
-      else if (label === 'משתתפים ותפוצה') newScope = r[1] || '';
+      else if (label === 'מהלך הדיון') parsedProceedings.push({ text: r[1] || '', url: (r[2] || '').trim() });
       else if (label === 'החלטה') parsedDecisions.push(parseDecision(r));
       else if (label === 'משתתף') parsedParticipants.push(r[1] || '');
       else if (label === 'תפוצה') parsedDistribution.push(r[1] || '');
@@ -344,17 +367,18 @@ export default function Discussion({ info, user, token }) {
         due: (r[6] || '').trim(), dueCurrent: (r[7] || '').trim(), log: logCellIn(r[8]),
       });
     }
-    const total = parsedDecisions.length + parsedParticipants.length + parsedDistribution.length + parsedTasks.length;
-    if (!newSubject && !newChair && !newDate && !newScope && !total && !newTitle) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
-    if ((lines.size || tasks.size || subject || chair || date || scope) && !confirm('הטעינה תחליף את כל תוכן הסיכום, כולל לוח המשימות. להמשיך?')) return;
+    const total = parsedProceedings.length + parsedDecisions.length + parsedParticipants.length + parsedDistribution.length + parsedTasks.length;
+    if (!newSubject && !newChair && !newDate && !total && !newTitle) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
+    if ((lines.size || tasks.size || subject || chair || date) && !confirm('הטעינה תחליף את כל תוכן הסיכום, כולל לוח המשימות. להמשיך?')) return;
     ydoc.transact(() => {
       if (newTitle) meta.set('title', newTitle);
-      meta.set('subject', newSubject); meta.set('chair', newChair); meta.set('date', newDate); meta.set('scope', newScope);
+      meta.set('subject', newSubject); meta.set('chair', newChair); meta.set('date', newDate);
       [...lines.keys()].forEach((k) => lines.delete(k));
       [...tasks.keys()].forEach((k) => tasks.delete(k));
       let taskOrd = 0;
+      parsedProceedings.forEach((row, i) => { const m = new Y.Map(); m.set('section', 'proceedings'); m.set('text', row.text); m.set('url', row.url); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
       parsedDecisions.forEach((row, i) => {
-        const m = new Y.Map(); m.set('section', 'decisions'); m.set('text', row.text); m.set('ord', i + 1);
+        const m = new Y.Map(); m.set('section', 'decisions'); m.set('text', row.text); m.set('ord', i + 1); m.set('url', '');
         if (row.taskTitle) {
           const taskId = uid(), t = new Y.Map();
           t.set('ord', ++taskOrd); t.set('title', row.taskTitle); t.set('desc', row.text);
@@ -365,8 +389,8 @@ export default function Discussion({ info, user, token }) {
         } else m.set('taskId', null);
         lines.set(uid(), m);
       });
-      parsedParticipants.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'participants'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
-      parsedDistribution.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'distribution'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
+      parsedParticipants.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'participants'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); m.set('url', ''); lines.set(uid(), m); });
+      parsedDistribution.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'distribution'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); m.set('url', ''); lines.set(uid(), m); });
       parsedTasks.forEach((t) => {
         const m = new Y.Map();
         m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
@@ -441,19 +465,10 @@ export default function Discussion({ info, user, token }) {
           )}
         </section>
 
-        <section className="db-sec">
-          <div className="db-sec-head"><span className="db-chnum">3.</span><h2 className="db-sec-title">משתתפים ותפוצה</h2></div>
-          {editable ? (
-            <textarea ref={scopeRef} className="db-bg" placeholder="משתתפי הדיון ורשימת תפוצה בנספח א׳" rows={2}
-              value={scope} onChange={(e) => meta.set('scope', e.target.value)} />
-          ) : (
-            <p className="db-bg-ro">{scope || '—'}</p>
-          )}
-        </section>
-
-        <LineSection sec={SECTIONS[0]} items={bySection('decisions')} editable={editable} add={addLine} del={delLine} edit={editLine} toggleTask={toggleDecisionTask} taskIdSet={taskIdSet} />
-        <LineSection sec={SECTIONS[1]} items={bySection('participants')} editable={editable} add={addLine} del={delLine} edit={editLine} />
-        <LineSection sec={SECTIONS[2]} items={bySection('distribution')} editable={editable} add={addLine} del={delLine} edit={editLine} numOffset={1} />
+        <LineSection sec={SECTIONS[0]} items={bySection('proceedings')} editable={editable} add={addLine} del={delLine} edit={editLine} editUrl={editLineUrl} />
+        <LineSection sec={SECTIONS[1]} items={bySection('decisions')} editable={editable} add={addLine} del={delLine} edit={editLine} toggleTask={toggleDecisionTask} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[2]} items={bySection('participants')} editable={editable} add={addLine} del={delLine} edit={editLine} />
+        <LineSection sec={SECTIONS[3]} items={bySection('distribution')} editable={editable} add={addLine} del={delLine} edit={editLine} numOffset={1} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">

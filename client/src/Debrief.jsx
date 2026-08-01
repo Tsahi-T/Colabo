@@ -393,9 +393,14 @@ export default function Debrief({ info, user, token }) {
       ? `<table><tr><th>תאריך</th><th>שעה</th><th>פירוט</th></tr>${chronoRows.map((r) => `<tr><td>${esc(fmtDate(r.date))}</td><td>${esc(r.time)}</td><td>${esc(r.text)}</td></tr>`).join('')}</table>`
       : '<p>(אין רשומות)</p>';
     const chronoHtml = chronoNotesHtml + chronoTableHtml;
+    // Plain numbered paragraphs, not <ul><li> — html-to-docx's list numbering has no RTL
+    // support at all (the bullet glyph always renders on the left, no matter what bidi/jc
+    // gets set on the paragraph itself), so a real Word list can't be fixed by the server-side
+    // OOXML post-processing the way headings/tables are. Matching the live UI's own "num.i"
+    // labels as plain text sidesteps the whole list-direction problem.
     const linesHtml = (sec, num) => {
       const rows = bySection(sec);
-      return rows.length ? `<ul>${rows.map((r, i) => `<li>${num}.${i + 1} ${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
+      return rows.length ? rows.map((r, i) => `<p>${num}.${i + 1} ${esc(r.text)}</p>`).join('') : '<p>(אין שורות)</p>';
     };
     const logHtmlOut = (log) => (log || []).map((l) => {
       const bits = [fmtDate(new Date(l.at).toISOString().slice(0, 10)), l.by].filter(Boolean);

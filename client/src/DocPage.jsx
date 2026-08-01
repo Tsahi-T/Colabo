@@ -31,6 +31,7 @@ import Sun from './Sun.jsx';
 import Project from './Project.jsx';
 import Debrief from './Debrief.jsx';
 import Discussion from './Discussion.jsx';
+import Meeting1on1 from './Meeting1on1.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
@@ -177,5 +178,6 @@ export default function DocPage() {
   if (info.type === 'project') return <Project key={token} info={info} user={user} token={token} />;
   if (info.type === 'debrief') return <Debrief key={token} info={info} user={user} token={token} />;
   if (info.type === 'discussion') return <Discussion key={token} info={info} user={user} token={token} />;
+  if (info.type === 'meeting1on1') return <Meeting1on1 key={token} info={info} user={user} token={token} />;
   return <EditorView key={token} info={info} user={user} token={token} />;
 }

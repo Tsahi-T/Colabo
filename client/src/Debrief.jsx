@@ -409,7 +409,11 @@ export default function Debrief({ info, user, token }) {
       return esc(bits.join(' · '));
     }).join('<br>');
     const tasksHtml = taskRows.length
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th><th>היסטוריית עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      // Short single-word headers, not the full "תאריך יעד"/"יעד עדכני"/"היסטוריית עדכונים" —
+      // html-to-docx splits a table's width evenly across its column count with no way to size
+      // columns individually, so an 8-column table leaves each header too little room and
+      // two-word labels wrap mid-word.
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const bgHtml = background.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') || '<p>(אין תוכן)</p>';
     const body = `<h1>${esc(title || 'תחקיר ללא שם')}</h1>` +

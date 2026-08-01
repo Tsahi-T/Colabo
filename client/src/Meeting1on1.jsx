@@ -5,7 +5,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { ShareMenu, Menu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
-import { PRESETS } from './meeting1on1-presets.js';
+import { PRESETS, backgroundPresets } from './meeting1on1-presets.js';
 import { touchRecent } from './identity.js';
 import { exportDocxHtml } from './export.js';
 import Tasks from './Tasks.jsx';
@@ -85,19 +85,19 @@ function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, cl
 
 const SECTIONS = [
   { k: 'background', num: 2, title: 'רקע', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
-  { k: 'goals', num: 4, title: 'יעדים אישיים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
+  { k: 'goals', num: 4, title: 'יעדים אישיים ותיאום ציפיות', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
 ];
-// The four "דברי הפרט" categories — plain growing lists, no numbering per item and no
-// presets (unlike SECTIONS above); nested inside one db-sec card instead of being their own
-// top-level numbered chapter.
+// The four "דברי הפרט" categories — growing lists nested inside one db-sec card instead of
+// being their own top-level numbered chapter. Personal/emotional categories first, תחביבים
+// last — a lighter note to close the section on.
 const DETAIL_CATS = [
-  { k: 'hobbies', sub: '3.1', title: 'תחביבים' },
-  { k: 'needs', sub: '3.2', title: 'צרכים מיוחדים' },
-  { k: 'issues', sub: '3.3', title: 'סוגיות אישיות' },
-  { k: 'requests', sub: '3.4', title: 'בקשות' },
+  { k: 'needs', sub: '3.1', title: 'צרכים מיוחדים' },
+  { k: 'issues', sub: '3.2', title: 'סוגיות אישיות' },
+  { k: 'requests', sub: '3.3', title: 'בקשות' },
+  { k: 'hobbies', sub: '3.4', title: 'תחביבים' },
 ];
 
-function LineSection({ sec, items, editable, add, del, edit }) {
+function LineSection({ sec, items, editable, add, del, edit, presets }) {
   const [showPresets, setShowPresets] = useState(false);
   const ref = useRef();
   const inputRefs = useRef({});
@@ -150,10 +150,10 @@ function LineSection({ sec, items, editable, add, del, edit }) {
       {editable && (
         <div className="sw-add-row" ref={ref}>
           <button className="btn sw-add" onClick={() => doAdd()}>+ שורה</button>
-          {PRESETS[sec.k] && <button className="btn sw-add" onClick={() => setShowPresets((v) => !v)}>הצעות ✦</button>}
+          {presets && <button className="btn sw-add" onClick={() => setShowPresets((v) => !v)}>הצעות ✦</button>}
           {showPresets && (
             <div className="menu-items sw-presets">
-              {PRESETS[sec.k].map((p) => (
+              {presets.map((p) => (
                 <button key={p} onClick={() => { doAdd(p); setShowPresets(false); }}>{p}</button>
               ))}
             </div>
@@ -164,16 +164,31 @@ function LineSection({ sec, items, editable, add, del, edit }) {
   );
 }
 
-function DetailList({ cat, items, editable, add, del, edit }) {
+function DetailList({ cat, items, editable, add, del, edit, presets }) {
+  const [showPresets, setShowPresets] = useState(false);
+  const ref = useRef();
   const inputRefs = useRef({});
   const focusId = useRef(null);
+  useEffect(() => {
+    const close = (e) => !ref.current?.contains(e.target) && setShowPresets(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
   useEffect(() => {
     if (focusId.current && inputRefs.current[focusId.current]) {
       inputRefs.current[focusId.current].focus();
       focusId.current = null;
     }
   });
-  function doAdd() { focusId.current = add(cat.k); }
+  function doAdd(presetText = '') {
+    const last = items[items.length - 1];
+    if (presetText && last && !last.text) {
+      edit(last.id, presetText);
+      focusId.current = last.id;
+      return;
+    }
+    focusId.current = add(cat.k, presetText);
+  }
   return (
     <div className="db-subsec">
       <div className="db-subsec-head"><span className="db-chnum-sub">{cat.sub}</span><h3 className="db-subsec-title">{cat.title}</h3></div>
@@ -194,7 +209,19 @@ function DetailList({ cat, items, editable, add, del, edit }) {
         ))}
         {!items.length && <div className="sw-empty">אין עדיין שורות</div>}
       </div>
-      {editable && <button className="btn sw-add" onClick={doAdd}>+ שורה</button>}
+      {editable && (
+        <div className="sw-add-row" ref={ref}>
+          <button className="btn sw-add" onClick={() => doAdd()}>+ שורה</button>
+          {presets && <button className="btn sw-add" onClick={() => setShowPresets((v) => !v)}>הצעות ✦</button>}
+          {showPresets && (
+            <div className="menu-items sw-presets">
+              {presets.map((p) => (
+                <button key={p} onClick={() => { doAdd(p); setShowPresets(false); }}>{p}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -295,13 +322,16 @@ export default function Meeting1on1({ info, user, token }) {
       return esc(bits.join(' · '));
     }).join('<br>');
     const tasksHtml = taskRows.length
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th><th>היסטוריית עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      // Short single-word headers — html-to-docx splits a table's width evenly across its
+      // column count with no way to size columns individually, so two-word labels wrap mid-word
+      // across an 8-column table.
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const body = `<h1>${esc(title || 'פגישה אישית ללא שם')}</h1>` +
       `<p>1. סיכום פגישה עם ${esc(personName || '—')} בתאריך ${esc(fmtDate(meetingDate) || '—')}.</p>` +
       `<h2>2. רקע</h2>${linesHtml('background', 2)}` +
       `<h2>3. דברי הפרט</h2>${DETAIL_CATS.map(detailHtml).join('')}` +
-      `<h2>4. יעדים אישיים</h2>${linesHtml('goals', 4)}` +
+      `<h2>4. יעדים אישיים ותיאום ציפיות</h2>${linesHtml('goals', 4)}` +
       `<h2>5. משימות</h2>${tasksHtml}` +
       `<p>6. ${esc(closing || 'בברכה,')}</p>` +
       `<p>7. ${esc(signerName || '—')}</p>`;
@@ -406,16 +436,16 @@ export default function Meeting1on1({ info, user, token }) {
           )}
         </section>
 
-        <LineSection sec={SECTIONS[0]} items={bySection('background')} editable={editable} add={addLine} del={delLine} edit={editLine} />
+        <LineSection sec={SECTIONS[0]} items={bySection('background')} editable={editable} add={addLine} del={delLine} edit={editLine} presets={backgroundPresets(personName)} />
 
         <section className="db-sec">
           <div className="db-sec-head"><span className="db-chnum">3.</span><h2 className="db-sec-title">דברי הפרט</h2></div>
           {DETAIL_CATS.map((cat) => (
-            <DetailList key={cat.k} cat={cat} items={bySection(cat.k)} editable={editable} add={addLine} del={delLine} edit={editLine} />
+            <DetailList key={cat.k} cat={cat} items={bySection(cat.k)} editable={editable} add={addLine} del={delLine} edit={editLine} presets={PRESETS[cat.k]} />
           ))}
         </section>
 
-        <LineSection sec={SECTIONS[1]} items={bySection('goals')} editable={editable} add={addLine} del={delLine} edit={editLine} />
+        <LineSection sec={SECTIONS[1]} items={bySection('goals')} editable={editable} add={addLine} del={delLine} edit={editLine} presets={PRESETS.goals} />
 
         <section className="db-sec db-sec-wide">
           <div className="db-sec-head">

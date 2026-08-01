@@ -596,6 +596,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .ico.debrief { background: rgba(13, 148, 136, .14); color: #0f766e; }
 [data-theme='dark'] .ico.debrief { color: #5eead4; }
 .ricon.debrief { color: #0f766e; }
+.ico.discussion { background: rgba(100, 116, 139, .14); color: #475569; }
+[data-theme='dark'] .ico.discussion { color: #cbd5e1; }
+.ricon.discussion { color: #475569; }
 .sw-page { flex: 1; overflow-y: auto; padding: 1.2rem; }
 .sw-grid { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .sw-quad {
@@ -697,6 +700,15 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 }
 .db-chrono-text:hover, .db-chrono-text:focus { border-color: var(--border); background: var(--bg); }
 .db-chrono-text-ro { flex: 1; min-width: 0; font-size: .92rem; color: var(--ink2); line-height: 1.4; padding-top: .15rem; white-space: pre-wrap; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+
+/* ---------- Discussion (סיכום דיון) ---------- */
+.dc-sentence { font-size: .95rem; color: var(--ink2); line-height: 1.8; margin: 0; }
+.dc-inline {
+  display: inline-block; border: 0; border-bottom: 1px solid var(--border); background: transparent;
+  outline: 0; font-size: .95rem; font-weight: 600; color: var(--ink); padding: 0 .15rem; text-align: center; unicode-bidi: plaintext;
+}
+.dc-inline:hover, .dc-inline:focus { border-bottom-color: var(--accent); }
+.dc-inline-date { border: 1px solid var(--border); border-radius: 6px; padding: .1rem .3rem; font-size: .9rem; background: var(--bg); color: var(--ink); }
 
 /* ---------- Chat ---------- */
 .ico.chat { background: rgba(6, 182, 212, .13); color: #0891b2; }

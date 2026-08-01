@@ -1,0 +1,469 @@
+import { useEffect, useMemo, useState, useReducer, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import * as Y from 'yjs';
+import { HocuspocusProvider } from '@hocuspocus/provider';
+import { ShareMenu, Menu } from './ShareExport.jsx';
+import { ThemeToggle } from './theme.jsx';
+import { Logo } from './icons.jsx';
+import { PRESETS } from './discussion-presets.js';
+import { touchRecent } from './identity.js';
+import { exportDocxHtml } from './export.js';
+import Tasks from './Tasks.jsx';
+
+const uid = () => crypto.randomUUID().slice(0, 8);
+const fmtDate = (iso) => (iso ? new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+const TK_STATUS = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
+const TK_PRIORITY = { 1: 'רגילה', 2: 'גבוהה', 3: 'דחוף' };
+function logCellOut(log) {
+  return (log || []).map((l) => {
+    const parts = [new Date(l.at || Date.now()).toISOString(), l.by || ''];
+    if (l.from !== l.to) parts.push(`${TK_STATUS[l.from] || l.from}→${TK_STATUS[l.to] || l.to}`);
+    if (l.note) parts.push(l.note);
+    return parts.join(' | ');
+  }).join('\n');
+}
+function logCellIn(cell) {
+  if (!cell) return [];
+  return cell.split('\n').filter((line) => line.trim()).map((line) => {
+    const parts = line.split(' | ');
+    const at = new Date(parts[0]).getTime() || Date.now();
+    const by = parts[1] || '';
+    let from = 'new', to = 'new', note = '';
+    parts.slice(2).forEach((p) => {
+      const m = p.match(/^(.+)→(.+)$/);
+      if (m) { from = byLabel(TK_STATUS, m[1].trim(), 'new'); to = byLabel(TK_STATUS, m[2].trim(), 'new'); }
+      else note = p;
+    });
+    return { at, by, from, to, note };
+  });
+}
+const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
+const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const csvRow = (arr) => arr.map(csvEscape).join(',');
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = ''; rows.push(row); row = [];
+    } else field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c !== ''));
+}
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const download = (text, name, type = 'text/plain;charset=utf-8') => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function GrowingField({ value, onChange, onKeyDown, registerRef, placeholder, className }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return (
+    <textarea
+      ref={(el) => { ref.current = el; registerRef?.(el); }}
+      className={className} rows={1} placeholder={placeholder}
+      value={value} onChange={onChange} onKeyDown={onKeyDown}
+    />
+  );
+}
+
+const SECTIONS = [
+  { k: 'decisions', num: 4, title: 'סיכום והחלטות', hint: 'שורת טקסט חדשה בכל פלוס או Enter · לחיצה על "☐ משימה" הופכת שורה למשימה (מבקש כותרת החלטה)', taskLinked: true },
+  { k: 'participants', num: 5, title: 'משתתפי הדיון', hint: 'שם חדש בכל פלוס או Enter' },
+  { k: 'distribution', num: 6, title: 'רשימת תפוצה', hint: 'נמען נוסף בכל פלוס או Enter', fixedFirst: 'משתתפי הדיון' },
+];
+
+// Same row-list UX as Debrief's LineSection, generalized: taskLinked sections show a
+// "☐/☑ משימה" toggle (off by default here — unlike תחקיר's לקחים/summary, a decision line
+// does NOT auto-create a task), and fixedFirst renders a permanent, non-deletable first row
+// ("משתתפי הדיון") ahead of the real stored items — the distribution list's implicit default.
+function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdSet, numOffset = 0 }) {
+  const [showPresets, setShowPresets] = useState(false);
+  const ref = useRef();
+  const inputRefs = useRef({});
+  const focusId = useRef(null);
+  useEffect(() => {
+    const close = (e) => !ref.current?.contains(e.target) && setShowPresets(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+  useEffect(() => {
+    if (focusId.current && inputRefs.current[focusId.current]) {
+      inputRefs.current[focusId.current].focus();
+      focusId.current = null;
+    }
+  });
+  function doAdd(presetText = '') {
+    const last = items[items.length - 1];
+    if (presetText && last && !last.text) {
+      edit(last.id, presetText);
+      focusId.current = last.id;
+      return;
+    }
+    focusId.current = add(sec.k, presetText);
+  }
+  return (
+    <section className="db-sec">
+      <div className="db-sec-head">
+        <span className="db-chnum">{sec.num}.</span>
+        <h2 className="db-sec-title">{sec.title}</h2>
+        {sec.hint && <span className="db-hint">{sec.hint}</span>}
+      </div>
+      <div className="sw-lines">
+        {sec.fixedFirst && (
+          <div className="sw-line db-line">
+            <span className="db-num">{sec.num}.1</span>
+            <span className="sw-text">{sec.fixedFirst}</span>
+          </div>
+        )}
+        {items.map((it, i) => (
+          <div key={it.id} className="sw-line db-line">
+            <span className="db-num">{sec.num}.{i + 1 + numOffset}</span>
+            {editable ? (
+              <GrowingField className="sw-grow" value={it.text} placeholder="הקלדה חופשית…"
+                registerRef={(el) => { if (el) inputRefs.current[it.id] = el; else delete inputRefs.current[it.id]; }}
+                onChange={(e) => edit(it.id, e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
+              />
+            ) : (
+              <span className="sw-text">{it.text || '—'}</span>
+            )}
+            {sec.taskLinked && (() => {
+              const hasTask = it.taskId && taskIdSet.has(it.taskId);
+              const label = (hasTask ? '☑' : '☐') + ' משימה';
+              if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
+              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור משימה (יבקש כותרת החלטה)';
+              return (
+                <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
+                  {label}
+                </button>
+              );
+            })()}
+            {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
+          </div>
+        ))}
+        {!items.length && !sec.fixedFirst && <div className="sw-empty">אין עדיין שורות</div>}
+      </div>
+      {editable && (
+        <div className="sw-add-row" ref={ref}>
+          <button className="btn sw-add" onClick={() => doAdd()}>+ שורה</button>
+          {PRESETS[sec.k] && <button className="btn sw-add" onClick={() => setShowPresets((v) => !v)}>הצעות ✦</button>}
+          {showPresets && (
+            <div className="menu-items sw-presets">
+              {PRESETS[sec.k].map((p) => (
+                <button key={p} onClick={() => { doAdd(p); setShowPresets(false); }}>{p}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function Discussion({ info, user, token }) {
+  const editable = info.mode === 'edit';
+  const [, force] = useReducer((c) => c + 1, 0);
+  const [status, setStatus] = useState('connecting');
+  const [title, setTitle] = useState('');
+  const [peers, setPeers] = useState([]);
+  const scopeRef = useRef();
+  const fileRef = useRef();
+
+  const ydoc = useMemo(() => new Y.Doc(), []);
+  const meta = ydoc.getMap('meta');
+  const lines = ydoc.getMap('lines');
+  const tasks = ydoc.getMap('tasks');
+  const provider = useMemo(() => {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    return new HocuspocusProvider({
+      url: `${proto}://${location.host}/collab`, name: info.docId, token, document: ydoc,
+      onStatus: ({ status }) => setStatus(status),
+    });
+  }, []);
+
+  useEffect(() => {
+    ydoc.on('update', force);
+    const syncTitle = () => setTitle(meta.get('title') || '');
+    meta.observe(syncTitle);
+    syncTitle();
+    provider.setAwarenessField('user', user);
+    const aw = provider.awareness;
+    const syncPeers = () => setPeers(
+      [...aw.getStates().entries()].filter(([id]) => id !== aw.clientID).map(([, s]) => s.user).filter(Boolean)
+    );
+    aw.on('change', syncPeers);
+    return () => { ydoc.off('update', force); meta.unobserve(syncTitle); aw.off('change', syncPeers); provider.destroy(); };
+  }, []);
+
+  useEffect(() => { touchRecent(token, title, info.mode, 'discussion'); }, [title]);
+
+  const subject = meta.get('subject') || '';
+  const chair = meta.get('chair') || '';
+  const date = meta.get('date') || '';
+  const scope = meta.get('scope') || '';
+  useEffect(() => { autoGrow(scopeRef.current); }, [scope]);
+
+  const allLines = [...lines.entries()].map(([id, m]) => ({ id, section: m.get('section'), ord: m.get('ord') || 0, text: m.get('text') || '', taskId: m.get('taskId') || null }));
+  const bySection = (s) => allLines.filter((l) => l.section === s).sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
+  const taskRows = [...tasks.entries()]
+    .map(([id, t]) => ({ id, ord: t.get('ord') || 0, title: t.get('title') || '', desc: t.get('desc') || '', status: t.get('status') || 'new', priority: t.get('priority') || 1, assignee: t.get('assignee') || '', due: t.get('due') || '', dueCurrent: t.get('dueCurrent') || '', log: t.get('log') || [] }))
+    .sort((a, b) => b.ord - a.ord || a.id.localeCompare(b.id));
+  const taskIdSet = new Set(taskRows.map((t) => t.id));
+
+  function createLinkedTask(label, text) {
+    const taskId = uid(), t = new Y.Map();
+    const maxTaskOrd = Math.max(0, ...taskRows.map((x) => x.ord));
+    t.set('ord', maxTaskOrd + 1); t.set('title', label); t.set('desc', text);
+    t.set('status', 'new'); t.set('priority', 1); t.set('due', ''); t.set('dueCurrent', '');
+    t.set('assignee', ''); t.set('log', []);
+    tasks.set(taskId, t);
+    return taskId;
+  }
+  function addLine(sec, presetText = '') {
+    const id = uid(), m = new Y.Map();
+    const rows = bySection(sec);
+    const maxOrd = Math.max(0, ...rows.map((x) => x.ord));
+    m.set('section', sec); m.set('ord', maxOrd + 1); m.set('text', presetText); m.set('taskId', null);
+    lines.set(id, m);
+    return id;
+  }
+  function delLine(id) {
+    const m = lines.get(id);
+    const taskId = m?.get('taskId');
+    ydoc.transact(() => { lines.delete(id); if (taskId) tasks.delete(taskId); });
+  }
+  function editLine(id, text) {
+    const m = lines.get(id);
+    if (!m) return;
+    ydoc.transact(() => {
+      m.set('text', text);
+      const taskId = m.get('taskId');
+      if (taskId) tasks.get(taskId)?.set('desc', text);
+    });
+  }
+  function toggleDecisionTask(id) {
+    const m = lines.get(id);
+    if (!m) return;
+    const existingTaskId = m.get('taskId');
+    if (existingTaskId && tasks.get(existingTaskId)) {
+      ydoc.transact(() => { tasks.delete(existingTaskId); m.set('taskId', null); });
+      return;
+    }
+    const label = prompt('כותרת ההחלטה (תהפוך לכותרת המשימה):', '');
+    if (!label || !label.trim()) return;
+    ydoc.transact(() => { m.set('taskId', createLinkedTask(label.trim(), m.get('text') || '')); });
+  }
+
+  // ---- exports ----
+  const exportCsv = () => {
+    const linkedTaskIds = new Set(allLines.map((l) => l.taskId).filter(Boolean));
+    const taskById = new Map(taskRows.map((t) => [t.id, t]));
+    const decisionRow = (line) => {
+      const t = taskById.get(line.taskId);
+      return ['החלטה', line.text, t?.title || '', t ? TK_STATUS[t.status] : '', t ? TK_PRIORITY[t.priority] : '',
+        t?.assignee || '', t?.due || '', t?.dueCurrent || '', t ? logCellOut(t.log) : ''];
+    };
+    const rows = [
+      ['כותרת', title],
+      ['נושא', subject],
+      ['בראשות', chair],
+      ['תאריך', date],
+      ['משתתפים ותפוצה', scope],
+      ...bySection('decisions').map(decisionRow),
+      ...bySection('participants').map((r) => ['משתתף', r.text]),
+      ...bySection('distribution').map((r) => ['תפוצה', r.text]),
+      ...taskRows.filter((t) => !linkedTaskIds.has(t.id))
+        .map((t) => ['משימה', t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]),
+    ];
+    download(rows.map(csvRow).join('\r\n') + '\r\n', `${title || 'סיכום דיון'}.csv`, 'text/csv;charset=utf-8');
+  };
+  async function exportWord() {
+    const linesHtml = (sec) => {
+      const rows = bySection(sec);
+      return rows.length ? `<ul>${rows.map((r) => `<li>${esc(r.text)}</li>`).join('')}</ul>` : '<p>(אין שורות)</p>';
+    };
+    const logHtmlOut = (log) => (log || []).map((l) => {
+      const bits = [fmtDate(new Date(l.at).toISOString().slice(0, 10)), l.by].filter(Boolean);
+      if (l.from !== l.to) bits.push(`${TK_STATUS[l.from] || l.from}→${TK_STATUS[l.to] || l.to}`);
+      if (l.note) bits.push(l.note);
+      return esc(bits.join(' · '));
+    }).join('<br>');
+    const tasksHtml = taskRows.length
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>תאריך יעד</th><th>יעד עדכני</th><th>היסטוריית עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      : '<p>(אין משימות)</p>';
+    const distributionHtml = `<ul><li>${esc('משתתפי הדיון')}</li>${bySection('distribution').map((r) => `<li>${esc(r.text)}</li>`).join('')}</ul>`;
+    const body = `<h1>${esc(title || 'סיכום דיון ללא שם')}</h1>` +
+      `<p>סיכום דיון בנושא ${esc(subject || '—')}. הדיון התקיים בראשות ${esc(chair || '—')}.</p>` +
+      `<p>הדיון התקיים בתאריך ${esc(fmtDate(date) || '—')}.</p>` +
+      (scope ? `<p>${scope.split('\n').map((l) => esc(l)).join('<br>')}</p>` : '') +
+      `<h2>סיכום והחלטות</h2>${linesHtml('decisions')}` +
+      `<h2>משתתפי הדיון</h2>${linesHtml('participants')}` +
+      `<h2>רשימת תפוצה</h2>${distributionHtml}` +
+      `<h2>משימות</h2>${tasksHtml}`;
+    await exportDocxHtml(body, title || 'סיכום דיון');
+  }
+  async function importCsv(f) {
+    const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
+    let newTitle = '', newSubject = '', newChair = '', newDate = '', newScope = '';
+    const parsedDecisions = [], parsedParticipants = [], parsedDistribution = [], parsedTasks = [];
+    const parseDecision = (r) => ({
+      text: r[1] || '', taskTitle: (r[2] || '').trim(),
+      status: byLabel(TK_STATUS, (r[3] || '').trim(), 'new'), priority: +byLabel(TK_PRIORITY, (r[4] || '').trim(), 1),
+      assignee: (r[5] || '').trim(), due: (r[6] || '').trim(), dueCurrent: (r[7] || '').trim(), log: logCellIn(r[8]),
+    });
+    for (const r of rows) {
+      const label = (r[0] || '').trim();
+      if (label === 'כותרת') newTitle = (r[1] || '').trim();
+      else if (label === 'נושא') newSubject = r[1] || '';
+      else if (label === 'בראשות') newChair = r[1] || '';
+      else if (label === 'תאריך') newDate = (r[1] || '').trim();
+      else if (label === 'משתתפים ותפוצה') newScope = r[1] || '';
+      else if (label === 'החלטה') parsedDecisions.push(parseDecision(r));
+      else if (label === 'משתתף') parsedParticipants.push(r[1] || '');
+      else if (label === 'תפוצה') parsedDistribution.push(r[1] || '');
+      else if (label === 'משימה') parsedTasks.push({
+        title: r[1] || '', desc: r[2] || '', status: byLabel(TK_STATUS, (r[3] || '').trim(), 'new'),
+        priority: +byLabel(TK_PRIORITY, (r[4] || '').trim(), 1), assignee: (r[5] || '').trim(),
+        due: (r[6] || '').trim(), dueCurrent: (r[7] || '').trim(), log: logCellIn(r[8]),
+      });
+    }
+    const total = parsedDecisions.length + parsedParticipants.length + parsedDistribution.length + parsedTasks.length;
+    if (!newSubject && !newChair && !newDate && !newScope && !total && !newTitle) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
+    if ((lines.size || tasks.size || subject || chair || date || scope) && !confirm('הטעינה תחליף את כל תוכן הסיכום, כולל לוח המשימות. להמשיך?')) return;
+    ydoc.transact(() => {
+      if (newTitle) meta.set('title', newTitle);
+      meta.set('subject', newSubject); meta.set('chair', newChair); meta.set('date', newDate); meta.set('scope', newScope);
+      [...lines.keys()].forEach((k) => lines.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      let taskOrd = 0;
+      parsedDecisions.forEach((row, i) => {
+        const m = new Y.Map(); m.set('section', 'decisions'); m.set('text', row.text); m.set('ord', i + 1);
+        if (row.taskTitle) {
+          const taskId = uid(), t = new Y.Map();
+          t.set('ord', ++taskOrd); t.set('title', row.taskTitle); t.set('desc', row.text);
+          t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+          t.set('assignee', row.assignee); t.set('log', row.log);
+          tasks.set(taskId, t);
+          m.set('taskId', taskId);
+        } else m.set('taskId', null);
+        lines.set(uid(), m);
+      });
+      parsedParticipants.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'participants'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
+      parsedDistribution.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'distribution'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
+      parsedTasks.forEach((t) => {
+        const m = new Y.Map();
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
+        m.set('assignee', t.assignee); m.set('log', t.log);
+        tasks.set(uid(), m);
+      });
+    });
+  }
+  async function importFile(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith('.csv')) return alert('ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד');
+    return importCsv(f);
+  }
+
+  return (
+    <div className="doc-page">
+      <header className="topbar">
+        <Link to="/" className="logo-sm" title="חזרה לדף הבית"><Logo size={22} /><span className="logo-word">טורבו</span></Link>
+        <input className="title-input" title={title || undefined} placeholder="סיכום דיון ללא שם" value={title} readOnly={!editable}
+          onChange={(e) => meta.set('title', e.target.value)} />
+        {!editable && <span className="badge">צפייה בלבד</span>}
+        <span className={'conn ' + status} />
+        <div className="peers">
+          {peers.slice(0, 8).map((p, i) => (
+            <span key={i} className="peer" style={{ background: p.color }} title={p.name}>{p.name[0]}</span>
+          ))}
+        </div>
+        <div className="actions">
+          {editable && <>
+            <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
+            <input ref={fileRef} type="file" accept=".csv" hidden onChange={importFile} />
+          </>}
+          <Menu label="הורדה">
+            <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
+            <button onClick={exportCsv}>CSV — לטעינה חוזרת</button>
+          </Menu>
+          <ShareMenu info={info} />
+          <ThemeToggle />
+        </div>
+      </header>
+      <div className="db-page">
+        <section className="db-sec">
+          <div className="db-sec-head"><span className="db-chnum">1.</span><h2 className="db-sec-title">פתיח</h2></div>
+          {editable ? (
+            <p className="dc-sentence">
+              סיכום דיון בנושא{' '}
+              <input className="dc-inline" value={subject} placeholder="הנושא"
+                style={{ width: Math.max((subject || 'הנושא').length + 1, 4) + 'ch' }}
+                onChange={(e) => meta.set('subject', e.target.value)} />
+              {'. '}הדיון התקיים בראשות{' '}
+              <input className="dc-inline" value={chair} placeholder="שם"
+                style={{ width: Math.max((chair || 'שם').length + 1, 3) + 'ch' }}
+                onChange={(e) => meta.set('chair', e.target.value)} />
+            </p>
+          ) : (
+            <p className="db-bg-ro">סיכום דיון בנושא {subject || '—'}. הדיון התקיים בראשות {chair || '—'}.</p>
+          )}
+        </section>
+
+        <section className="db-sec">
+          <div className="db-sec-head"><span className="db-chnum">2.</span><h2 className="db-sec-title">תאריך</h2></div>
+          {editable ? (
+            <p className="dc-sentence">
+              הדיון התקיים בתאריך{' '}
+              <input type="date" className="dc-inline-date" value={date} onChange={(e) => meta.set('date', e.target.value)} />
+            </p>
+          ) : (
+            <p className="db-bg-ro">הדיון התקיים בתאריך {fmtDate(date) || '—'}.</p>
+          )}
+        </section>
+
+        <section className="db-sec">
+          <div className="db-sec-head"><span className="db-chnum">3.</span><h2 className="db-sec-title">משתתפים ותפוצה</h2></div>
+          {editable ? (
+            <textarea ref={scopeRef} className="db-bg" placeholder="משתתפי הדיון ורשימת תפוצה בנספח א׳" rows={2}
+              value={scope} onChange={(e) => meta.set('scope', e.target.value)} />
+          ) : (
+            <p className="db-bg-ro">{scope || '—'}</p>
+          )}
+        </section>
+
+        <LineSection sec={SECTIONS[0]} items={bySection('decisions')} editable={editable} add={addLine} del={delLine} edit={editLine} toggleTask={toggleDecisionTask} taskIdSet={taskIdSet} />
+        <LineSection sec={SECTIONS[1]} items={bySection('participants')} editable={editable} add={addLine} del={delLine} edit={editLine} />
+        <LineSection sec={SECTIONS[2]} items={bySection('distribution')} editable={editable} add={addLine} del={delLine} edit={editLine} numOffset={1} />
+
+        <section className="db-sec db-sec-wide">
+          <div className="db-sec-head">
+            <span className="db-chnum">7.</span>
+            <h2 className="db-sec-title">משימות</h2>
+            <span className="db-hint">נוצרות מסימון "משימה" בהחלטות, וניתן להוסיף עוד באופן חופשי</span>
+          </div>
+          <Tasks info={info} user={user} token={token} embed={{ ydoc, map: tasks, editable }} />
+        </section>
+      </div>
+    </div>
+  );
+}

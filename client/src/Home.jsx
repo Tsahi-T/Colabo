@@ -19,6 +19,7 @@ const TYPE_ICON = {
   sun: <span className="ricon sun"><IconSun /></span>,
   project: <span className="ricon project"><IconProject /></span>,
   debrief: <span className="ricon debrief"><IconDebrief /></span>,
+  discussion: <span className="ricon discussion"><IconFlag /></span>,
 };
 
 const GROUPS = [
@@ -50,7 +51,7 @@ const GROUPS = [
     name: 'תבניות',
     tools: [
       { type: 'debrief', cls: 'debrief', icon: <IconDebrief />, name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים' },
-      { type: 'discussion', cls: 'soon', icon: <IconFlag />, name: 'סיכום דיון', desc: 'בקרוב', soon: true },
+      { type: 'discussion', cls: 'discussion', icon: <IconFlag />, name: 'סיכום דיון', desc: 'סיכום, החלטות ומשתתפים' },
       { type: 'meeting1on1', cls: 'soon', icon: <IconCompass />, name: 'פגישה אישית', desc: 'בקרוב', soon: true },
     ],
   },

@@ -28,6 +28,42 @@ function logCellOut(log) {
     return parts.join(' | ');
   }).join('\n');
 }
+function logCellIn(cell) {
+  if (!cell) return [];
+  return cell.split('\n').filter((line) => line.trim()).map((line) => {
+    const parts = line.split(' | ');
+    const at = new Date(parts[0]).getTime() || Date.now();
+    const by = parts[1] || '';
+    let from = 'new', to = 'new', note = '';
+    parts.slice(2).forEach((p) => {
+      const m = p.match(/^(.+)→(.+)$/);
+      if (m) { from = byLabel(TK_STATUS, m[1].trim(), 'new'); to = byLabel(TK_STATUS, m[2].trim(), 'new'); }
+      else note = p;
+    });
+    return { at, by, from, to, note };
+  });
+}
+const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;
+// dependency-free CSV parser (same as Tasks.jsx/Project.jsx) — handles quoted cells with
+// embedded commas/newlines, which is how free-text sections (background, chronology notes)
+// and the packed update-log cells round-trip.
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = ''; rows.push(row); row = [];
+    } else field += c;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c !== ''));
+}
 const SECTIONS = [
   { k: 'findings', num: 3, title: 'ממצאים', hint: 'שורת טקסט חדשה בכל פלוס או Enter' },
   { k: 'lessons', num: 4, title: 'לקחים', hint: 'שורת טקסט חדשה בכל פלוס או Enter · כל לקח הופך אוטומטית למשימה (☑ ← לחיצה לביטול)', taskLinked: true, taskLabel: 'לקח' },
@@ -38,6 +74,7 @@ const SECTIONS = [
 // what made kanban cards blow up in the first place.
 const TASK_LABEL = Object.fromEntries(SECTIONS.filter((s) => s.taskLinked).map((s) => [s.k, s.taskLabel]));
 const csvEscape = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const csvRow = (arr) => arr.map(csvEscape).join(',');
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const download = (text, name, type = 'text/plain;charset=utf-8') => {
   const a = document.createElement('a');
@@ -317,20 +354,30 @@ export default function Debrief({ info, user, token }) {
   }
 
   // ---- exports ----
-  function fmtLines(sec, num) {
-    const rows = bySection(sec);
-    return rows.length ? rows.map((r, i) => `- ${num}.${i + 1} ${r.text}`).join('\n') + '\n' : '(אין שורות)\n';
-  }
-  const exportTxt = () => {
-    let out = `תחקיר: ${title || 'ללא שם'}\n\n`;
-    out += `רקע:\n${background}\n\n`;
-    out += `פירוט וזמנים:\n`;
-    out += chronoNotes ? chronoNotes + '\n\n' : '';
-    out += chronoRows.length ? chronoRows.map((r) => `${r.date} ${r.time} | ${r.text}`).join('\n') + '\n' : '(אין רשומות)\n';
-    out += `\nממצאים:\n${fmtLines('findings', 3)}`;
-    out += `\nלקחים:\n${fmtLines('lessons', 4)}`;
-    out += `\nסיכום ומסקנות:\n${fmtLines('summary', 5)}`;
-    download(out, `${title || 'תחקיר'}.txt`);
+  // Full-document reload file. Unlike the old TXT format (free text + a regex per section,
+  // which is how the task update log ended up silently unreachable from reload), this uses
+  // the same row-label CSV shape as Tasks.jsx/Project.jsx — every field, including the full
+  // task board (status/due/log), round-trips through one row-typed table.
+  const exportCsv = () => {
+    const linkedTaskIds = new Set(allLines.map((l) => l.taskId).filter(Boolean));
+    const taskById = new Map(taskRows.map((t) => [t.id, t]));
+    const linkedRow = (label, line) => {
+      const t = taskById.get(line.taskId);
+      return [label, line.text, t ? TK_STATUS[t.status] : '', t ? TK_PRIORITY[t.priority] : '',
+        t?.assignee || '', t?.due || '', t?.dueCurrent || '', t ? logCellOut(t.log) : ''];
+    };
+    const rows = [
+      ['כותרת', title],
+      ['רקע', background],
+      ['פירוט וזמנים הערות', chronoNotes],
+      ...chronoRows.map((r) => ['כרונולוגיה', r.date, r.time, r.text]),
+      ...bySection('findings').map((r) => ['ממצא', r.text]),
+      ...bySection('lessons').map((r) => linkedRow('לקח', r)),
+      ...bySection('summary').map((r) => linkedRow('שורת סיכום', r)),
+      ...taskRows.filter((t) => !linkedTaskIds.has(t.id))
+        .map((t) => ['משימה', t.title, t.desc, TK_STATUS[t.status], TK_PRIORITY[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]),
+    ];
+    download(rows.map(csvRow).join('\r\n') + '\r\n', `${title || 'תחקיר'}.csv`, 'text/csv;charset=utf-8');
   };
   const exportChronoCsv = () => download(
     [csvEscape('תאריך') + ',' + csvEscape('שעה') + ',' + csvEscape('פירוט'),
@@ -369,10 +416,66 @@ export default function Debrief({ info, user, token }) {
       `<h2>6. משימות</h2>${tasksHtml}`;
     await exportDocxHtml(body, title || 'תחקיר');
   }
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
+  async function importCsv(f) {
+    const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
+    let newTitle = '', bgText = '', chronoNotesText = '';
+    const parsedChrono = [], parsedFindings = [], parsedLessons = [], parsedSummary = [], parsedTasks = [];
+    const parseLinked = (r) => ({
+      text: r[1] || '', status: byLabel(TK_STATUS, (r[2] || '').trim(), 'new'),
+      priority: +byLabel(TK_PRIORITY, (r[3] || '').trim(), 1), assignee: (r[4] || '').trim(),
+      due: (r[5] || '').trim(), dueCurrent: (r[6] || '').trim(), log: logCellIn(r[7]),
+    });
+    for (const r of rows) {
+      const label = (r[0] || '').trim();
+      if (label === 'כותרת') newTitle = (r[1] || '').trim();
+      else if (label === 'רקע') bgText = r[1] || '';
+      else if (label === 'פירוט וזמנים הערות') chronoNotesText = r[1] || '';
+      else if (label === 'כרונולוגיה') parsedChrono.push({ date: (r[1] || '').trim(), time: (r[2] || '').trim(), text: r[3] || '' });
+      else if (label === 'ממצא') parsedFindings.push(r[1] || '');
+      else if (label === 'לקח') parsedLessons.push(parseLinked(r));
+      else if (label === 'שורת סיכום') parsedSummary.push(parseLinked(r));
+      else if (label === 'משימה') parsedTasks.push({
+        title: r[1] || '', desc: r[2] || '', status: byLabel(TK_STATUS, (r[3] || '').trim(), 'new'),
+        priority: +byLabel(TK_PRIORITY, (r[4] || '').trim(), 1), assignee: (r[5] || '').trim(),
+        due: (r[6] || '').trim(), dueCurrent: (r[7] || '').trim(), log: logCellIn(r[8]),
+      });
+    }
+    const total = parsedChrono.length + parsedFindings.length + parsedLessons.length + parsedSummary.length + parsedTasks.length;
+    if (!bgText && !chronoNotesText && !total && !newTitle) return alert('לא נמצא תוכן תקין בקובץ (פורמט: זה שיוצא מהמערכת בלבד)');
+    if ((chrono.size || lines.size || tasks.size || background || chronoNotes) && !confirm('הטעינה תחליף את כל תוכן התחקיר, כולל לוח המשימות. להמשיך?')) return;
+    ydoc.transact(() => {
+      if (newTitle) meta.set('title', newTitle);
+      meta.set('background', bgText);
+      meta.set('chronoNotes', chronoNotesText);
+      [...chrono.keys()].forEach((k) => chrono.delete(k));
+      [...lines.keys()].forEach((k) => lines.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      parsedChrono.forEach((c, i) => { const m = new Y.Map(); m.set('date', c.date || today()); m.set('time', c.time || nowTime()); m.set('text', c.text); m.set('ord', i + 1); chrono.set(uid(), m); });
+      parsedFindings.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'findings'); m.set('text', text); m.set('ord', i + 1); lines.set(uid(), m); });
+      let taskOrd = 0;
+      const addLinked = (sec, label, rows2) => rows2.forEach((row, i) => {
+        const taskId = uid(), t = new Y.Map();
+        t.set('ord', ++taskOrd); t.set('title', label); t.set('desc', row.text);
+        t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+        t.set('assignee', row.assignee); t.set('log', row.log);
+        tasks.set(taskId, t);
+        const m = new Y.Map(); m.set('section', sec); m.set('text', row.text); m.set('ord', i + 1); m.set('taskId', taskId);
+        lines.set(uid(), m);
+      });
+      addLinked('lessons', TASK_LABEL.lessons, parsedLessons);
+      addLinked('summary', TASK_LABEL.summary, parsedSummary);
+      parsedTasks.forEach((t) => {
+        const m = new Y.Map();
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
+        m.set('assignee', t.assignee); m.set('log', t.log);
+        tasks.set(uid(), m);
+      });
+    });
+  }
+  // Legacy reload path for .txt files exported before the CSV format — kept so old backups
+  // still load. Never produced by this version of the app anymore (see exportCsv).
+  async function importTxtLegacy(f) {
     const rawLines = (await f.text()).split(/\r?\n/);
     let section = null;
     const bg = [];
@@ -424,6 +527,13 @@ export default function Debrief({ info, user, token }) {
       }));
     });
   }
+  async function importFile(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.name.toLowerCase().endsWith('.csv')) return importCsv(f);
+    return importTxtLegacy(f);
+  }
 
   return (
     <div className="doc-page">
@@ -440,14 +550,14 @@ export default function Debrief({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
-            <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת (קבצי TXT ישנים עדיין נתמכים)" onClick={() => fileRef.current.click()}>טעינה</button>
+            <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={importFile} />
           </>}
           <Menu label="הורדה">
             <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
             <button onClick={exportChronoCsv}>פירוט וזמנים — CSV</button>
             <button onClick={exportTasksCsv}>משימות — CSV</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            <button onClick={exportCsv}>CSV — לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />

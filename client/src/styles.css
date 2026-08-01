@@ -602,6 +602,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .ico.meeting1on1 { background: rgba(217, 70, 239, .13); color: #a21caf; }
 [data-theme='dark'] .ico.meeting1on1 { color: #f0abfc; }
 .ricon.meeting1on1 { color: #a21caf; }
+.ico.goals { background: rgba(5, 150, 105, .13); color: #047857; }
+[data-theme='dark'] .ico.goals { color: #6ee7b7; }
+.ricon.goals { color: #047857; }
 .sw-page { flex: 1; overflow-y: auto; padding: 1.2rem; }
 .sw-grid { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .sw-quad {
@@ -970,6 +973,15 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 
 /* three-column block */
 .pj-grid3 { display: grid; grid-template-columns: 1.15fr 1fr .9fr; gap: .9rem; align-items: start; }
+/* two-column block (Goals: status + metrics) */
+.pj-grid2 { display: grid; grid-template-columns: 1fr 1.2fr; gap: .9rem; align-items: start; }
+.pj-metrics-table { display: flex; flex-direction: column; gap: .35rem; }
+.pj-metrics-head {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; font-size: .76rem; font-weight: 700;
+  color: var(--ink3); padding: 0 .1rem .3rem; border-bottom: 1px solid var(--border); margin-bottom: .1rem;
+}
+.pj-metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .5rem; align-items: start; }
+.pj-metrics-row span { font-size: .86rem; color: var(--ink2); padding-top: .1rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
 .pj-side-col { display: flex; flex-direction: column; gap: .9rem; }
 .pj-gap { display: flex; gap: .6rem; align-items: flex-start; background: var(--bg); border-radius: 10px; padding: .55rem .7rem; margin-bottom: .5rem; }
 .pj-gap-n { width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; flex-shrink: 0; }
@@ -1027,7 +1039,7 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
 @media (max-width: 1000px) {
   .pj-row { flex-wrap: wrap; }
   .pj-side { border-inline-start: 0; padding-inline-start: 0; }
-  .pj-aspects, .pj-grid3, .pj-future { grid-template-columns: 1fr; }
+  .pj-aspects, .pj-grid3, .pj-grid2, .pj-future { grid-template-columns: 1fr; }
   .pj-ms-track { flex-direction: column; align-items: stretch; }
   .pj-ms-line { display: none; }
 }

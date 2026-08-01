@@ -21,6 +21,7 @@ const TYPE_ICON = {
   debrief: <span className="ricon debrief"><IconDebrief /></span>,
   discussion: <span className="ricon discussion"><IconFlag /></span>,
   meeting1on1: <span className="ricon meeting1on1"><IconCompass /></span>,
+  goals: <span className="ricon goals"><IconTarget /></span>,
 };
 
 const GROUPS = [
@@ -59,7 +60,7 @@ const GROUPS = [
   {
     name: 'שנתי',
     tools: [
-      { type: 'goals', cls: 'soon', icon: <IconTarget />, name: 'יעדים', desc: 'בקרוב', soon: true },
+      { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'יעדים', desc: 'יעד ראשי, מדדים ומשימות' },
       { type: 'kpi', cls: 'soon', icon: <IconGem />, name: 'ת"ע', desc: 'בקרוב', soon: true },
       { type: 'natam', cls: 'soon', icon: <IconRocket />, name: 'נע"תים', desc: 'בקרוב', soon: true },
     ],

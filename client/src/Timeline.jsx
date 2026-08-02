@@ -210,7 +210,7 @@ export default function Timeline({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -224,7 +224,7 @@ export default function Timeline({ info, user, token }) {
           <button className="tb" title="הגדלה" onClick={() => setZoom((z) => Math.min(12, z * 1.35))}>+</button>
           <button className="btn" onClick={() => setZoom(1)}>התאם למסך</button>
           <span className="sep" />
-          <label className="tl-check" title="להצגה/הסתרה של קו התאריך הנוכחי — שימושי לתוכניות רחוקות בזמן">
+          <label className="tl-check" title="להצגה/הסתרה של קו התאריך הנוכחי - שימושי לתוכניות רחוקות בזמן">
             <input type="checkbox" checked={!hideToday}
               onChange={(e) => ydoc.getMap('meta').set('hideToday', !e.target.checked)} />
             קו "היום"
@@ -254,7 +254,7 @@ export default function Timeline({ info, user, token }) {
                   </>
                 ) : (
                   <>
-                    <span className="tlr-text">{m.text || '—'}</span>
+                    <span className="tlr-text">{m.text || '-'}</span>
                     <span className="tlr-date-ro">{fmt(m.date)}</span>
                   </>
                 )}
@@ -293,7 +293,7 @@ export default function Timeline({ info, user, token }) {
                 </div>
               </div>
             ))}
-            {!sorted.length && <div className="tl-empty" dir="rtl">מוסיפים אבני דרך ברשימה — והציר נבנה כאן מעצמו ✨</div>}
+            {!sorted.length && <div className="tl-empty" dir="rtl">מוסיפים אבני דרך ברשימה - והציר נבנה כאן מעצמו ✨</div>}
           </div>
         </div>
       </div>

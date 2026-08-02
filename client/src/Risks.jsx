@@ -155,7 +155,7 @@ export default function Risks({ info, user, token, embed }) {
             </>}
             <Menu label="הורדה">
               <button onClick={exportPdf}>PDF (הדפסה)</button>
-              <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+              <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
             </Menu>
             <ShareMenu info={info} />
             <ThemeToggle />
@@ -179,14 +179,14 @@ export default function Risks({ info, user, token, embed }) {
                   {editable ? (
                     <>
                       <td><GrowingField className="rk-in rk-name" rows={1} placeholder="לוחות זמנים" value={r.name} onChange={(e) => set(r.id, 'name', e.target.value)} /></td>
-                      <td><GrowingField className="rk-in" rows={2} placeholder="משהו רע שיקרה בגלל משהו לא צפוי — עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
+                      <td><GrowingField className="rk-in" rows={2} placeholder="משהו רע שיקרה בגלל משהו לא צפוי - עיכוב בפרויקט בשל פער כ״א / טכני / ארגוני" value={r.detail} onChange={(e) => set(r.id, 'detail', e.target.value)} /></td>
                       <td><GrowingField className="rk-in" rows={2} placeholder="גיוס עובד זמני, יצירת הסכם פרילנס, גיבוי מקצועי בצוות, רידוד תכולות ופיתוח בשלבים" value={r.actions} onChange={(e) => set(r.id, 'actions', e.target.value)} /></td>
                       <td className="rk-c"><select className="rk-sel" value={r.sev} onChange={(e) => set(r.id, 'sev', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                       <td className="rk-c"><select className="rk-sel" value={r.prob} onChange={(e) => set(r.id, 'prob', +e.target.value)}>{nums15.map((n) => <option key={n}>{n}</option>)}</select></td>
                     </>
                   ) : (
                     <>
-                      <td className="rk-name">{r.name || '—'}</td>
+                      <td className="rk-name">{r.name || '-'}</td>
                       <td className="rk-ro">{r.detail}</td>
                       <td className="rk-ro">{r.actions}</td>
                       <td className="rk-c">{r.sev}</td>
@@ -199,7 +199,7 @@ export default function Risks({ info, user, token, embed }) {
               ))}
             </tbody>
           </table>
-          {!rows.length && <div className="tlr-empty">אין עדיין סיכונים — מוסיפים בכפתור למטה, והמטריצה נבנית מעצמה</div>}
+          {!rows.length && <div className="tlr-empty">אין עדיין סיכונים - מוסיפים בכפתור למטה, והמטריצה נבנית מעצמה</div>}
           {editable && <button className="btn tlr-add" onClick={add}>+ הוספת סיכון</button>}
         </div>
 

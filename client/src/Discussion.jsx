@@ -146,13 +146,13 @@ function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdS
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
               />
             ) : (
-              <span className="sw-text">{it.text || '—'}</span>
+              <span className="sw-text">{it.text || '-'}</span>
             )}
             {sec.taskLinked && (() => {
               const hasTask = it.taskId && taskIdSet.has(it.taskId);
               const label = (hasTask ? '☑' : '☐') + ' משימה';
               if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
-              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור משימה (יבקש כותרת החלטה)';
+              const title = hasTask ? 'יש משימה מקושרת - לחיצה תסיר אותה' : 'אין משימה מקושרת - לחיצה תיצור משימה (יבקש כותרת החלטה)';
               return (
                 <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
                   {label}
@@ -321,7 +321,7 @@ export default function Discussion({ info, user, token }) {
     // the left), so matching the live UI's own "num.i" labels as plain text sidesteps it.
     const linesHtml = (sec, num) => {
       const rows = bySection(sec);
-      return rows.length ? rows.map((r, i) => `<p>${num}.${i + 1} ${esc(r.text)}${r.url ? ` — <a href="${esc(r.url)}">${esc(r.url)}</a>` : ''}</p>`).join('') : '<p>(אין שורות)</p>';
+      return rows.length ? rows.map((r, i) => `<p>${num}.${i + 1} ${esc(r.text)}${r.url ? ` - <a href="${esc(r.url)}">${esc(r.url)}</a>` : ''}</p>`).join('') : '<p>(אין שורות)</p>';
     };
     const logHtmlOut = (log) => (log || []).map((l) => {
       const bits = [fmtDate(new Date(l.at).toISOString().slice(0, 10)), l.by].filter(Boolean);
@@ -333,12 +333,12 @@ export default function Discussion({ info, user, token }) {
       // Short single-word headers — html-to-docx splits a table's width evenly across its
       // column count with no way to size columns individually, so two-word labels wrap mid-word
       // across an 8-column table.
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '-'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const distributionHtml = [`<p>6.1 ${esc('משתתפי הדיון')}</p>`, ...bySection('distribution').map((r, i) => `<p>6.${i + 2} ${esc(r.text)}</p>`)].join('');
     const body = `<h1>${esc(title || 'סיכום דיון ללא שם')}</h1>` +
-      `<p>1. סיכום דיון בנושא ${esc(subject || '—')}. הדיון התקיים בראשות ${esc(chair || '—')}.</p>` +
-      `<p>2. הדיון התקיים בתאריך ${esc(fmtDate(date) || '—')}.</p>` +
+      `<p>1. סיכום דיון בנושא ${esc(subject || '-')}. הדיון התקיים בראשות ${esc(chair || '-')}.</p>` +
+      `<p>2. הדיון התקיים בתאריך ${esc(fmtDate(date) || '-')}.</p>` +
       `<h2>3. מהלך הדיון</h2>${linesHtml('proceedings', 3)}` +
       `<h2>4. סיכום והחלטות</h2>${linesHtml('decisions', 4)}` +
       `<h2>5. משתתפי הדיון</h2>${linesHtml('participants', 5)}` +
@@ -432,8 +432,8 @@ export default function Discussion({ info, user, token }) {
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importFile} />
           </>}
           <Menu label="הורדה">
-            <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
-            <button onClick={exportCsv}>CSV — לטעינה חוזרת</button>
+            <button onClick={exportWord}>Word ‏(.docx) - הכל</button>
+            <button onClick={exportCsv}>CSV - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -454,7 +454,7 @@ export default function Discussion({ info, user, token }) {
                 onChange={(e) => meta.set('chair', e.target.value)} />
             </p>
           ) : (
-            <p className="db-bg-ro">סיכום דיון בנושא {subject || '—'}. הדיון התקיים בראשות {chair || '—'}.</p>
+            <p className="db-bg-ro">סיכום דיון בנושא {subject || '-'}. הדיון התקיים בראשות {chair || '-'}.</p>
           )}
         </section>
 
@@ -466,7 +466,7 @@ export default function Discussion({ info, user, token }) {
               <input type="date" className="dc-inline-date" value={date} onChange={(e) => meta.set('date', e.target.value)} />
             </p>
           ) : (
-            <p className="db-bg-ro">הדיון התקיים בתאריך {fmtDate(date) || '—'}.</p>
+            <p className="db-bg-ro">הדיון התקיים בתאריך {fmtDate(date) || '-'}.</p>
           )}
         </section>
 

@@ -141,13 +141,13 @@ function LineSection({ sec, items, editable, add, del, edit, presets, toggleTask
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
               />
             ) : (
-              <span className="sw-text">{it.text || '—'}</span>
+              <span className="sw-text">{it.text || '-'}</span>
             )}
             {sec.taskLinked && (() => {
               const hasTask = it.taskId && taskIdSet.has(it.taskId);
               const label = (hasTask ? '☑' : '☐') + ' משימה';
               if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
-              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור משימה (יבקש כותרת)';
+              const title = hasTask ? 'יש משימה מקושרת - לחיצה תסיר אותה' : 'אין משימה מקושרת - לחיצה תיצור משימה (יבקש כותרת)';
               return (
                 <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
                   {label}
@@ -214,7 +214,7 @@ function DetailList({ cat, items, editable, add, del, edit, presets }) {
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
               />
             ) : (
-              <span className="sw-text">{it.text || '—'}</span>
+              <span className="sw-text">{it.text || '-'}</span>
             )}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
@@ -379,16 +379,16 @@ export default function Meeting1on1({ info, user, token }) {
       // Short single-word headers — html-to-docx splits a table's width evenly across its
       // column count with no way to size columns individually, so two-word labels wrap mid-word
       // across an 8-column table.
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '-'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const body = `<h1>${esc(title || 'פגישה אישית ללא שם')}</h1>` +
-      `<p>1. סיכום פגישה עם ${esc(personName || '—')} בתאריך ${esc(fmtDate(meetingDate) || '—')}.</p>` +
+      `<p>1. סיכום פגישה עם ${esc(personName || '-')} בתאריך ${esc(fmtDate(meetingDate) || '-')}.</p>` +
       `<h2>2. רקע</h2>${linesHtml('background', 2)}` +
       `<h2>3. דברי הפרט</h2>${DETAIL_CATS.map(detailHtml).join('')}` +
       `<h2>4. יעדים אישיים ותיאום ציפיות</h2>${linesHtml('goals', 4)}` +
       `<h2>5. משימות</h2>${tasksHtml}` +
       `<p>6. ${esc(closing || 'בברכה,')}</p>` +
-      `<p>7. ${esc(signerName || '—')}</p>`;
+      `<p>7. ${esc(signerName || '-')}</p>`;
     await exportDocxHtml(body, title || 'פגישה אישית');
   }
   async function importCsv(f) {
@@ -484,8 +484,8 @@ export default function Meeting1on1({ info, user, token }) {
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importFile} />
           </>}
           <Menu label="הורדה">
-            <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
-            <button onClick={exportCsv}>CSV — לטעינה חוזרת</button>
+            <button onClick={exportWord}>Word ‏(.docx) - הכל</button>
+            <button onClick={exportCsv}>CSV - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -504,7 +504,7 @@ export default function Meeting1on1({ info, user, token }) {
               <input type="date" className="dc-inline-date" value={meetingDate} onChange={(e) => meta.set('meetingDate', e.target.value)} />
             </p>
           ) : (
-            <p className="db-bg-ro">סיכום פגישה עם {personName || '—'} בתאריך {fmtDate(meetingDate) || '—'}.</p>
+            <p className="db-bg-ro">סיכום פגישה עם {personName || '-'} בתאריך {fmtDate(meetingDate) || '-'}.</p>
           )}
         </section>
 
@@ -541,7 +541,7 @@ export default function Meeting1on1({ info, user, token }) {
           {editable ? (
             <input className="db-field-in" placeholder="שם" value={signerName} onChange={(e) => meta.set('signerName', e.target.value)} />
           ) : (
-            <p className="db-bg-ro">{signerName || '—'}</p>
+            <p className="db-bg-ro">{signerName || '-'}</p>
           )}
         </section>
       </div>

@@ -309,7 +309,7 @@ export default function Board({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -328,7 +328,7 @@ export default function Board({ info, user, token }) {
               onClick={() => { setLastColor(hex); if (sel?.kind === 'note') notes.get(sel.id)?.set('color', hex); }} />
           ))}
           {sel && <><span className="sep" /><button className="tb" title="מחיקה" onClick={deleteSel}>🗑</button></>}
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>לחיצה כפולה — פתק · לחיצה על פתק נבחר — עריכה · גרירה מנקודת עיגון — חיבור</span>
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>לחיצה כפולה - פתק · לחיצה על פתק נבחר - עריכה · גרירה מנקודת עיגון - חיבור</span>
         </div>
       )}
       <div ref={wrapRef} className="board-wrap" onPointerDown={downBg} onPointerMove={move} onPointerUp={up}

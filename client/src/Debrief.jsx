@@ -157,13 +157,13 @@ function LineSection({ sec, items, editable, add, del, edit, toggleTask, taskIdS
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } }}
               />
             ) : (
-              <span className="sw-text">{it.text || '—'}</span>
+              <span className="sw-text">{it.text || '-'}</span>
             )}
             {sec.taskLinked && (() => {
               const hasTask = it.taskId && taskIdSet.has(it.taskId);
               const label = (hasTask ? '☑' : '☐') + ' משימה';
               if (!editable) return <span className={'db-task-badge' + (hasTask ? '' : ' off')}>{label}</span>;
-              const title = hasTask ? 'יש משימה מקושרת — לחיצה תסיר אותה' : 'אין משימה מקושרת — לחיצה תיצור אחת';
+              const title = hasTask ? 'יש משימה מקושרת - לחיצה תסיר אותה' : 'אין משימה מקושרת - לחיצה תיצור אחת';
               return (
                 <button className={'db-task-badge' + (hasTask ? '' : ' off')} title={title} onClick={() => toggleTask(it.id)}>
                   {label}
@@ -414,7 +414,7 @@ export default function Debrief({ info, user, token }) {
       // html-to-docx splits a table's width evenly across its column count with no way to size
       // columns individually, so an 8-column table leaves each header too little room and
       // two-word labels wrap mid-word.
-      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '—'}</td></tr>`).join('')}</table>`
+      ? `<table><tr><th>כותרת</th><th>תיאור</th><th>סטטוס</th><th>עדיפות</th><th>אחראי</th><th>יעד</th><th>עדכני</th><th>עדכונים</th></tr>${taskRows.map((t) => `<tr><td>${esc(t.title)}</td><td>${esc(t.desc)}</td><td>${esc(TK_STATUS[t.status])}</td><td>${esc(TK_PRIORITY[t.priority])}</td><td>${esc(t.assignee)}</td><td>${esc(fmtDate(t.due))}</td><td>${esc(fmtDate(t.dueCurrent))}</td><td>${logHtmlOut(t.log) || '-'}</td></tr>`).join('')}</table>`
       : '<p>(אין משימות)</p>';
     const bgHtml = background.split('\n').map((l) => `<p>${esc(l) || '&nbsp;'}</p>`).join('') || '<p>(אין תוכן)</p>';
     const body = `<h1>${esc(title || 'תחקיר ללא שם')}</h1>` +
@@ -565,10 +565,10 @@ export default function Debrief({ info, user, token }) {
             <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={importFile} />
           </>}
           <Menu label="הורדה">
-            <button onClick={exportWord}>Word ‏(.docx) — הכל</button>
-            <button onClick={exportChronoCsv}>פירוט וזמנים — CSV</button>
-            <button onClick={exportTasksCsv}>משימות — CSV</button>
-            <button onClick={exportCsv}>CSV — לטעינה חוזרת</button>
+            <button onClick={exportWord}>Word ‏(.docx) - הכל</button>
+            <button onClick={exportChronoCsv}>פירוט וזמנים - CSV</button>
+            <button onClick={exportTasksCsv}>משימות - CSV</button>
+            <button onClick={exportCsv}>CSV - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -581,7 +581,7 @@ export default function Debrief({ info, user, token }) {
             <textarea ref={bgRef} className="db-bg" placeholder="רקע חופשי לתחקיר…" value={background} rows={3}
               onChange={(e) => meta.set('background', e.target.value)} />
           ) : (
-            <p className="db-bg-ro">{background || '—'}</p>
+            <p className="db-bg-ro">{background || '-'}</p>
           )}
           {editable && (
             <div className="sw-add-row" ref={bgMenuRef}>
@@ -603,10 +603,10 @@ export default function Debrief({ info, user, token }) {
             <h2 className="db-sec-title">פירוט וזמנים</h2>
           </div>
           {editable ? (
-            <textarea ref={chronoNotesRef} className="db-bg" placeholder="פירוט חופשי — ניסוח האירוע, העמקה במקרה…" rows={3}
+            <textarea ref={chronoNotesRef} className="db-bg" placeholder="פירוט חופשי - ניסוח האירוע, העמקה במקרה…" rows={3}
               value={chronoNotes} onChange={(e) => meta.set('chronoNotes', e.target.value)} />
           ) : (
-            <p className="db-bg-ro">{chronoNotes || '—'}</p>
+            <p className="db-bg-ro">{chronoNotes || '-'}</p>
           )}
           {editable && (
             <div className="sw-add-row" ref={chronoNotesMenuRef}>
@@ -624,7 +624,7 @@ export default function Debrief({ info, user, token }) {
             </div>
           )}
           <div className="db-chrono db-chrono-timeline">
-            <div className="db-hint db-chrono-timeline-hint">ציר זמן — תאריך ושעה נרשמים אוטומטית בפתיחת שורה, ניתנים לשינוי</div>
+            <div className="db-hint db-chrono-timeline-hint">ציר זמן - תאריך ושעה נרשמים אוטומטית בפתיחת שורה, ניתנים לשינוי</div>
             <div className="db-chrono-head"><span>תאריך</span><span>שעה</span><span>פירוט</span></div>
             <div className="db-chrono-rows">
               {chronoRows.map((r, i) => (
@@ -646,7 +646,7 @@ export default function Debrief({ info, user, token }) {
                     <>
                       <span className="db-chrono-date-ro">{fmtDate(r.date)}</span>
                       <span className="db-chrono-time-ro">{r.time}</span>
-                      <span className="db-chrono-text-ro">{r.text || '—'}</span>
+                      <span className="db-chrono-text-ro">{r.text || '-'}</span>
                     </>
                   )}
                 </div>

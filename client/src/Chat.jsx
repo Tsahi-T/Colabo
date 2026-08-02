@@ -217,7 +217,7 @@ export default function Chat({ info, user, token }) {
       <ChatSidebar currentToken={token} currentTitle={title} width={sideW} onDragStart={startResize} />
       <div className="ch-main">
       <div className="ch-list" ref={listRef}>
-        {!msgs.length && <div className="ch-empty">עוד אין הודעות — תכתבו את הראשונה 💬</div>}
+        {!msgs.length && <div className="ch-empty">עוד אין הודעות - תכתבו את הראשונה 💬</div>}
         {msgs.map((m, i) => {
           const mine = m.vid === vid;
           const prev = msgs[i - 1];

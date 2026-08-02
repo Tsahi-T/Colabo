@@ -161,7 +161,7 @@ export default function Sun({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />
@@ -171,7 +171,7 @@ export default function Sun({ info, user, token }) {
         <div className="toolbar board-bar">
           <button className="btn-primary" onClick={() => addPetal()}>+ הוספה</button>
           {petals.length > 0 && <span className="sun-count">{petals.length === 1 ? 'פריט אחד' : `${petals.length} פריטים`}</span>}
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>תרשים שמש לפיתוח חשיבה — אסוציאציות, שותפים, מחשבות</span>
+          <span className="hint" style={{ marginInlineStart: 'auto' }}>תרשים שמש לפיתוח חשיבה - אסוציאציות, שותפים, מחשבות</span>
         </div>
       )}
       <div className="sun-wrap">
@@ -203,7 +203,7 @@ export default function Sun({ info, user, token }) {
                     <button className="sun-petal-del" title="מחיקה" onClick={() => delPetal(p.id)}>✕</button>
                   </>
                 ) : (
-                  <span className="sun-petal-text">{p.text || '—'}</span>
+                  <span className="sun-petal-text">{p.text || '-'}</span>
                 )}
               </div>
             );

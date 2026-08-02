@@ -77,11 +77,11 @@ export default function Home() {
     <div className="home">
       <span className="home-theme"><ThemeToggle /></span>
       <div className="hero"><img src={turboLogo} alt="טורבו" className="hero-logo" /></div>
-      <p className="tagline">עבודה משותפת בזמן אמת — פותחים, משתפים קישור, עובדים יחד.</p>
+      <p className="tagline">עבודה משותפת בזמן אמת - פותחים, משתפים קישור, עובדים יחד.</p>
       <p className="home-note">
         המערכת מיועדת לעבודה משותפת בזמן אמת.<br />
         זו לא מערכת לניהול ידע, על כן המידע נמחק אחרי 30 ימים.<br />
-        אופן השימוש הנכון במערכת — יצוא המידע לקבצים וטעינה מחדש אם נדרש.<br />
+        אופן השימוש הנכון במערכת - יצוא המידע לקבצים וטעינה מחדש אם נדרש.<br />
         <Link to="/about">פרטים ונתונים נוספים</Link>
       </p>
       {GROUPS.map((g) => (

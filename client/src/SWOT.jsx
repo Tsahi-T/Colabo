@@ -57,7 +57,7 @@ function Quadrant({ q, items, editable, add, del, edit }) {
             {editable ? (
               <GrowingLine value={it.text} onChange={(e) => edit(it.id, e.target.value)} />
             ) : (
-              <span className="sw-text">{it.text || '—'}</span>
+              <span className="sw-text">{it.text || '-'}</span>
             )}
             {editable && <button className="sw-del" onClick={() => del(it.id)}>✕</button>}
           </div>
@@ -131,7 +131,7 @@ export default function SWOT({ info, user, token }) {
   const exportTxt = () => {
     let out = `SWOT: ${title || 'ללא שם'}\n`;
     QUADS.forEach((q) => {
-      out += `\n${q.k} — ${q.he} / ${q.en}\n`;
+      out += `\n${q.k} - ${q.he} / ${q.en}\n`;
       const rows = grouped[q.k];
       out += rows.length ? rows.map((r) => `- ${r.text.replace(/\n/g, ' ')}`).join('\n') + '\n' : '(אין שורות)\n';
     });
@@ -185,7 +185,7 @@ export default function SWOT({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportTxt}>TXT — לטעינה חוזרת</button>
+            <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />

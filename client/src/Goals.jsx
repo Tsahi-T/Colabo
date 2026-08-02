@@ -33,7 +33,7 @@ function toneFor(g) {
 const newGoal = (ord) => ({
   ord,
   name: 'יעד חדש',
-  purpose: 'תיאור קצר של מטרת היעד — מה הוא בא להשיג.',
+  purpose: 'תיאור קצר של מטרת היעד - מה הוא בא להשיג.',
   status: '',
   badge: randomTone(),
   updated: today(),
@@ -150,7 +150,7 @@ function GoalRow({ g, clickable, editable, set, onOpen, onDelete }) {
           {rw
             ? <input type="date" className="pj-mgr-in pj-date-in" value={g.updated || ''}
                 onChange={(e) => set(g.id, { updated: e.target.value, updatedManual: true })} />
-            : <b>{fmtDate(g.updated) || '—'}</b>}
+            : <b>{fmtDate(g.updated) || '-'}</b>}
         </div>
       </div>
       {editable && (
@@ -340,7 +340,7 @@ export default function Goals({ info, user, token }) {
               <GoalRow key={g.id} g={g} clickable editable={editable} set={set}
                 onOpen={() => setOpenId(g.id)} onDelete={() => delGoal(g)} />
             ))}
-            {!list.length && <div className="tlr-empty">אין עדיין יעדים — מוסיפים בכפתור למעלה</div>}
+            {!list.length && <div className="tlr-empty">אין עדיין יעדים - מוסיפים בכפתור למעלה</div>}
           </div>
         ) : (
           <div className="pj-detail">
@@ -356,7 +356,7 @@ export default function Goals({ info, user, token }) {
                       onChange={(e) => set(open.id, { status: e.target.value })} />
                     <PresetsButton presetKey="status" value={open.status} onPick={(v) => set(open.id, { status: v })} />
                   </>
-                ) : <p>{open.status || '—'}</p>}
+                ) : <p>{open.status || '-'}</p>}
               </div>
 
               <div className="pj-card pj-metrics-card">

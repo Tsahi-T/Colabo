@@ -343,7 +343,7 @@ export default function Tasks({ info, user, token, embed }) {
                   <div className="tk-card-title" title={t.title || 'משימה ללא שם'}>{t.title || 'משימה ללא שם'}</div>
                   {t.desc && <div className="tk-card-desc">{t.desc}</div>}
                   <div className="tk-card-meta">
-                    <span className={'tk-pri tk-p-' + t.priority} title={'עדיפות ' + t.priority + ' — ' + PRIORITIES[t.priority]}>{t.priority}</span>
+                    <span className={'tk-pri tk-p-' + t.priority} title={'עדיפות ' + t.priority + ' - ' + PRIORITIES[t.priority]}>{t.priority}</span>
                     {t.assignee && <span>👤 {t.assignee}</span>}
                     {effDue(t) && <span className="tk-due">📅 {fmt(effDue(t))}</span>}
                   </div>
@@ -376,7 +376,7 @@ export default function Tasks({ info, user, token, embed }) {
                   <button className="tk-th-sort" onClick={() => toggleSort('priority')}>עדיפות{sortArrow('priority')}</button>
                   <select className="tk-th-filter" value={filter.priority} onChange={(e) => setFilter({ ...filter, priority: e.target.value })}>
                     <option value="">הכל</option>
-                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
+                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} - {l}</option>)}
                   </select>
                 </th>
                 <th>
@@ -404,7 +404,7 @@ export default function Tasks({ info, user, token, embed }) {
                         {Object.entries(STATUSES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                       </select></td>
                       <td><select className="tk-in" value={t.priority} onChange={(e) => set(t.id, 'priority', +e.target.value)}>
-                        {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
+                        {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} - {l}</option>)}
                       </select></td>
                       <td><input className="tk-in" list="tk-people" placeholder="אחראי" value={t.assignee} onChange={(e) => set(t.id, 'assignee', e.target.value)} /></td>
                       <td><input className="tk-in" type="date" value={t.due} onChange={(e) => setDue(t.id, e.target.value)} /></td>
@@ -419,10 +419,10 @@ export default function Tasks({ info, user, token, embed }) {
                     </>
                   ) : (
                     <>
-                      <td className="rk-name">{t.title || '—'}{t.desc && <div className="tk-in-desc">{t.desc.split('\n')[0]}</div>}</td>
+                      <td className="rk-name">{t.title || '-'}{t.desc && <div className="tk-in-desc">{t.desc.split('\n')[0]}</div>}</td>
                       <td><span className={'tk-chip tk-s-' + t.status}>{STATUSES[t.status]}</span></td>
-                      <td><span className={'tk-pri tk-p-' + t.priority}>{t.priority} — {PRIORITIES[t.priority]}</span></td>
-                      <td>{t.assignee || '—'}</td>
+                      <td><span className={'tk-pri tk-p-' + t.priority}>{t.priority} - {PRIORITIES[t.priority]}</span></td>
+                      <td>{t.assignee || '-'}</td>
                       <td>{fmt(t.due)}</td>
                       <td>{fmt(t.dueCurrent)}</td>
                     </>
@@ -454,7 +454,7 @@ export default function Tasks({ info, user, token, embed }) {
                 </label>
                 <label>עדיפות
                   <select className="tk-in" value={cur.priority} disabled={!editable} onChange={(e) => set(cur.id, 'priority', +e.target.value)}>
-                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} — {l}</option>)}
+                    {Object.entries(PRIORITIES).map(([v, l]) => <option key={v} value={v}>{v} - {l}</option>)}
                   </select>
                 </label>
                 <label>תאריך יעד
@@ -474,7 +474,7 @@ export default function Tasks({ info, user, token, embed }) {
                   const note = e.target.note.value.trim();
                   if (note) { logEntry(cur.id, note, cur.status, cur.status); e.target.reset(); autoGrow(e.target.note); }
                 }}>
-                  <textarea className="tk-in tk-note-in" name="note" rows={1} placeholder="הערת עדכון — מה קרה?"
+                  <textarea className="tk-in tk-note-in" name="note" rows={1} placeholder="הערת עדכון - מה קרה?"
                     onInput={(e) => autoGrow(e.target)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form.requestSubmit(); } }} />
                   <button className="btn" type="submit">הוספה</button>

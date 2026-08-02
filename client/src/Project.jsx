@@ -82,7 +82,7 @@ function toneFor(p) {
 const newProject = (ord) => ({
   ord,
   name: 'פרויקט חדש',
-  purpose: 'תיאור קצר של מטרת הפרויקט — מה הוא בא להשיג.',
+  purpose: 'תיאור קצר של מטרת הפרויקט - מה הוא בא להשיג.',
   phase: 'יזום',
   status: 'green',
   badge: randomTone(),
@@ -209,7 +209,7 @@ function HeadRow({ p, clickable, editable, set, onOpen, onDelete }) {
           {rw
             ? <input type="date" className="pj-mgr-in pj-date-in" value={p.updated || ''}
                 onChange={(e) => set(p.id, { updated: e.target.value, updatedManual: true })} />
-            : <b>{fmtDate(p.updated) || '—'}</b>}
+            : <b>{fmtDate(p.updated) || '-'}</b>}
         </div>
         <div><span className="pj-col-l">👤 מוביל הפרויקט</span>
           {rw
@@ -510,7 +510,7 @@ export default function Project({ info, user, token }) {
               <HeadRow key={p.id} p={p} clickable editable={editable} set={set}
                 onOpen={() => setOpenId(p.id)} onDelete={() => delProject(p)} />
             ))}
-            {!list.length && <div className="tlr-empty">אין עדיין פרויקטים — מוסיפים בכפתור למעלה</div>}
+            {!list.length && <div className="tlr-empty">אין עדיין פרויקטים - מוסיפים בכפתור למעלה</div>}
           </div>
         ) : (
           <div className="pj-detail">

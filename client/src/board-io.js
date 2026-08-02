@@ -13,7 +13,11 @@ export function boardToTxt(title, notes, edges) {
     const n = notes.get(id);
     out += `\n[${num.get(id)}] מיקום: ${Math.round(n.get('x'))},${Math.round(n.get('y'))} | צבע: ${colorName(n.get('color'))} | גודל: ${Math.round(n.get('w'))}x${Math.round(n.get('h'))} | סיבוב: ${n.get('rot') || 0} | שכבה: ${n.get('z') || num.get(id)}\n`;
     if (n.get('title')) out += `# ${n.get('title')}\n`;
-    out += (n.get('text') || '').trimEnd() + '\n';
+    let body = (n.get('text') || '').trimEnd();
+    // a titleless note whose text itself starts with "# " would otherwise be indistinguishable
+    // from a title line on re-import — tag it with an invisible marker so it round-trips as text.
+    if (!n.get('title') && body.startsWith('# ')) body = '​' + body;
+    out += body + '\n';
   }
   const lines = [...edges.values()].map((e) => num.get(e.a) && num.get(e.b) ? `${num.get(e.a)} - ${num.get(e.b)}` : null).filter(Boolean);
   if (lines.length) out += `\nחיבורים:\n${lines.join('\n')}\n`;
@@ -45,6 +49,9 @@ export function txtToBoard(txt) {
     if (cur && line.startsWith('# ') && !cur.title && !cur.text) { cur.title = line.slice(2); continue; }
     if (cur) cur.text += (cur.text ? '\n' : '') + line;
   }
-  notes.forEach((n) => { n.text = n.text.trimEnd(); });
+  notes.forEach((n) => {
+    if (n.text.startsWith('​')) n.text = n.text.slice(1);
+    n.text = n.text.trimEnd();
+  });
   return { notes, edges };
 }

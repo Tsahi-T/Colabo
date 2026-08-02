@@ -84,6 +84,8 @@ export default function About() {
                   <div className="stat-tile"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
                   <div className="stat-tile"><span className="stat-num">{(c['share:edit'] || 0).toLocaleString('he-IL')}</span>שיתופים לעריכה</div>
                   <div className="stat-tile"><span className="stat-num">{(c['share:view'] || 0).toLocaleString('he-IL')}</span>שיתופים לצפייה בלבד</div>
+                  <div className="stat-tile"><span className="stat-num">{(c['download'] || 0).toLocaleString('he-IL')}</span>הורדות מכל המסכים</div>
+                  <div className="stat-tile"><span className="stat-num">{(c['reimport'] || 0).toLocaleString('he-IL')}</span>טעינות חוזרות</div>
                 </div>
 
                 <div className="chart-head"><h3>פריטים שנוצרו לפי סוג מסך</h3><span className="ab-total">סה״כ {totalCreated.toLocaleString('he-IL')}</span></div>

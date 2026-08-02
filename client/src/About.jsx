@@ -28,7 +28,7 @@ const CATEGORIES = [
   { name: 'יום־יומי', types: ['doc', 'chat', 'tasks'] },
   { name: 'ניהול', types: ['risks', 'timeline', 'project'] },
   { name: 'ארגוני', types: ['board', 'swot', 'sun'] },
-  { name: 'תבניות', types: ['debrief', 'discussion', 'meeting1on1', 'goals'] },
+  { name: 'תבניות', types: ['debrief', 'discussion', 'meeting1on1'] },
 ];
 
 export default function About() {

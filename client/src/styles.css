@@ -35,7 +35,7 @@ input, textarea, select { font: inherit; color: var(--ink); }
 /* Theme switch feels instant everywhere except realtime-drag surfaces (notes,
    cursors, canvases) — a transition there would visibly lag behind live sync. */
 body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select,
-.create-card, .how-card, .stat-tile, .chart-box, .rk-table, .sw-quad, .modal,
+.create-card, .how-card, .stat-hero, .stat-tile-sm, .chart-box, .rk-table, .sw-quad, .modal,
 .menu-items, .recent-item, .ProseMirror, .tl-list, .badge {
   transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
 }
@@ -363,17 +363,41 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .disclaimer { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 12px; padding: .2rem 1.2rem 1rem; margin-top: 2rem; }
 .disclaimer h2 { margin-top: 1rem; }
 .disclaimer p { font-size: .9rem; }
-.stat-row { display: flex; gap: .8rem; flex-wrap: wrap; }
-.stat-tile {
-  flex: 1; min-width: 170px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  padding: 1rem 1.2rem; color: var(--ink2); font-size: .88rem; box-shadow: var(--card-shadow);
-}
+.disclaimer-list { margin: 0; padding-inline-start: 1.3rem; font-size: .9rem; display: flex; flex-direction: column; gap: .5rem; }
+.disclaimer-list li { line-height: 1.55; }
 .stat-num { display: block; font-size: 2rem; font-weight: 700; color: var(--ink); }
 .stat-num.live i {
   display: inline-block; width: 10px; height: 10px; border-radius: 50%;
   background: #16a34a; margin-inline-start: .5rem; animation: pulse 1.6s infinite;
 }
 @keyframes pulse { 50% { opacity: .35; } }
+
+/* Hero stats: the two headline numbers (total visits, live now) get a bigger, tinted card. */
+.stat-hero-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: .9rem; }
+.stat-hero {
+  border: 1px solid var(--border); border-radius: 18px; padding: 1.5rem 1.7rem;
+  color: var(--ink2); font-size: 1rem; box-shadow: var(--card-shadow);
+}
+.stat-hero.visits { background: linear-gradient(135deg, rgba(37,99,235,.11), rgba(37,99,235,.02)); }
+.stat-hero.online { background: linear-gradient(135deg, rgba(22,163,74,.11), rgba(22,163,74,.02)); }
+[data-theme='dark'] .stat-hero.visits { background: linear-gradient(135deg, rgba(96,165,250,.18), rgba(96,165,250,.03)); }
+[data-theme='dark'] .stat-hero.online { background: linear-gradient(135deg, rgba(74,222,128,.18), rgba(74,222,128,.03)); }
+.stat-hero .stat-num { font-size: 2.8rem; }
+.stat-hero.visits .stat-num { color: #2563eb; }
+.stat-hero.online .stat-num { color: #16a34a; }
+[data-theme='dark'] .stat-hero.visits .stat-num { color: #60a5fa; }
+[data-theme='dark'] .stat-hero.online .stat-num { color: #4ade80; }
+.stat-hero .stat-num.live i { width: 13px; height: 13px; margin-inline-start: .6rem; }
+@media (max-width: 560px) { .stat-hero-row { grid-template-columns: 1fr; } }
+
+/* Secondary stats: smaller, plainer chips underneath the hero row. */
+.stat-row-sm { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7rem; }
+.stat-tile-sm {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: .75rem 1rem; color: var(--ink2); font-size: .8rem; box-shadow: var(--card-shadow);
+}
+.stat-tile-sm .stat-num { font-size: 1.35rem; margin-bottom: .1rem; }
+@media (max-width: 640px) { .stat-row-sm { grid-template-columns: 1fr 1fr; } }
 .chart-head { display: flex; align-items: center; justify-content: space-between; margin: 1.4rem 0 .5rem; }
 .chart-head h3 { margin: 0; font-size: .95rem; color: var(--ink2); }
 .ab-total { font-size: .85rem; color: var(--ink3); }

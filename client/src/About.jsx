@@ -68,16 +68,14 @@ export default function About() {
 
         <section className="disclaimer">
           <h2>⚠️ תיאום ציפיות ותנאי שימוש</h2>
-          <p>
-            טורבו היא כלי לעבודה משותפת <b>בזמן אמת</b> — לחשיבה, טיוטה וכתיבה משותפת, ולא ארכיון או מאגר רשומות מחייב.
-            <b> מסמך שאין בו שום עריכה במשך 30 יום נמחק אוטומטית</b>, לצמיתות ובלי שחזור (לוחות ניהול משימות פטורים ממחיקה זו).
-            כל מי שמחזיק קישור עריכה יכול לשנות או למחוק תוכן בכל עת.
-            <b> רשימת "מסמכים אחרונים" בדף הבית נשמרת רק בדפדפן המקומי שלכם ולא עוברת בין מחשבים</b> — המסמך עצמו כן
-            שמור בשרת וזמין מכל מחשב, אך רק דרך הקישור עצמו (עריכה או צפייה) ובתוך חלון 30 הימים. לכן חשוב לשמור את
-            הקישור בעצמו במקום נגיש (למשל בהודעה או במסמך חיצוני) ולא להסתמך על רשימת הקיצורים בלבד, ו<b>תוכן חשוב יש
-            לייצא ולשמור עותק מחוץ למערכת</b>, וניתן תמיד לטעון אותו חזרה ולהמשיך. השימוש באחריות המשתמש בלבד, והמערכת
-            מסופקת כפי שהיא (As-Is) ללא כל אחריות לזמינות, לשלמות המידע או לנזק הנובע מהשימוש.
-          </p>
+          <ul className="disclaimer-list">
+            <li><b>מטרת הכלי:</b> עבודה משותפת בזמן אמת — לחשיבה, טיוטה וכתיבה משותפת. לא ארכיון ולא מאגר רשומות מחייב.</li>
+            <li><b>מחיקה אוטומטית:</b> מסמך שאין בו שום עריכה במשך 30 יום נמחק אוטומטית, לצמיתות ובלי שחזור (לוחות ניהול משימות פטורים ממחיקה זו).</li>
+            <li><b>הרשאות:</b> כל מי שמחזיק קישור עריכה יכול לשנות או למחוק את התוכן בכל עת.</li>
+            <li><b>רשימת "מסמכים אחרונים":</b> נשמרת רק בדפדפן המקומי שלכם ולא עוברת בין מחשבים. המסמך עצמו כן שמור בשרת וזמין מכל מחשב — אך רק דרך הקישור עצמו (עריכה או צפייה), ובתוך חלון 30 הימים.</li>
+            <li><b>גיבוי:</b> חשוב לשמור את הקישור במקום נגיש (למשל בהודעה או במסמך חיצוני) ולא להסתמך רק על רשימת הקיצורים. תוכן חשוב מומלץ לייצא ולשמור עותק מחוץ למערכת — וניתן תמיד לטעון אותו חזרה ולהמשיך.</li>
+            <li><b>אחריות:</b> השימוש באחריות המשתמש בלבד. המערכת מסופקת כפי שהיא (As-Is), ללא כל אחריות לזמינות, לשלמות המידע או לנזק הנובע מהשימוש.</li>
+          </ul>
         </section>
 
         <section>
@@ -87,13 +85,15 @@ export default function About() {
             const totalCreated = CATEGORIES.flatMap((g) => g.types).reduce((a, t) => a + (c['create:' + t] || 0), 0);
             return (
               <>
-                <div className="stat-row">
-                  <div className="stat-tile"><span className="stat-num">{(c['visit'] || 0).toLocaleString('he-IL')}</span>כניסות לאתר</div>
-                  <div className="stat-tile"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
-                  <div className="stat-tile"><span className="stat-num">{(c['share:edit'] || 0).toLocaleString('he-IL')}</span>שיתופים לעריכה</div>
-                  <div className="stat-tile"><span className="stat-num">{(c['share:view'] || 0).toLocaleString('he-IL')}</span>שיתופים לצפייה בלבד</div>
-                  <div className="stat-tile"><span className="stat-num">{(c['download'] || 0).toLocaleString('he-IL')}</span>הורדות מכל המסכים</div>
-                  <div className="stat-tile"><span className="stat-num">{(c['reimport'] || 0).toLocaleString('he-IL')}</span>טעינות חוזרות</div>
+                <div className="stat-hero-row">
+                  <div className="stat-hero visits"><span className="stat-num">{(c['visit'] || 0).toLocaleString('he-IL')}</span>כניסות מצטברות לאתר</div>
+                  <div className="stat-hero online"><span className="stat-num live">{stats.online || 0}<i /></span>מחוברים עכשיו</div>
+                </div>
+                <div className="stat-row-sm">
+                  <div className="stat-tile-sm"><span className="stat-num">{(c['share:edit'] || 0).toLocaleString('he-IL')}</span>שיתופים לעריכה</div>
+                  <div className="stat-tile-sm"><span className="stat-num">{(c['share:view'] || 0).toLocaleString('he-IL')}</span>שיתופים לצפייה בלבד</div>
+                  <div className="stat-tile-sm"><span className="stat-num">{(c['download'] || 0).toLocaleString('he-IL')}</span>הורדות מכל המסכים</div>
+                  <div className="stat-tile-sm"><span className="stat-num">{(c['reimport'] || 0).toLocaleString('he-IL')}</span>טעינות חוזרות</div>
                 </div>
 
                 <div className="chart-head"><h3>פריטים שנוצרו לפי סוג מסך</h3><span className="ab-total">סה״כ {totalCreated.toLocaleString('he-IL')}</span></div>

@@ -79,7 +79,11 @@ app.post('/api/images', upload.single('image'), async (req, res) => {
   try {
     const r = await storage.resolveToken(req.query.token || '');
     if (!r || r.mode !== 'edit') return res.status(403).json({ error: 'forbidden' });
-    if (!req.file || !req.file.mimetype.startsWith('image/')) return res.status(400).json({ error: 'bad image' });
+    // SVG can carry <script> and executes it if the image URL is ever opened directly
+    // (not just embedded via <img>) — every other image/* type is safely inert.
+    if (!req.file || !req.file.mimetype.startsWith('image/') || req.file.mimetype === 'image/svg+xml') {
+      return res.status(400).json({ error: 'bad image' });
+    }
     const id = await storage.saveImage(r.docId, req.file.mimetype, req.file.buffer);
     res.json({ url: `/api/images/${id}` });
   } catch (e) {

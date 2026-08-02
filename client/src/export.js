@@ -51,13 +51,29 @@ export async function exportHtml(editor, title) {
 
 // Server-side RTL fixup (see server/index.js) handles alignment + numeral/heading order for
 // the docx path — html-to-docx itself ignores stylesheets and has no RTL/bidi support at all.
+//
+// Longer than the server's own 20s export ceiling on purpose — this is a pure backstop for the
+// network itself hanging (dropped connection, unreachable server), not the normal case. The
+// server should always answer (success or its own timeout error) well before this fires.
+const DOCX_FETCH_TIMEOUT_MS = 25000;
+
 async function postDocx(html, title) {
-  const res = await fetch('/api/export/docx', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html, title }),
-  });
-  if (!res.ok) return alert('הייצוא נכשל');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOCX_FETCH_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch('/api/export/docx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, title }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    return alert(e.name === 'AbortError' ? 'הייצוא ארך זמן רב מדי ובוטל. נסו שוב.' : 'הייצוא נכשל — בדקו את החיבור ונסו שוב.');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) return alert(res.status === 504 ? 'הייצוא ארך זמן רב מדי ובוטל. נסו שוב.' : 'הייצוא נכשל');
   download(await res.blob(), `${title}.docx`);
 }
 

@@ -215,32 +215,51 @@ async function makeDocxRtl(buf) {
   return zip.generateAsync({ type: 'nodebuffer' });
 }
 
+// Node is single-threaded — a pathological/huge document that makes the conversion below run
+// long stalls the whole event loop, which also stalls every other user's collaborative sync
+// (same process, same thread). This ceiling can't interrupt work already in flight (JS can't
+// preempt a running synchronous block), but it stops the request from hanging open forever and
+// gives the caller a real error instead of an infinite spinner.
+const DOCX_EXPORT_TIMEOUT_MS = 20000;
+
 app.post('/api/export/docx', async (req, res) => {
   try {
     const { html, title } = req.body;
     if (!html) return res.sendStatus(400);
     // Air-gap guard: html-to-docx downloads <img> URLs; allow only embedded data URIs.
     const safe = html.replace(/<img\b[^>]*>/gi, (tag) => (/\bsrc\s*=\s*["']data:/i.test(tag) ? tag : ''));
-    const { default: htmlToDocx } = await import('html-to-docx');
-    // html-to-docx always splits a table's width evenly across its column count (no per-column
-    // sizing), so a wide task table (8 columns) needs all the horizontal room it can get —
-    // narrower side margins than the library's 1.25in portrait default buy real breathing room.
-    const buf = await htmlToDocx(safe, null, {
-      lang: 'he-IL', font: 'Arial',
-      margins: { top: 1440, right: 1080, bottom: 1440, left: 1080, header: 720, footer: 720, gutter: 0 },
-      // Default lets a tall row (e.g. a task with a multi-line update-log cell) split across
-      // a page break — Word then renders the overflow as an orphaned fragment on the next page
-      // with every other cell blank. Forcing rows to stay whole pushes the entire row over
-      // instead.
-      table: { row: { cantSplit: true } },
-    });
-    const rtlBuf = await makeDocxRtl(Buffer.from(buf));
+    const convert = (async () => {
+      const { default: htmlToDocx } = await import('html-to-docx');
+      // html-to-docx always splits a table's width evenly across its column count (no per-column
+      // sizing), so a wide task table (8 columns) needs all the horizontal room it can get —
+      // narrower side margins than the library's 1.25in portrait default buy real breathing room.
+      const buf = await htmlToDocx(safe, null, {
+        lang: 'he-IL', font: 'Arial',
+        margins: { top: 1440, right: 1080, bottom: 1440, left: 1080, header: 720, footer: 720, gutter: 0 },
+        // Default lets a tall row (e.g. a task with a multi-line update-log cell) split across
+        // a page break — Word then renders the overflow as an orphaned fragment on the next page
+        // with every other cell blank. Forcing rows to stay whole pushes the entire row over
+        // instead.
+        table: { row: { cantSplit: true } },
+      });
+      return makeDocxRtl(Buffer.from(buf));
+    })();
+    // If the timeout wins the race below, `convert` keeps running in the background (a losing
+    // Promise.race branch isn't cancelled). Promise.race already attaches its own handler to
+    // every promise it's given, so a late rejection here doesn't actually reach
+    // unhandledRejection (verified) — this no-op catch is just belt-and-suspenders in case that
+    // ever changes, e.g. if this stops being a plain Promise.race.
+    convert.catch(() => {});
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('EXPORT_TIMEOUT')), DOCX_EXPORT_TIMEOUT_MS));
+    const rtlBuf = await Promise.race([convert, timeout]);
     res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       .set('Content-Disposition', `attachment; filename="${encodeURIComponent(title || 'document')}.docx"`)
       .send(rtlBuf);
   } catch (e) {
-    console.error('POST /api/export/docx failed:', e);
-    res.status(500).json({ error: 'export failed' });
+    const timedOut = e.message === 'EXPORT_TIMEOUT';
+    console.error('POST /api/export/docx failed:', timedOut ? `timed out after ${DOCX_EXPORT_TIMEOUT_MS}ms` : e);
+    if (!res.headersSent) res.status(timedOut ? 504 : 500).json({ error: timedOut ? 'export timed out' : 'export failed' });
   }
 });
 

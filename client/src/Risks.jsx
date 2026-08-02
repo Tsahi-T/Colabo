@@ -101,7 +101,7 @@ export default function Risks({ info, user, token, embed }) {
   // ---- TXT ----
   const exportTxt = () => download(
     `ניהול סיכונים: ${title || 'ללא שם'}\n\n` + rows.map((r) =>
-      `[${r.num}] ${r.name} | חומרה: ${r.sev} | הסתברות: ${r.prob} | משוקלל: ${r.score}\nפירוט: ${r.detail.replace(/\n/g, ' / ')}\nפעולות: ${r.actions.replace(/\n/g, ' / ')}\n`
+      `[${r.num}] ${r.name.replace(/\n/g, ' / ')} | חומרה: ${r.sev} | הסתברות: ${r.prob} | משוקלל: ${r.score}\nפירוט: ${r.detail.replace(/\n/g, ' / ')}\nפעולות: ${r.actions.replace(/\n/g, ' / ')}\n`
     ).join('\n'), `${title || 'ניהול סיכונים'}.txt`);
   const exportPdf = () => printElementImage('.rk-page', { title: title || 'ניהול סיכונים' });
   async function importTxt(e) {

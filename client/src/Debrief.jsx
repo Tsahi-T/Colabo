@@ -34,13 +34,13 @@ function logCellIn(cell) {
     const parts = line.split(' | ');
     const at = new Date(parts[0]).getTime() || Date.now();
     const by = parts[1] || '';
-    let from = 'new', to = 'new', note = '';
+    let from = 'new', to = 'new'; const noteParts = [];
     parts.slice(2).forEach((p) => {
       const m = p.match(/^(.+)→(.+)$/);
       if (m) { from = byLabel(TK_STATUS, m[1].trim(), 'new'); to = byLabel(TK_STATUS, m[2].trim(), 'new'); }
-      else note = p;
+      else noteParts.push(p);
     });
-    return { at, by, from, to, note };
+    return { at, by, from, to, note: noteParts.join(' | ') };
   });
 }
 const byLabel = (obj, val, fallback) => Object.keys(obj).find((k) => obj[k] === val) || fallback;

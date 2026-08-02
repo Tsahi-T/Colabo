@@ -75,13 +75,13 @@ function logCellIn(cell, revStatus) {
     const parts = line.split(' | ');
     const at = new Date(parts[0]).getTime() || Date.now();
     const by = parts[1] || '';
-    let from = 'new', to = 'new', note = '';
+    let from = 'new', to = 'new'; const noteParts = [];
     parts.slice(2).forEach((p) => {
       const m = p.match(/^(.+)→(.+)$/);
       if (m) { from = revStatus[m[1].trim()] || 'new'; to = revStatus[m[2].trim()] || 'new'; }
-      else note = p;
+      else noteParts.push(p);
     });
-    return { at, by, from, to, note };
+    return { at, by, from, to, note: noteParts.join(' | ') };
   });
 }
 function parseCsv(text) {

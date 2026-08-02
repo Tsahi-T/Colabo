@@ -119,7 +119,8 @@ export default function Sun({ info, user, token }) {
   const delPetal = (id) => nodes.delete(id);
 
   const exportTxt = () => download(
-    `תרשים שמש: ${core || title || 'ללא שם'}\n\n` + petals.map((p) => `- ${p.text}`).join('\n') + '\n',
+    `תרשים שמש: ${(core || title || 'ללא שם').replace(/\n/g, ' ')}\n\n` +
+    petals.map((p) => `- ${p.text.replace(/\n/g, ' ')}`).join('\n') + '\n',
     `${title || 'תרשים שמש'}.txt`);
   const exportPdf = () => printElementImage('.sun-stage', { title: title || 'תרשים שמש', landscape: true });
   async function importTxt(e) {

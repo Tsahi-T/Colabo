@@ -133,7 +133,7 @@ export default function SWOT({ info, user, token }) {
     QUADS.forEach((q) => {
       out += `\n${q.k} — ${q.he} / ${q.en}\n`;
       const rows = grouped[q.k];
-      out += rows.length ? rows.map((r) => `- ${r.text}`).join('\n') + '\n' : '(אין שורות)\n';
+      out += rows.length ? rows.map((r) => `- ${r.text.replace(/\n/g, ' ')}`).join('\n') + '\n' : '(אין שורות)\n';
     });
     download(out, `${title || 'SWOT'}.txt`);
   };

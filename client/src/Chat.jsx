@@ -92,7 +92,12 @@ export default function Chat({ info, user, token }) {
   const listRef = useRef();
   const inputRef = useRef();
   const typingTimer = useRef();
-  const vid = useMemo(() => localStorage.getItem('colabo.vid') || 'me', []);
+  // Per-browser visitor id, used to tell "my" messages apart from everyone else's.
+  const vid = useMemo(() => {
+    let v = localStorage.getItem('colabo.vid');
+    if (!v) { v = crypto.randomUUID(); localStorage.setItem('colabo.vid', v); }
+    return v;
+  }, []);
   const [sideW, setSideW] = useState(() => {
     const saved = +localStorage.getItem('colabo.chatSideW');
     return saved >= SIDE_MIN && saved <= SIDE_MAX ? saved : SIDE_DEFAULT;

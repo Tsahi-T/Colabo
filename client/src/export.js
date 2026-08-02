@@ -29,8 +29,10 @@ async function inlineImages(html) {
   return doc.body.innerHTML;
 }
 
+const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 function fullHtml(body, title) {
-  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>${title}</title><style>${DOC_CSS}</style></head><body>${body}</body></html>`;
+  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>${DOC_CSS}</style></head><body>${body}</body></html>`;
 }
 
 function download(blob, filename) {

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
-import { Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject } from './icons.jsx';
+import {
+  Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject,
+  IconDebrief, IconFlag, IconCompass, IconTarget,
+} from './icons.jsx';
 
 const TOOLS = [
   { type: 'doc', icon: <IconDoc />, cls: 'doc', name: 'מסמך', desc: 'מעבד תמלילים משותף — עיצוב מלא, כותרות, טבלאות ותמונות.' },
@@ -13,6 +16,10 @@ const TOOLS = [
   { type: 'sun', icon: <IconSun />, cls: 'sun', name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו — אסוציאציות, שותפים ומחשבות.' },
   { type: 'project', icon: <IconProject />, cls: 'project', name: 'ניהול פרויקטים', desc: 'כרטיס פרויקט — מטרה, תכולה, בעלי עניין, אבני דרך ומדדים.' },
   { type: 'chat', icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
+  { type: 'debrief', icon: <IconDebrief />, cls: 'debrief', name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים.' },
+  { type: 'discussion', icon: <IconFlag />, cls: 'discussion', name: 'סיכום דיון', desc: 'סיכום, החלטות ומשתתפים.' },
+  { type: 'meeting1on1', icon: <IconCompass />, cls: 'meeting1on1', name: 'פגישה אישית', desc: 'רקע, דברי הפרט, יעדים ומשימות.' },
+  { type: 'goals', icon: <IconTarget />, cls: 'goals', name: 'יעדים', desc: 'יעד ראשי, מדדים ומשימות.' },
 ];
 
 // Same category grouping as the home page, for the per-type creation breakdown.
@@ -21,6 +28,7 @@ const CATEGORIES = [
   { name: 'יום־יומי', types: ['doc', 'chat', 'tasks'] },
   { name: 'ניהול', types: ['risks', 'timeline', 'project'] },
   { name: 'ארגוני', types: ['board', 'swot', 'sun'] },
+  { name: 'תבניות', types: ['debrief', 'discussion', 'meeting1on1', 'goals'] },
 ];
 
 export default function About() {

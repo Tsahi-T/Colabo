@@ -392,6 +392,8 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .ab-n-doc { color: #2563eb; } .ab-n-board { color: #b45309; } .ab-n-timeline { color: #16a34a; }
 .ab-n-risks { color: #dc2626; } .ab-n-swot { color: #7c3aed; } .ab-n-tasks { color: #db2777; }
 .ab-n-sun { color: #d97706; } .ab-n-project { color: #4f46e5; } .ab-n-chat { color: #0891b2; }
+.ab-n-debrief { color: #0f766e; } .ab-n-discussion { color: #475569; }
+.ab-n-meeting1on1 { color: #a21caf; } .ab-n-goals { color: #047857; }
 @media (max-width: 560px) { .ab-usage-row { grid-template-columns: 1fr 1fr; } }
 .range-btns { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .range-btns button { border: 0; background: none; padding: .35rem .9rem; font-size: .85rem; color: var(--ink2); }

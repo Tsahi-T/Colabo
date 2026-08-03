@@ -19,7 +19,7 @@ const fmtNum = (n) => (Number.isInteger(n) ? n : Math.round(n * 100) / 100).toLo
 const STARTER_GAUGES = [
   { title: 'לו"ז', min: 0, max: 90, value: 52, th1: 30, th2: 60, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
   { title: 'תקציב', min: 0, max: 500000, value: 310000, th1: 200000, th2: 400000, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '₪', style: 'full' },
-  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'gradient' },
+  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'circle' },
 ];
 const defaultGauge = (n) => ({
   title: `מדד לדוגמה ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
@@ -51,11 +51,13 @@ function GrowingTitle({ value, onChange, placeholder }) {
 // Each style is a semicircle/arc defined by a start->end sweep (degrees, standard math
 // convention: 0°=right, 90°=up, 180°=left) around (cx,cy). t is always a 0..1 fraction of
 // the gauge's min..max range, never a raw value, so every helper below is style-agnostic.
+// Every style renders a smooth gradient band with tick marks — the only real differences
+// between them are the sweep shape (semicircle / 270° dial / full 360° donut) and, for the
+// donut, a much thicker band so it reads as solid/full rather than a thin arc.
 const STYLES = {
-  classic: { label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, ticks: false, labels: true },
-  full: { label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, ticks: true, labels: true },
-  gradient: { label: 'גרדיאנט מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, ticks: true, labels: true, gradient: true },
-  minimal: { label: 'מינימלי', start: 180, end: 0, viewBox: '0 0 200 110', cx: 100, cy: 96, r: 78, bandW: 7, ticks: false, labels: true },
+  classic: { label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, labels: true },
+  full: { label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, labels: true },
+  circle: { label: 'עיגול שלם', start: 90, end: -270, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 78, bandW: 34, labels: false },
 };
 const STYLE_KEYS = Object.keys(STYLES);
 
@@ -71,10 +73,10 @@ function arcPathFor(cfg, t0, t1, radius) {
   return `M ${p0.x} ${p0.y} A ${radius} ${radius} 0 ${largeArc} 1 ${p1.x} ${p1.y}`;
 }
 
-// ---- smooth color blending for the 'gradient' style — pure c0 at t=0, pure c1 at t=t1,
-// pure c2 at t=t2 (and beyond), blending linearly in between. Rendered as many thin arc
-// segments (real SVG gradients run in a straight line, which visibly mismatches a curved
-// arc's true midpoint) rather than a <linearGradient>.
+// ---- smooth color blending for the gauge band — pure c0 at t=0, pure c1 at t=t1, pure c2
+// at t=t2 (and beyond), blending linearly in between. Rendered as many thin arc segments
+// (a real SVG gradient runs in a straight line, which visibly mismatches a curved arc's
+// true midpoint) rather than a <linearGradient>.
 const hexToRgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgbToHex = (rgb) => '#' + rgb.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
 function lerpColor(c0, c1, f) {
@@ -103,22 +105,14 @@ function GaugeSvg({ g }) {
   if (th1 > th2) [th1, th2] = [th2, th1];
   const t1 = (th1 - min) / (max - min), t2 = (th2 - min) / (max - min);
 
-  const bands = [
-    { from: 0, to: t1, color: g.c0 || '#ef4444' },
-    { from: t1, to: t2, color: g.c1 || '#f59e0b' },
-    { from: t2, to: 1, color: g.c2 || '#22c55e' },
-  ].filter((b) => b.to > b.from);
-
   const GRADIENT_SEGMENTS = 48;
   const gradientSegs = [];
-  if (cfg.gradient) {
-    for (let i = 0; i < GRADIENT_SEGMENTS; i++) {
-      const from = i / GRADIENT_SEGMENTS, to = (i + 1) / GRADIENT_SEGMENTS;
-      gradientSegs.push(
-        <path key={i} d={arcPathFor(cfg, from, to, cfg.r)} stroke={colorAt(g, (from + to) / 2, t1, t2)}
-          strokeWidth={cfg.bandW} fill="none" strokeLinecap="butt" />
-      );
-    }
+  for (let i = 0; i < GRADIENT_SEGMENTS; i++) {
+    const from = i / GRADIENT_SEGMENTS, to = (i + 1) / GRADIENT_SEGMENTS;
+    gradientSegs.push(
+      <path key={i} d={arcPathFor(cfg, from, to, cfg.r)} stroke={colorAt(g, (from + to) / 2, t1, t2)}
+        strokeWidth={cfg.bandW} fill="none" strokeLinecap="butt" />
+    );
   }
 
   const needleLen = cfg.r - cfg.bandW - 8;
@@ -126,27 +120,17 @@ function GaugeSvg({ g }) {
   const maxLabel = polarFor(cfg, cfg.end, cfg.r + 15);
 
   const ticks = [];
-  if (cfg.ticks) {
-    for (let i = 0; i <= 10; i++) {
-      const tt = i / 10;
-      const a = angleFor(cfg, tt);
-      const p0 = polarFor(cfg, a, cfg.r - cfg.bandW - 2);
-      const p1 = polarFor(cfg, a, cfg.r - cfg.bandW - (i % 5 === 0 ? 11 : 7));
-      ticks.push(<line key={i} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} className="gz-tick" />);
-    }
+  for (let i = 0; i <= 10; i++) {
+    const tt = i / 10;
+    const a = angleFor(cfg, tt);
+    const p0 = polarFor(cfg, a, cfg.r - cfg.bandW - 2);
+    const p1 = polarFor(cfg, a, cfg.r - cfg.bandW - (i % 5 === 0 ? 11 : 7));
+    ticks.push(<line key={i} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} className="gz-tick" />);
   }
 
   return (
     <svg className="gz-svg" viewBox={cfg.viewBox}>
-      {cfg.gradient ? (
-        <g className="gz-bands">{gradientSegs}</g>
-      ) : (
-        <g className="gz-bands">
-          {bands.map((b, i) => (
-            <path key={i} d={arcPathFor(cfg, b.from, b.to, cfg.r)} stroke={b.color} strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />
-          ))}
-        </g>
-      )}
+      <g className="gz-bands">{gradientSegs}</g>
       {ticks}
       {cfg.labels && <>
         <text x={minLabel.x} y={minLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(min)}</text>

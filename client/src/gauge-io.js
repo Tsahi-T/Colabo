@@ -16,11 +16,12 @@ function parseCsv(text) {
   return rows;
 }
 
-const HEADERS = ['נושא', 'מינימום', 'מקסימום', 'ערך נוכחי', 'סף אדום-צהוב', 'סף צהוב-ירוק', 'צבע נמוך', 'צבע בינוני', 'צבע גבוה', 'יחידה'];
+const HEADERS = ['נושא', 'מינימום', 'מקסימום', 'ערך נוכחי', 'סף אדום-צהוב', 'סף צהוב-ירוק', 'צבע נמוך', 'צבע בינוני', 'צבע גבוה', 'יחידה', 'עיצוב'];
+const STYLE_KEYS = ['classic', 'full', 'ring', 'minimal'];
 
 export function gaugesToCsv(list) {
   const lines = [row(HEADERS)];
-  list.forEach((g) => lines.push(row([g.title, g.min, g.max, g.value, g.th1, g.th2, g.c0, g.c1, g.c2, g.unit || ''])));
+  list.forEach((g) => lines.push(row([g.title, g.min, g.max, g.value, g.th1, g.th2, g.c0, g.c1, g.c2, g.unit || '', g.style || 'classic'])));
   return lines.join('\r\n') + '\r\n';
 }
 
@@ -41,5 +42,6 @@ export function csvToGauges(text) {
       c1: HEX.test(r[7]) ? r[7] : '#f59e0b',
       c2: HEX.test(r[8]) ? r[8] : '#22c55e',
       unit: (r[9] || '').trim(),
+      style: STYLE_KEYS.includes((r[10] || '').trim()) ? r[10].trim() : 'classic',
     }));
 }

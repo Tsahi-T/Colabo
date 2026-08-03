@@ -14,9 +14,16 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const num = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
 const fmtNum = (n) => (Number.isInteger(n) ? n : Math.round(n * 100) / 100).toLocaleString('he-IL');
 
+// Three varied starter gauges — different scales/units on purpose, so a brand-new dashboard
+// doesn't look like it only works for 0-100% metrics.
+const STARTER_GAUGES = [
+  { title: 'לו"ז', min: 0, max: 90, value: 52, th1: 30, th2: 60, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
+  { title: 'תקציב', min: 0, max: 500000, value: 310000, th1: 200000, th2: 400000, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '₪', style: 'full' },
+  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'ring' },
+];
 const defaultGauge = (n) => ({
-  title: `מדד ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
-  c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%',
+  title: `מדד לדוגמה ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
+  c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'classic',
 });
 
 const download = (text, name) => {
@@ -28,58 +35,121 @@ const download = (text, name) => {
   URL.revokeObjectURL(a.href);
 };
 
-// ---- gauge geometry: a semicircle, angle 180° (left/min) sweeping over the top to 0° (right/max) ----
-const CX = 100, CY = 104, R = 82, BAND_W = 16;
-function polar(angleDeg, radius) {
-  const rad = (angleDeg * Math.PI) / 180;
-  return { x: CX + radius * Math.cos(rad), y: CY - radius * Math.sin(rad) };
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
-function bandPath(fromV, toV, min, max) {
-  const a0 = 180 - ((fromV - min) / (max - min)) * 180;
-  const a1 = 180 - ((toV - min) / (max - min)) * 180;
-  const p0 = polar(a0, R), p1 = polar(a1, R);
+// Title grows downward (capped at ~3 lines via CSS max-height) instead of hiding overflow text.
+function GrowingTitle({ value, onChange, placeholder }) {
+  const ref = useRef();
+  useEffect(() => { autoGrow(ref.current); }, [value]);
+  return <textarea ref={ref} className="gz-title-in" rows={1} placeholder={placeholder} value={value} onChange={onChange} />;
+}
+
+// ---- gauge geometry ----------------------------------------------------------------
+// Each style is a semicircle/arc defined by a start->end sweep (degrees, standard math
+// convention: 0°=right, 90°=up, 180°=left) around (cx,cy). t is always a 0..1 fraction of
+// the gauge's min..max range, never a raw value, so every helper below is style-agnostic.
+const STYLES = {
+  classic: { label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, ticks: false, labels: true },
+  full: { label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, ticks: true, labels: true },
+  ring: { label: 'טבעת התקדמות', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 18, ring: true, labels: false },
+  minimal: { label: 'מינימלי', start: 180, end: 0, viewBox: '0 0 200 110', cx: 100, cy: 96, r: 78, bandW: 7, ticks: false, labels: true },
+};
+const STYLE_KEYS = Object.keys(STYLES);
+
+function polarFor(cfg, angleDeg, radius) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return { x: cfg.cx + radius * Math.cos(rad), y: cfg.cy - radius * Math.sin(rad) };
+}
+function angleFor(cfg, t) { return cfg.start - t * (cfg.start - cfg.end); }
+function arcPathFor(cfg, t0, t1, radius) {
+  const a0 = angleFor(cfg, t0), a1 = angleFor(cfg, t1);
+  const p0 = polarFor(cfg, a0, radius), p1 = polarFor(cfg, a1, radius);
   const largeArc = Math.abs(a0 - a1) > 180 ? 1 : 0;
-  return `M ${p0.x} ${p0.y} A ${R} ${R} 0 ${largeArc} 1 ${p1.x} ${p1.y}`;
+  return `M ${p0.x} ${p0.y} A ${radius} ${radius} 0 ${largeArc} 1 ${p1.x} ${p1.y}`;
 }
 
 function GaugeSvg({ g }) {
+  const cfg = STYLES[g.style] || STYLES.classic;
   const min = num(g.min, 0);
   const max = num(g.max, 100) > min ? num(g.max, 100) : min + 1;
   const value = clamp(num(g.value, min), min, max);
   const t = (value - min) / (max - min);
-  const angle = 180 - t * 180;
+  const angle = angleFor(cfg, t);
 
   let th1 = clamp(num(g.th1, min), min, max);
   let th2 = clamp(num(g.th2, max), min, max);
   if (th1 > th2) [th1, th2] = [th2, th1];
+  const t1 = (th1 - min) / (max - min), t2 = (th2 - min) / (max - min);
 
+  const zoneColor = t <= t1 ? (g.c0 || '#ef4444') : t <= t2 ? (g.c1 || '#f59e0b') : (g.c2 || '#22c55e');
   const bands = [
-    { from: min, to: th1, color: g.c0 || '#ef4444' },
-    { from: th1, to: th2, color: g.c1 || '#f59e0b' },
-    { from: th2, to: max, color: g.c2 || '#22c55e' },
+    { from: 0, to: t1, color: g.c0 || '#ef4444' },
+    { from: t1, to: t2, color: g.c1 || '#f59e0b' },
+    { from: t2, to: 1, color: g.c2 || '#22c55e' },
   ].filter((b) => b.to > b.from);
 
-  const minLabel = polar(180, R + 15);
-  const maxLabel = polar(0, R + 15);
+  const needleLen = cfg.r - cfg.bandW - 8;
+  const minLabel = polarFor(cfg, cfg.start, cfg.r + 15);
+  const maxLabel = polarFor(cfg, cfg.end, cfg.r + 15);
+
+  const ticks = [];
+  if (cfg.ticks) {
+    for (let i = 0; i <= 10; i++) {
+      const tt = i / 10;
+      const a = angleFor(cfg, tt);
+      const p0 = polarFor(cfg, a, cfg.r - cfg.bandW - 2);
+      const p1 = polarFor(cfg, a, cfg.r - cfg.bandW - (i % 5 === 0 ? 11 : 7));
+      ticks.push(<line key={i} x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} className="gz-tick" />);
+    }
+  }
 
   return (
-    <svg className="gz-svg" viewBox="0 0 200 118">
-      <g className="gz-bands">
-        {bands.map((b, i) => (
-          <path key={i} d={bandPath(b.from, b.to, min, max)} stroke={b.color} strokeWidth={BAND_W} fill="none" strokeLinecap="round" />
-        ))}
-      </g>
-      <text x={minLabel.x} y={minLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(min)}</text>
-      <text x={maxLabel.x} y={maxLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(max)}</text>
-      <g className="gz-needle-g" style={{ transform: `rotate(${90 - angle}deg)`, transformOrigin: `${CX}px ${CY}px` }}>
-        <line x1={CX} y1={CY} x2={CX} y2={CY - (R - BAND_W - 8)} className="gz-needle" />
-      </g>
-      <circle cx={CX} cy={CY} r="7" className="gz-hub" />
+    <svg className="gz-svg" viewBox={cfg.viewBox}>
+      {cfg.ring ? (
+        <>
+          <path d={arcPathFor(cfg, 0, 1, cfg.r)} stroke="var(--border)" strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />
+          {t > 0.002 && <path d={arcPathFor(cfg, 0, t, cfg.r)} stroke={zoneColor} strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />}
+        </>
+      ) : (
+        <g className="gz-bands">
+          {bands.map((b, i) => (
+            <path key={i} d={arcPathFor(cfg, b.from, b.to, cfg.r)} stroke={b.color} strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />
+          ))}
+        </g>
+      )}
+      {ticks}
+      {cfg.labels && <>
+        <text x={minLabel.x} y={minLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(min)}</text>
+        <text x={maxLabel.x} y={maxLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(max)}</text>
+      </>}
+      {!cfg.ring && (
+        <>
+          <g className="gz-needle-g" style={{ transform: `rotate(${90 - angle}deg)`, transformOrigin: `${cfg.cx}px ${cfg.cy}px` }}>
+            <line x1={cfg.cx} y1={cfg.cy} x2={cfg.cx} y2={cfg.cy - needleLen} className="gz-needle" />
+            <polygon points={`${cfg.cx - 4},${cfg.cy - needleLen + 9} ${cfg.cx + 4},${cfg.cy - needleLen + 9} ${cfg.cx},${cfg.cy - needleLen}`} className="gz-needle-tip" />
+          </g>
+          <circle cx={cfg.cx} cy={cfg.cy} r="7" className="gz-hub" />
+        </>
+      )}
     </svg>
   );
 }
 
-function GaugeCard({ g, editable, onChange, onDelete }) {
+function StylePicker({ value, onChange }) {
+  return (
+    <div className="gz-style-picker">
+      {STYLE_KEYS.map((k) => (
+        <button key={k} type="button" className={'gz-style-btn' + (value === k || (!value && k === 'classic') ? ' sel' : '')}
+          onClick={() => onChange(k)}>{STYLES[k].label}</button>
+      ))}
+    </div>
+  );
+}
+
+function GaugeCard({ g, editable, open, onToggleOpen, onChange, onDelete }) {
   const set = (patch) => onChange(g.id, patch);
   const min = num(g.min, 0);
   const max = num(g.max, 100) > min ? num(g.max, 100) : min + 1;
@@ -89,7 +159,7 @@ function GaugeCard({ g, editable, onChange, onDelete }) {
     <div className="gz-card">
       <div className="gz-head">
         {editable
-          ? <input className="gz-title-in" value={g.title} placeholder="נושא" onChange={(e) => set({ title: e.target.value })} />
+          ? <GrowingTitle value={g.title} placeholder="נושא" onChange={(e) => set({ title: e.target.value })} />
           : <h3>{g.title || 'ללא שם'}</h3>}
         {editable && <button className="gz-x" title="מחיקת השעון" onClick={() => onDelete(g)}>✕</button>}
       </div>
@@ -98,28 +168,40 @@ function GaugeCard({ g, editable, onChange, onDelete }) {
       <div className="gz-value">{value}{g.unit ? <span className="gz-unit"> {g.unit}</span> : null}</div>
 
       {editable && (
-        <div className="gz-edit">
-          <label className="gz-field gz-field-wide">
-            <span>ערך נוכחי</span>
-            <input type="number" value={g.value} onChange={(e) => set({ value: e.target.value })} />
-          </label>
-          <div className="gz-edit-row">
-            <label className="gz-field"><span>מינימום</span><input type="number" value={g.min} onChange={(e) => set({ min: e.target.value })} /></label>
-            <label className="gz-field"><span>מקסימום</span><input type="number" value={g.max} onChange={(e) => set({ max: e.target.value })} /></label>
-          </div>
-          <div className="gz-edit-row">
-            <label className="gz-field"><span>סף אדום ← צהוב</span><input type="number" value={g.th1} onChange={(e) => set({ th1: e.target.value })} /></label>
-            <label className="gz-field"><span>סף צהוב ← ירוק</span><input type="number" value={g.th2} onChange={(e) => set({ th2: e.target.value })} /></label>
-          </div>
-          <label className="gz-field">
-            <span>יחידה</span>
-            <input value={g.unit || ''} placeholder="%, ₪, יח'…" onChange={(e) => set({ unit: e.target.value })} />
-          </label>
-          <div className="gz-colors">
-            <label className="gz-color"><input type="color" value={g.c0} onChange={(e) => set({ c0: e.target.value })} /><span>נמוך</span></label>
-            <label className="gz-color"><input type="color" value={g.c1} onChange={(e) => set({ c1: e.target.value })} /><span>בינוני</span></label>
-            <label className="gz-color"><input type="color" value={g.c2} onChange={(e) => set({ c2: e.target.value })} /><span>גבוה</span></label>
-          </div>
+        <div className="gz-acc">
+          <button type="button" className="gz-acc-head" onClick={onToggleOpen}>
+            <span>פרטי עריכה</span>
+            <span className="gz-acc-chevron">{open ? '⌃' : '⌄'}</span>
+          </button>
+          {open && (
+            <div className="gz-edit">
+              <label className="gz-field gz-field-wide">
+                <span>ערך נוכחי</span>
+                <input type="number" value={g.value} onChange={(e) => set({ value: e.target.value })} />
+              </label>
+              <div className="gz-edit-row">
+                <label className="gz-field"><span>מינימום</span><input type="number" value={g.min} onChange={(e) => set({ min: e.target.value })} /></label>
+                <label className="gz-field"><span>מקסימום</span><input type="number" value={g.max} onChange={(e) => set({ max: e.target.value })} /></label>
+              </div>
+              <div className="gz-edit-row">
+                <label className="gz-field"><span>סף אדום ← צהוב</span><input type="number" value={g.th1} onChange={(e) => set({ th1: e.target.value })} /></label>
+                <label className="gz-field"><span>סף צהוב ← ירוק</span><input type="number" value={g.th2} onChange={(e) => set({ th2: e.target.value })} /></label>
+              </div>
+              <label className="gz-field">
+                <span>יחידה</span>
+                <input value={g.unit || ''} placeholder="%, ₪, יח'…" onChange={(e) => set({ unit: e.target.value })} />
+              </label>
+              <div className="gz-colors">
+                <label className="gz-color"><input type="color" value={g.c0} onChange={(e) => set({ c0: e.target.value })} /><span>נמוך</span></label>
+                <label className="gz-color"><input type="color" value={g.c1} onChange={(e) => set({ c1: e.target.value })} /><span>בינוני</span></label>
+                <label className="gz-color"><input type="color" value={g.c2} onChange={(e) => set({ c2: e.target.value })} /><span>גבוה</span></label>
+              </div>
+              <label className="gz-field">
+                <span>עיצוב השעון</span>
+                <StylePicker value={g.style} onChange={(style) => set({ style })} />
+              </label>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -132,6 +214,7 @@ export default function Gauges({ info, user, token }) {
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
+  const [closedIds, setClosedIds] = useState(() => new Set());
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -142,18 +225,18 @@ export default function Gauges({ info, user, token }) {
     return new HocuspocusProvider({
       url: `${proto}://${location.host}/collab`, name: info.docId, token, document: ydoc,
       onStatus: ({ status }) => setStatus(status),
-      // Seed 3 starter gauges the first time this doc is opened (post-sync, so we know it's
-      // genuinely empty and not just pre-sync local state). Guarded by a meta flag so it only
-      // ever runs once per doc, not once per viewer.
+      // Seed 3 varied starter gauges the first time this doc is opened (post-sync, so we know
+      // it's genuinely empty and not just pre-sync local state). Guarded by a meta flag so it
+      // only ever runs once per doc, not once per viewer.
       onSynced: ({ state }) => {
         if (!state || !editable) return;
         if (gauges.size === 0 && !meta.get('seeded')) {
           ydoc.transact(() => {
             meta.set('seeded', true);
-            [1, 2, 3].forEach((n) => {
+            STARTER_GAUGES.forEach((sg, i) => {
               const id = uid(), m = new Y.Map();
-              Object.entries(defaultGauge(n)).forEach(([k, v]) => m.set(k, v));
-              m.set('ord', n);
+              Object.entries(sg).forEach(([k, v]) => m.set(k, v));
+              m.set('ord', i + 1);
               gauges.set(id, m);
             });
           });
@@ -197,6 +280,17 @@ export default function Gauges({ info, user, token }) {
   function delGauge(g) {
     if (!confirm(`למחוק את השעון "${g.title || 'ללא שם'}"?`)) return;
     gauges.delete(g.id);
+  }
+  function toggleOpen(id) {
+    setClosedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  const anyOpen = list.some((g) => !closedIds.has(g.id));
+  function toggleAllOpen() {
+    setClosedIds(anyOpen ? new Set(list.map((g) => g.id)) : new Set());
   }
 
   const exportCsv = () => download(gaugesToCsv(list), `${title || 'דשבורד הערכת מצב'}.csv`);
@@ -250,12 +344,16 @@ export default function Gauges({ info, user, token }) {
         {editable && (
           <div className="gz-bar">
             <button className="btn-primary" onClick={addGauge}>+ שעון חדש</button>
-            <span className="hint">כל שעון: נושא, טווח, ערך נוכחי, ספי צבע וצבעים - הכל ניתן לעריכה</span>
+            {list.length > 0 && (
+              <button className="btn" onClick={toggleAllOpen}>{anyOpen ? 'הסתרת פרטי עריכה בכולם' : 'הצגת פרטי עריכה בכולם'}</button>
+            )}
+            <span className="hint">כל שעון: נושא, טווח, ערך נוכחי, ספי צבע, צבעים ועיצוב - הכל ניתן לעריכה</span>
           </div>
         )}
         <div className="gz-grid">
           {list.map((g) => (
-            <GaugeCard key={g.id} g={g} editable={editable} onChange={setGauge} onDelete={delGauge} />
+            <GaugeCard key={g.id} g={g} editable={editable} open={!closedIds.has(g.id)}
+              onToggleOpen={() => toggleOpen(g.id)} onChange={setGauge} onDelete={delGauge} />
           ))}
         </div>
         {!list.length && <div className="tlr-empty">אין עדיין שעונים - מוסיפים בכפתור למעלה</div>}

@@ -1077,28 +1077,45 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
   background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
   padding: 1rem 1.1rem 1.2rem; box-shadow: var(--card-shadow); display: flex; flex-direction: column; align-items: center;
 }
-.gz-head { width: 100%; display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
-.gz-head h3 { margin: 0; font-size: .98rem; flex: 1; text-align: center; unicode-bidi: plaintext; }
+.gz-head { width: 100%; display: flex; align-items: flex-start; gap: .5rem; margin-bottom: .3rem; }
+.gz-head h3 { margin: 0; font-size: .98rem; flex: 1; min-width: 0; text-align: center; unicode-bidi: plaintext; overflow-wrap: anywhere; }
 .gz-title-in {
-  flex: 1; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink);
+  flex: 1; min-width: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink);
   font-size: .95rem; font-weight: 700; text-align: center; padding: .3rem .4rem; unicode-bidi: plaintext;
+  font-family: inherit; resize: none; overflow-y: auto; max-height: 4.6em; line-height: 1.35; overflow-wrap: anywhere;
 }
 .gz-title-in:hover, .gz-title-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
 .gz-x { border: 0; background: none; color: var(--ink3); border-radius: 6px; padding: .2rem .45rem; flex-shrink: 0; }
 .gz-x:hover { background: var(--hover); color: #dc2626; }
 .gz-svg { width: 100%; max-width: 220px; overflow: visible; }
 .gz-tick-label { font-size: 9px; fill: var(--ink3); font-family: inherit; }
+.gz-tick { stroke: var(--border); stroke-width: 1.4; }
 .gz-needle-g { transition: transform .5s cubic-bezier(.34, 1.35, .64, 1); }
 .gz-needle { stroke: var(--ink); stroke-width: 3.4; stroke-linecap: round; }
+.gz-needle-tip { fill: var(--ink); }
 .gz-hub { fill: var(--panel); stroke: var(--ink); stroke-width: 2.5; }
 .gz-value { margin-top: -.6rem; font-size: 1.6rem; font-weight: 800; color: var(--ink); }
 .gz-unit { font-size: .95rem; font-weight: 600; color: var(--ink2); }
-.gz-edit { width: 100%; display: flex; flex-direction: column; gap: .5rem; margin-top: .8rem; padding-top: .8rem; border-top: 1px solid var(--border); }
-.gz-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.gz-field { display: flex; flex-direction: column; gap: .2rem; font-size: .74rem; color: var(--ink2); }
-.gz-field input { border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--ink); padding: .35rem .5rem; font-size: .85rem; }
+.gz-acc { width: 100%; margin-top: .8rem; padding-top: .5rem; border-top: 1px solid var(--border); }
+.gz-acc-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  border: 0; background: none; padding: .3rem .1rem; color: var(--ink2); font-size: .8rem; font-weight: 600;
+}
+.gz-acc-head:hover { color: var(--ink); }
+.gz-acc-chevron { color: var(--ink3); font-size: 1rem; }
+.gz-edit { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; box-sizing: border-box; }
+.gz-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; min-width: 0; }
+.gz-field { display: flex; flex-direction: column; gap: .2rem; font-size: .74rem; color: var(--ink2); min-width: 0; }
+.gz-field input {
+  width: 100%; box-sizing: border-box; min-width: 0;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--ink); padding: .35rem .5rem; font-size: .85rem;
+}
 .gz-field-wide input { font-size: 1.05rem; font-weight: 700; text-align: center; }
 .gz-colors { display: flex; justify-content: space-between; gap: .5rem; margin-top: .2rem; }
+.gz-style-picker { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
+.gz-style-btn { flex: 1; min-width: 64px; border: 1px solid var(--border); background: var(--bg); color: var(--ink2); border-radius: 7px; padding: .3rem .4rem; font-size: .72rem; }
+.gz-style-btn.sel { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.gz-style-btn:hover { border-color: var(--accent); }
 .gz-color { display: flex; flex-direction: column; align-items: center; gap: .25rem; font-size: .72rem; color: var(--ink2); }
 .gz-color input[type=color] { width: 34px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
 

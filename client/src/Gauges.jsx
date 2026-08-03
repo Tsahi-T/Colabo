@@ -19,7 +19,7 @@ const fmtNum = (n) => (Number.isInteger(n) ? n : Math.round(n * 100) / 100).toLo
 const STARTER_GAUGES = [
   { title: 'לו"ז', min: 0, max: 90, value: 52, th1: 30, th2: 60, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
   { title: 'תקציב', min: 0, max: 500000, value: 310000, th1: 200000, th2: 400000, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '₪', style: 'full' },
-  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'ring' },
+  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'gradient' },
 ];
 const defaultGauge = (n) => ({
   title: `מדד לדוגמה ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
@@ -54,7 +54,7 @@ function GrowingTitle({ value, onChange, placeholder }) {
 const STYLES = {
   classic: { label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, ticks: false, labels: true },
   full: { label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, ticks: true, labels: true },
-  ring: { label: 'טבעת התקדמות', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 18, ring: true, labels: false },
+  gradient: { label: 'גרדיאנט מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, ticks: true, labels: true, gradient: true },
   minimal: { label: 'מינימלי', start: 180, end: 0, viewBox: '0 0 200 110', cx: 100, cy: 96, r: 78, bandW: 7, ticks: false, labels: true },
 };
 const STYLE_KEYS = Object.keys(STYLES);
@@ -71,6 +71,25 @@ function arcPathFor(cfg, t0, t1, radius) {
   return `M ${p0.x} ${p0.y} A ${radius} ${radius} 0 ${largeArc} 1 ${p1.x} ${p1.y}`;
 }
 
+// ---- smooth color blending for the 'gradient' style — pure c0 at t=0, pure c1 at t=t1,
+// pure c2 at t=t2 (and beyond), blending linearly in between. Rendered as many thin arc
+// segments (real SVG gradients run in a straight line, which visibly mismatches a curved
+// arc's true midpoint) rather than a <linearGradient>.
+const hexToRgb = (hex) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const rgbToHex = (rgb) => '#' + rgb.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+function lerpColor(c0, c1, f) {
+  const a = hexToRgb(c0), b = hexToRgb(c1);
+  return rgbToHex(a.map((v, i) => v + (b[i] - v) * f));
+}
+function colorAt(g, t, t1, t2) {
+  const c0 = g.c0 || '#ef4444', c1 = g.c1 || '#f59e0b', c2 = g.c2 || '#22c55e';
+  if (t1 <= 0 && t2 <= 0) return c2; // both thresholds at/below min: the whole range reads as "high"
+  if (t1 <= 0) return t2 > 0 && t <= t2 ? lerpColor(c1, c2, t / t2) : c2; // no red zone: blend c1->c2 only
+  if (t <= t1) return lerpColor(c0, c1, t / t1);
+  if (t2 > t1 && t <= t2) return lerpColor(c1, c2, (t - t1) / (t2 - t1));
+  return c2;
+}
+
 function GaugeSvg({ g }) {
   const cfg = STYLES[g.style] || STYLES.classic;
   const min = num(g.min, 0);
@@ -84,12 +103,23 @@ function GaugeSvg({ g }) {
   if (th1 > th2) [th1, th2] = [th2, th1];
   const t1 = (th1 - min) / (max - min), t2 = (th2 - min) / (max - min);
 
-  const zoneColor = t <= t1 ? (g.c0 || '#ef4444') : t <= t2 ? (g.c1 || '#f59e0b') : (g.c2 || '#22c55e');
   const bands = [
     { from: 0, to: t1, color: g.c0 || '#ef4444' },
     { from: t1, to: t2, color: g.c1 || '#f59e0b' },
     { from: t2, to: 1, color: g.c2 || '#22c55e' },
   ].filter((b) => b.to > b.from);
+
+  const GRADIENT_SEGMENTS = 48;
+  const gradientSegs = [];
+  if (cfg.gradient) {
+    for (let i = 0; i < GRADIENT_SEGMENTS; i++) {
+      const from = i / GRADIENT_SEGMENTS, to = (i + 1) / GRADIENT_SEGMENTS;
+      gradientSegs.push(
+        <path key={i} d={arcPathFor(cfg, from, to, cfg.r)} stroke={colorAt(g, (from + to) / 2, t1, t2)}
+          strokeWidth={cfg.bandW} fill="none" strokeLinecap="butt" />
+      );
+    }
+  }
 
   const needleLen = cfg.r - cfg.bandW - 8;
   const minLabel = polarFor(cfg, cfg.start, cfg.r + 15);
@@ -108,11 +138,8 @@ function GaugeSvg({ g }) {
 
   return (
     <svg className="gz-svg" viewBox={cfg.viewBox}>
-      {cfg.ring ? (
-        <>
-          <path d={arcPathFor(cfg, 0, 1, cfg.r)} stroke="var(--border)" strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />
-          {t > 0.002 && <path d={arcPathFor(cfg, 0, t, cfg.r)} stroke={zoneColor} strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />}
-        </>
+      {cfg.gradient ? (
+        <g className="gz-bands">{gradientSegs}</g>
       ) : (
         <g className="gz-bands">
           {bands.map((b, i) => (
@@ -125,15 +152,11 @@ function GaugeSvg({ g }) {
         <text x={minLabel.x} y={minLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(min)}</text>
         <text x={maxLabel.x} y={maxLabel.y + 12} className="gz-tick-label" textAnchor="middle">{fmtNum(max)}</text>
       </>}
-      {!cfg.ring && (
-        <>
-          <g className="gz-needle-g" style={{ transform: `rotate(${90 - angle}deg)`, transformOrigin: `${cfg.cx}px ${cfg.cy}px` }}>
-            <line x1={cfg.cx} y1={cfg.cy} x2={cfg.cx} y2={cfg.cy - needleLen} className="gz-needle" />
-            <polygon points={`${cfg.cx - 4},${cfg.cy - needleLen + 9} ${cfg.cx + 4},${cfg.cy - needleLen + 9} ${cfg.cx},${cfg.cy - needleLen}`} className="gz-needle-tip" />
-          </g>
-          <circle cx={cfg.cx} cy={cfg.cy} r="7" className="gz-hub" />
-        </>
-      )}
+      <g className="gz-needle-g" style={{ transform: `rotate(${90 - angle}deg)`, transformOrigin: `${cfg.cx}px ${cfg.cy}px` }}>
+        <line x1={cfg.cx} y1={cfg.cy} x2={cfg.cx} y2={cfg.cy - needleLen} className="gz-needle" />
+        <polygon points={`${cfg.cx - 4},${cfg.cy - needleLen + 9} ${cfg.cx + 4},${cfg.cy - needleLen + 9} ${cfg.cx},${cfg.cy - needleLen}`} className="gz-needle-tip" />
+      </g>
+      <circle cx={cfg.cx} cy={cfg.cy} r="7" className="gz-hub" />
     </svg>
   );
 }

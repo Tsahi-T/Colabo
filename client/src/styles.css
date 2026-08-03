@@ -1087,7 +1087,10 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
 .gz-title-in:hover, .gz-title-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
 .gz-x { border: 0; background: none; color: var(--ink3); border-radius: 6px; padding: .2rem .45rem; flex-shrink: 0; }
 .gz-x:hover { background: var(--hover); color: #dc2626; }
-.gz-svg { width: 100%; max-width: 220px; overflow: visible; }
+/* fixed height (not just max-width) so every style renders the same visual size in a card —
+   without it, styles with a taller/squarer viewBox (e.g. the 200x200 full-dial ones) made
+   their whole card noticeably taller than the semicircle styles when placed side by side. */
+.gz-svg { width: 100%; max-width: 220px; height: 130px; overflow: visible; }
 .gz-tick-label { font-size: 9px; fill: var(--ink3); font-family: inherit; }
 .gz-tick { stroke: var(--border); stroke-width: 1.4; }
 .gz-needle-g { transition: transform .5s cubic-bezier(.34, 1.35, .64, 1); }

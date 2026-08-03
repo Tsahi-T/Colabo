@@ -4,7 +4,7 @@ import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
 import {
   IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject, IconDebrief,
-  IconTarget, IconFlag, IconCompass,
+  IconTarget, IconFlag, IconCompass, IconGauge,
 } from './icons.jsx';
 import turboLogo from './assets/turbo-logo.png';
 
@@ -22,6 +22,7 @@ const TYPE_ICON = {
   discussion: <span className="ricon discussion"><IconFlag /></span>,
   meeting1on1: <span className="ricon meeting1on1"><IconCompass /></span>,
   goals: <span className="ricon goals"><IconTarget /></span>,
+  gauges: <span className="ricon gauges"><IconGauge /></span>,
 };
 
 const GROUPS = [
@@ -39,6 +40,7 @@ const GROUPS = [
       { type: 'risks', cls: 'risks', icon: <IconRisk />, name: 'ניהול סיכונים', desc: 'טבלה ומטריצת חומרה/הסתברות' },
       { type: 'timeline', cls: 'timeline', icon: <IconTimeline />, name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים' },
       { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקטים', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
+      { type: 'gauges', cls: 'gauges', icon: <IconGauge />, name: 'דשבורד הערכת מצב', desc: 'שעוני מדידה - נושא, טווח ועמידה נוכחית' },
     ],
   },
   {

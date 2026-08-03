@@ -418,6 +418,7 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 .ab-n-sun { color: #d97706; } .ab-n-project { color: #4f46e5; } .ab-n-chat { color: #0891b2; }
 .ab-n-debrief { color: #0f766e; } .ab-n-discussion { color: #475569; }
 .ab-n-meeting1on1 { color: #a21caf; } .ab-n-goals { color: #047857; }
+.ab-n-gauges { color: #4d7c0f; }
 @media (max-width: 560px) { .ab-usage-row { grid-template-columns: 1fr 1fr; } }
 .range-btns { display: flex; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .range-btns button { border: 0; background: none; padding: .35rem .9rem; font-size: .85rem; color: var(--ink2); }
@@ -631,6 +632,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .ico.goals { background: rgba(5, 150, 105, .13); color: #047857; }
 [data-theme='dark'] .ico.goals { color: #6ee7b7; }
 .ricon.goals { color: #047857; }
+.ico.gauges { background: rgba(101, 163, 13, .14); color: #4d7c0f; }
+[data-theme='dark'] .ico.gauges { color: #a3e635; }
+.ricon.gauges { color: #4d7c0f; }
 .sw-page { flex: 1; overflow-y: auto; padding: 1.2rem; }
 .sw-grid { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .sw-quad {
@@ -1062,6 +1066,42 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
 .tk-embed .tk-table-wrap, .rk-embed .rk-page { overflow: visible; padding: .8rem .4rem; }
 .rk-embed .rk-table-wrap { padding: 0 .4rem .4rem; }
 
+/* ---------- Gauges (gz-) status-assessment dashboard ---------- */
+.gz-page { flex: 1; overflow-y: auto; padding: 1.2rem; }
+.gz-bar { display: flex; align-items: center; gap: .8rem; max-width: 1180px; margin: 0 auto .9rem; }
+.gz-grid {
+  max-width: 1180px; margin: 0 auto; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
+}
+.gz-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+  padding: 1rem 1.1rem 1.2rem; box-shadow: var(--card-shadow); display: flex; flex-direction: column; align-items: center;
+}
+.gz-head { width: 100%; display: flex; align-items: center; gap: .5rem; margin-bottom: .3rem; }
+.gz-head h3 { margin: 0; font-size: .98rem; flex: 1; text-align: center; unicode-bidi: plaintext; }
+.gz-title-in {
+  flex: 1; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink);
+  font-size: .95rem; font-weight: 700; text-align: center; padding: .3rem .4rem; unicode-bidi: plaintext;
+}
+.gz-title-in:hover, .gz-title-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
+.gz-x { border: 0; background: none; color: var(--ink3); border-radius: 6px; padding: .2rem .45rem; flex-shrink: 0; }
+.gz-x:hover { background: var(--hover); color: #dc2626; }
+.gz-svg { width: 100%; max-width: 220px; overflow: visible; }
+.gz-tick-label { font-size: 9px; fill: var(--ink3); font-family: inherit; }
+.gz-needle-g { transition: transform .5s cubic-bezier(.34, 1.35, .64, 1); }
+.gz-needle { stroke: var(--ink); stroke-width: 3.4; stroke-linecap: round; }
+.gz-hub { fill: var(--panel); stroke: var(--ink); stroke-width: 2.5; }
+.gz-value { margin-top: -.6rem; font-size: 1.6rem; font-weight: 800; color: var(--ink); }
+.gz-unit { font-size: .95rem; font-weight: 600; color: var(--ink2); }
+.gz-edit { width: 100%; display: flex; flex-direction: column; gap: .5rem; margin-top: .8rem; padding-top: .8rem; border-top: 1px solid var(--border); }
+.gz-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.gz-field { display: flex; flex-direction: column; gap: .2rem; font-size: .74rem; color: var(--ink2); }
+.gz-field input { border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--ink); padding: .35rem .5rem; font-size: .85rem; }
+.gz-field-wide input { font-size: 1.05rem; font-weight: 700; text-align: center; }
+.gz-colors { display: flex; justify-content: space-between; gap: .5rem; margin-top: .2rem; }
+.gz-color { display: flex; flex-direction: column; align-items: center; gap: .25rem; font-size: .72rem; color: var(--ink2); }
+.gz-color input[type=color] { width: 34px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; cursor: pointer; }
+
 @media (max-width: 1000px) {
   .pj-row { flex-wrap: wrap; }
   .pj-side { border-inline-start: 0; padding-inline-start: 0; }
@@ -1216,6 +1256,9 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
   /* keep SWOT a 2x2 grid in print — the print page is narrower than 760px, which would
      otherwise trigger the small-screen single-column rule and stack the quadrants */
   body.printing .print-target.sw-grid { grid-template-columns: 1fr 1fr !important; max-width: none !important; }
+  /* same reasoning as sw-grid — keep gauges in a multi-column layout instead of collapsing
+     to one column under the print page's narrower auto-fill breakpoint */
+  body.printing .print-target.gz-grid { grid-template-columns: repeat(3, 1fr) !important; max-width: none !important; }
   /* the board prints the framed viewport (WYSIWYG) — keep it clipped and give it a clean
      white page instead of the on-screen dot grid, and drop the zoom badge */
   body.printing .print-target.board-wrap { overflow: hidden !important; background: #fff !important; }

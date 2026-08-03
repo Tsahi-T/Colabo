@@ -142,6 +142,15 @@ export const IconDebrief = () => (
   </svg>
 );
 
+export const IconGauge = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M3.5 18a8.5 8.5 0 0117 0" />
+    <path {...S} d="M12 18l4-6" />
+    <circle cx="12" cy="18" r="1.4" fill="currentColor" stroke="none" />
+    <path {...S} d="M4.7 15.5l1 .5M19.3 15.5l-1 .5M7 9.3l.7.8M17 9.3l-.7.8M12 6.5v1" />
+  </svg>
+);
+
 export const IconTimeline = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M21 12H4.5M4.5 12l3.2-3.2M4.5 12l3.2 3.2" />

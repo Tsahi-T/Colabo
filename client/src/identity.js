@@ -15,7 +15,7 @@ const DEFAULT_TITLE = {
   doc: 'מסמך ללא שם', board: 'לוח ללא שם', timeline: 'ציר זמן ללא שם', risks: 'ניהול סיכונים',
   swot: 'ניתוח SWOT', chat: "צ'אט ללא שם", tasks: 'ניהול משימות', sun: 'תרשים שמש',
   project: 'פרויקט ללא שם', debrief: 'תחקיר ללא שם', discussion: 'סיכום דיון ללא שם',
-  meeting1on1: 'פגישה אישית ללא שם', goals: 'תיק יעדים ללא שם',
+  meeting1on1: 'פגישה אישית ללא שם', goals: 'תיק יעדים ללא שם', gauges: 'דשבורד הערכת מצב ללא שם',
 };
 export function getRecents() {
   try { return JSON.parse(localStorage.getItem(RECENTS)) || []; } catch { return []; }

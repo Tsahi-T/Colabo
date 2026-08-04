@@ -17,7 +17,7 @@ function parseCsv(text) {
 }
 
 const HEADERS = ['נושא', 'מינימום', 'מקסימום', 'ערך נוכחי', 'סף אדום-צהוב', 'סף צהוב-ירוק', 'צבע נמוך', 'צבע בינוני', 'צבע גבוה', 'יחידה', 'עיצוב'];
-const STYLE_KEYS = ['classic', 'full', 'bar'];
+const STYLE_KEYS = ['classic', 'full', 'bar', 'traffic'];
 
 export function gaugesToCsv(list) {
   const lines = [row(HEADERS)];

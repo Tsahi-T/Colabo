@@ -51,13 +51,14 @@ function GrowingTitle({ value, onChange, placeholder }) {
 // Each style is a semicircle/arc defined by a start->end sweep (degrees, standard math
 // convention: 0°=right, 90°=up, 180°=left) around (cx,cy). t is always a 0..1 fraction of
 // the gauge's min..max range, never a raw value, so every helper below is style-agnostic.
-// Every style renders a smooth gradient band with tick marks — the only real differences
-// between them are the sweep shape (semicircle / 270° dial / full 360° donut) and, for the
-// donut, a much thicker band so it reads as solid/full rather than a thin arc.
+// classic/full are radial dials sharing the same arc math; bar is a straight gradient bar;
+// traffic is a discrete red/yellow/green housing with one lit light — see the matching
+// Svg component for each `shape` below.
 const STYLES = {
   classic: { shape: 'radial', label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, labels: true },
   full: { shape: 'radial', label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, labels: true },
   bar: { shape: 'bar', label: 'סטטוס בר', viewBox: '0 0 200 92', barX: 12, barY: 26, barW: 176, barH: 34, labels: true },
+  traffic: { shape: 'traffic', label: 'רמזור', viewBox: '0 0 100 190' },
 };
 const STYLE_KEYS = Object.keys(STYLES);
 
@@ -171,9 +172,9 @@ function BarGaugeSvg({ g, cfg }) {
       </defs>
       <rect x={cfg.barX} y={cfg.barY} width={cfg.barW} height={cfg.barH} rx="4" fill={`url(#${gradId})`} className="gz-bar-rect" />
       <g className="gz-bar-marker-g" style={{ transform: `translateX(${markerX}px)` }}>
-        <rect x="-3.5" y={cfg.barY - 7} width="7" height={cfg.barH + 14} className="gz-bar-marker" />
-        <rect x="-10" y={cfg.barY - 7} width="20" height="5" className="gz-bar-marker" />
-        <rect x="-10" y={cfg.barY + cfg.barH + 2} width="20" height="5" className="gz-bar-marker" />
+        <rect x="-1.6" y={cfg.barY - 6} width="3.2" height={cfg.barH + 12} rx="1.6" className="gz-bar-marker" />
+        <rect x="-7" y={cfg.barY - 6} width="14" height="3" rx="1.5" className="gz-bar-marker" />
+        <rect x="-7" y={cfg.barY + cfg.barH + 3} width="14" height="3" rx="1.5" className="gz-bar-marker" />
       </g>
       {cfg.labels && <>
         <text x={cfg.barX} y={cfg.barY + cfg.barH + 20} className="gz-tick-label" textAnchor="start">{fmtNum(min)}</text>
@@ -183,9 +184,30 @@ function BarGaugeSvg({ g, cfg }) {
   );
 }
 
+// Discrete traffic light: which of the 3 lamps is "on" depends only on which zone the
+// current value falls in (same t1/t2 zone logic as the continuous styles) — no needle/band,
+// just one lit lamp and two dimmed ones.
+function TrafficGaugeSvg({ g }) {
+  const { t, t1, t2 } = gaugeValues(g);
+  const zone = t <= t1 ? 0 : t <= t2 ? 1 : 2;
+  const colors = [g.c0 || '#ef4444', g.c1 || '#f59e0b', g.c2 || '#22c55e'];
+  const cys = [38, 95, 152];
+  return (
+    <svg className="gz-svg" viewBox="0 0 100 190">
+      <rect x="12" y="8" width="76" height="174" rx="20" className="gz-traffic-body" />
+      {cys.map((cy, i) => (
+        <circle key={i} cx="50" cy={cy} r="26" fill="currentColor" style={{ color: colors[i] }}
+          className={'gz-traffic-light' + (i === zone ? ' on' : '')} />
+      ))}
+    </svg>
+  );
+}
+
 function GaugeSvg({ g }) {
   const cfg = STYLES[g.style] || STYLES.classic;
-  return cfg.shape === 'bar' ? <BarGaugeSvg g={g} cfg={cfg} /> : <RadialGaugeSvg g={g} cfg={cfg} />;
+  if (cfg.shape === 'bar') return <BarGaugeSvg g={g} cfg={cfg} />;
+  if (cfg.shape === 'traffic') return <TrafficGaugeSvg g={g} />;
+  return <RadialGaugeSvg g={g} cfg={cfg} />;
 }
 
 function StylePicker({ value, onChange }) {
@@ -227,7 +249,11 @@ function GaugeCard({ g, editable, open, onToggleOpen, onChange, onDelete }) {
             <div className="gz-edit">
               <label className="gz-field gz-field-wide">
                 <span>ערך נוכחי</span>
-                <input type="number" value={g.value} onChange={(e) => set({ value: e.target.value })} />
+                <input type="number" value={g.value} onChange={(e) => set({ value: e.target.value })}
+                  onBlur={(e) => {
+                    const clamped = clamp(num(e.target.value, min), min, max);
+                    if (clamped !== num(g.value, min)) set({ value: clamped });
+                  }} />
               </label>
               <div className="gz-edit-row">
                 <label className="gz-field"><span>מינימום</span><input type="number" value={g.min} onChange={(e) => set({ min: e.target.value })} /></label>

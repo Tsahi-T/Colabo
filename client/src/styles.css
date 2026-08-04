@@ -1097,6 +1097,9 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
 .gz-needle { stroke: var(--ink); stroke-width: 3.4; stroke-linecap: round; }
 .gz-needle-tip { fill: var(--ink); }
 .gz-hub { fill: var(--panel); stroke: var(--ink); stroke-width: 2.5; }
+.gz-bar-rect { stroke: var(--border); stroke-width: 1; }
+.gz-bar-marker-g { transition: transform .4s cubic-bezier(.34, 1.35, .64, 1); }
+.gz-bar-marker { fill: var(--ink); }
 .gz-value { margin-top: -.6rem; font-size: 1.6rem; font-weight: 800; color: var(--ink); }
 .gz-unit { font-size: .95rem; font-weight: 600; color: var(--ink2); }
 .gz-acc { width: 100%; margin-top: .8rem; padding-top: .5rem; border-top: 1px solid var(--border); }

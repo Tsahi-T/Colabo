@@ -19,7 +19,7 @@ const fmtNum = (n) => (Number.isInteger(n) ? n : Math.round(n * 100) / 100).toLo
 const STARTER_GAUGES = [
   { title: 'לו"ז', min: 0, max: 90, value: 52, th1: 30, th2: 60, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
   { title: 'תקציב', min: 0, max: 500000, value: 310000, th1: 200000, th2: 400000, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '₪', style: 'full' },
-  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'circle' },
+  { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
 ];
 const defaultGauge = (n) => ({
   title: `מדד לדוגמה ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
@@ -55,9 +55,9 @@ function GrowingTitle({ value, onChange, placeholder }) {
 // between them are the sweep shape (semicircle / 270° dial / full 360° donut) and, for the
 // donut, a much thicker band so it reads as solid/full rather than a thin arc.
 const STYLES = {
-  classic: { label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, labels: true },
-  full: { label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, labels: true },
-  circle: { label: 'עיגול שלם', start: 90, end: -270, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 78, bandW: 34, labels: false },
+  classic: { shape: 'radial', label: 'קלאסי', start: 180, end: 0, viewBox: '0 0 200 118', cx: 100, cy: 104, r: 82, bandW: 16, labels: true },
+  full: { shape: 'radial', label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, labels: true },
+  bar: { shape: 'bar', label: 'סטטוס בר', viewBox: '0 0 200 92', barX: 12, barY: 26, barW: 176, barH: 34, labels: true },
 };
 const STYLE_KEYS = Object.keys(STYLES);
 
@@ -92,18 +92,22 @@ function colorAt(g, t, t1, t2) {
   return c2;
 }
 
-function GaugeSvg({ g }) {
-  const cfg = STYLES[g.style] || STYLES.classic;
+// Shared by both shapes: clamp/derive min/max/value/t and the two threshold fractions.
+function gaugeValues(g) {
   const min = num(g.min, 0);
   const max = num(g.max, 100) > min ? num(g.max, 100) : min + 1;
   const value = clamp(num(g.value, min), min, max);
   const t = (value - min) / (max - min);
-  const angle = angleFor(cfg, t);
-
   let th1 = clamp(num(g.th1, min), min, max);
   let th2 = clamp(num(g.th2, max), min, max);
   if (th1 > th2) [th1, th2] = [th2, th1];
   const t1 = (th1 - min) / (max - min), t2 = (th2 - min) / (max - min);
+  return { min, max, value, t, t1, t2 };
+}
+
+function RadialGaugeSvg({ g, cfg }) {
+  const { min, max, t, t1, t2 } = gaugeValues(g);
+  const angle = angleFor(cfg, t);
 
   const GRADIENT_SEGMENTS = 48;
   const gradientSegs = [];
@@ -143,6 +147,45 @@ function GaugeSvg({ g }) {
       <circle cx={cfg.cx} cy={cfg.cy} r="7" className="gz-hub" />
     </svg>
   );
+}
+
+// Horizontal status bar: a solid gradient rect (a real SVG <linearGradient> is fine here —
+// unlike the radial styles' curved arc, a straight bar has no curve-vs-gradient mismatch) with
+// a thick I-beam marker sliding to the current value's position.
+function BarGaugeSvg({ g, cfg }) {
+  const { min, max, t, t1, t2 } = gaugeValues(g);
+  const gradId = 'gzgrad-' + g.id;
+  const barRight = cfg.barX + cfg.barW;
+  const markerX = cfg.barX + t * cfg.barW;
+  const c0 = g.c0 || '#ef4444', c1 = g.c1 || '#f59e0b', c2 = g.c2 || '#22c55e';
+
+  return (
+    <svg className="gz-svg" viewBox={cfg.viewBox}>
+      <defs>
+        <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={cfg.barX} y1="0" x2={barRight} y2="0">
+          <stop offset="0%" stopColor={c0} />
+          <stop offset={`${t1 * 100}%`} stopColor={c1} />
+          <stop offset={`${t2 * 100}%`} stopColor={c2} />
+          <stop offset="100%" stopColor={c2} />
+        </linearGradient>
+      </defs>
+      <rect x={cfg.barX} y={cfg.barY} width={cfg.barW} height={cfg.barH} rx="4" fill={`url(#${gradId})`} className="gz-bar-rect" />
+      <g className="gz-bar-marker-g" style={{ transform: `translateX(${markerX}px)` }}>
+        <rect x="-3.5" y={cfg.barY - 7} width="7" height={cfg.barH + 14} className="gz-bar-marker" />
+        <rect x="-10" y={cfg.barY - 7} width="20" height="5" className="gz-bar-marker" />
+        <rect x="-10" y={cfg.barY + cfg.barH + 2} width="20" height="5" className="gz-bar-marker" />
+      </g>
+      {cfg.labels && <>
+        <text x={cfg.barX} y={cfg.barY + cfg.barH + 20} className="gz-tick-label" textAnchor="start">{fmtNum(min)}</text>
+        <text x={barRight} y={cfg.barY + cfg.barH + 20} className="gz-tick-label" textAnchor="end">{fmtNum(max)}</text>
+      </>}
+    </svg>
+  );
+}
+
+function GaugeSvg({ g }) {
+  const cfg = STYLES[g.style] || STYLES.classic;
+  return cfg.shape === 'bar' ? <BarGaugeSvg g={g} cfg={cfg} /> : <RadialGaugeSvg g={g} cfg={cfg} />;
 }
 
 function StylePicker({ value, onChange }) {

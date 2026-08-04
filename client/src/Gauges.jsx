@@ -14,12 +14,14 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const num = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
 const fmtNum = (n) => (Number.isInteger(n) ? n : Math.round(n * 100) / 100).toLocaleString('he-IL');
 
-// Three varied starter gauges — different scales/units on purpose, so a brand-new dashboard
-// doesn't look like it only works for 0-100% metrics.
+// Four varied starter gauges — different scales/units on purpose (so a brand-new dashboard
+// doesn't look like it only works for 0-100% metrics), one per style, so all four are on
+// display from the very first open.
 const STARTER_GAUGES = [
   { title: 'לו"ז', min: 0, max: 90, value: 52, th1: 30, th2: 60, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
   { title: 'תקציב', min: 0, max: 500000, value: 310000, th1: 200000, th2: 400000, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '₪', style: 'full' },
   { title: 'חוסן', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
+  { title: 'בטיחות', min: 0, max: 100, value: 82, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
 ];
 const defaultGauge = (n) => ({
   title: `מדד לדוגמה ${n}`, min: 0, max: 100, value: 50, th1: 33, th2: 66,
@@ -290,7 +292,9 @@ export default function Gauges({ info, user, token }) {
   const [status, setStatus] = useState('connecting');
   const [title, setTitle] = useState('');
   const [peers, setPeers] = useState([]);
-  const [closedIds, setClosedIds] = useState(() => new Set());
+  // Gauges default to the compact (edit details hidden) view — this tracks the opposite:
+  // which ones have been explicitly opened.
+  const [openIds, setOpenIds] = useState(() => new Set());
   const fileRef = useRef();
 
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -358,15 +362,15 @@ export default function Gauges({ info, user, token }) {
     gauges.delete(g.id);
   }
   function toggleOpen(id) {
-    setClosedIds((prev) => {
+    setOpenIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
-  const anyOpen = list.some((g) => !closedIds.has(g.id));
+  const anyOpen = list.some((g) => openIds.has(g.id));
   function toggleAllOpen() {
-    setClosedIds(anyOpen ? new Set(list.map((g) => g.id)) : new Set());
+    setOpenIds(anyOpen ? new Set() : new Set(list.map((g) => g.id)));
   }
 
   const exportCsv = () => download(gaugesToCsv(list), `${title || 'דשבורד הערכת מצב'}.csv`);
@@ -428,7 +432,7 @@ export default function Gauges({ info, user, token }) {
         )}
         <div className="gz-grid">
           {list.map((g) => (
-            <GaugeCard key={g.id} g={g} editable={editable} open={!closedIds.has(g.id)}
+            <GaugeCard key={g.id} g={g} editable={editable} open={openIds.has(g.id)}
               onToggleOpen={() => toggleOpen(g.id)} onChange={setGauge} onDelete={delGauge} />
           ))}
         </div>

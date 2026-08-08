@@ -62,6 +62,9 @@ const STYLES = {
   full: { shape: 'radial', label: 'מד מלא', start: 225, end: -45, viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 14, labels: true },
   bar: { shape: 'bar', label: 'סטטוס בר', viewBox: '0 0 200 92', barX: 12, barY: 26, barW: 176, barH: 34, labels: true },
   traffic: { shape: 'traffic', label: 'רמזור', viewBox: '0 0 100 190' },
+  // a near-complete ring (small gap at the top) in one flat zone color, not the gradient
+  // band the other radial styles use - no needle/ticks, just the ring and the value below it.
+  ring: { shape: 'ring', label: 'טבעת', viewBox: '0 0 200 200', cx: 100, cy: 100, r: 76, bandW: 18, start: 102, end: -234 },
 };
 const STYLE_KEYS = Object.keys(STYLES);
 
@@ -206,10 +209,27 @@ function TrafficGaugeSvg({ g }) {
   );
 }
 
+// Near-complete ring: a light full track (drawn once, gap-sized) plus a colored fill arc
+// that sweeps from the gap up to the current value's fraction of the way around. The fill
+// is a single flat zone color (same red/yellow/green zone pick as the traffic light), not
+// a gradient blend — that's what makes it read as "one uniform color" rather than a band.
+function RingGaugeSvg({ g, cfg }) {
+  const { t, t1, t2 } = gaugeValues(g);
+  const zone = t <= t1 ? 0 : t <= t2 ? 1 : 2;
+  const color = [g.c0 || '#ef4444', g.c1 || '#f59e0b', g.c2 || '#22c55e'][zone];
+  return (
+    <svg className="gz-svg" viewBox={cfg.viewBox}>
+      <path d={arcPathFor(cfg, 0, 1, cfg.r)} className="gz-ring-track" strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />
+      {t > 0 && <path d={arcPathFor(cfg, 0, t, cfg.r)} stroke={color} strokeWidth={cfg.bandW} fill="none" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
 function GaugeSvg({ g }) {
   const cfg = STYLES[g.style] || STYLES.classic;
   if (cfg.shape === 'bar') return <BarGaugeSvg g={g} cfg={cfg} />;
   if (cfg.shape === 'traffic') return <TrafficGaugeSvg g={g} />;
+  if (cfg.shape === 'ring') return <RingGaugeSvg g={g} cfg={cfg} />;
   return <RadialGaugeSvg g={g} cfg={cfg} />;
 }
 

@@ -176,11 +176,30 @@ export const TASKS_EXAMPLE = [
   },
 ];
 
+// A "dashboard overview slide" feel: all 5 gauge styles, one row of 3 each, grouped by
+// theme per row (schedule / project completion / budget-health / risk-safety / quarterly
+// purpose KPIs) so the variety of looks is obvious at a glance.
 export const GAUGES_EXAMPLE = [
-  { title: 'CRM חדש - אחוז השלמה', min: 0, max: 100, value: 55, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'classic' },
-  { title: 'הטמעת תוכנה למשתמשים - אחוז השלמה', min: 0, max: 100, value: 80, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
-  { title: 'פיתוח מוצר - אחוז השלמה', min: 0, max: 100, value: 22, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
-  { title: 'פריסת הדרכה וידע - אחוז השלמה', min: 0, max: 100, value: 65, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
+  // classic (semicircle dial) — schedule countdowns
+  { title: 'ימים שנותרו לבדיקות קבלה - CRM חדש', min: 0, max: 60, value: 18, th1: 10, th2: 30, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
+  { title: 'ימים לסיום פריסה ארצית', min: 0, max: 60, value: 25, th1: 10, th2: 30, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
+  { title: 'ימים להשלמת הכשרת כל העובדים', min: 0, max: 90, value: 40, th1: 15, th2: 40, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: 'ימים', style: 'classic' },
+  // full dial — project completion percentage
+  { title: 'התקדמות CRM חדש', min: 0, max: 100, value: 55, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
+  { title: 'התקדמות הטמעת תוכנה למשתמשים', min: 0, max: 100, value: 80, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
+  { title: 'התקדמות פריסת הדרכה וידע', min: 0, max: 100, value: 65, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
+  // status bar — budget and organizational health
+  { title: 'ניצול תקציב מצטבר - כלל התוכנית', min: 0, max: 100, value: 93, th1: 70, th2: 95, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '%', style: 'bar' },
+  { title: 'שביעות רצון עובדים', min: 0, max: 5, value: 3.6, th1: 2.5, th2: 4, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '/5', style: 'bar' },
+  { title: 'חוסן תוכנית העבודה הכוללת', min: 0, max: 100, value: 68, th1: 40, th2: 70, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
+  // traffic light — risk and safety indicators
+  { title: 'סיכון לוח זמנים - פיתוח מוצר', min: 0, max: 100, value: 78, th1: 40, th2: 70, c0: '#22c55e', c1: '#f59e0b', c2: '#ef4444', unit: '%', style: 'traffic' },
+  { title: 'בטיחות ואבטחת מידע - CRM', min: 0, max: 100, value: 82, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
+  { title: 'מוכנות מדריכים לפריסה ארצית', min: 0, max: 100, value: 45, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
+  // ring — quarterly purpose KPIs
+  { title: 'השלמת יעדי הרבעון', min: 0, max: 100, value: 75, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'ring' },
+  { title: 'אימוץ בפועל - מערכת תפעול', min: 0, max: 100, value: 88, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'ring' },
+  { title: 'מוכנות כללית לסקירת הנהלה', min: 0, max: 100, value: 60, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'ring' },
 ];
 
 // The full portfolio: all four projects, each with a different overall status (green/yellow/red

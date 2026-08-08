@@ -141,3 +141,12 @@ export const SUN_EXAMPLE_TXT = `תרשים שמש: תוכנית עבודה
 - איכות
 - הדרכה והטמעה
 `;
+
+// One gauge per project (% complete), each in a different style so the variety of styles
+// is visible right away — matching the same thresholds (behind/on-track/near-done) across all.
+export const GAUGES_EXAMPLE = [
+  { title: 'CRM חדש - אחוז השלמה', min: 0, max: 100, value: 55, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'classic' },
+  { title: 'הטמעת תוכנה למשתמשים - אחוז השלמה', min: 0, max: 100, value: 80, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
+  { title: 'פיתוח מוצר - אחוז השלמה', min: 0, max: 100, value: 22, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
+  { title: 'פריסת הדרכה וידע - אחוז השלמה', min: 0, max: 100, value: 65, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
+];

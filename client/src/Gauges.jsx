@@ -8,6 +8,7 @@ import { Logo } from './icons.jsx';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import { gaugesToCsv, csvToGauges } from './gauge-io.js';
+import { GAUGES_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -374,14 +375,9 @@ export default function Gauges({ info, user, token }) {
   }
 
   const exportCsv = () => download(gaugesToCsv(list), `${title || 'דשבורד הערכת מצב'}.csv`);
-  async function importCsv(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
-    const parsed = csvToGauges(await f.text());
+  function applyGauges(parsed, { skipConfirm = false } = {}) {
     if (!parsed.length) return alert('לא נמצאו שעונים בקובץ');
-    if (gauges.size && !confirm('הטעינה תחליף את כל השעונים הקיימים. להמשיך?')) return;
+    if (!skipConfirm && gauges.size && !confirm('הטעינה תחליף את כל השעונים הקיימים. להמשיך?')) return;
     ydoc.transact(() => {
       [...gauges.keys()].forEach((k) => gauges.delete(k));
       meta.set('seeded', true);
@@ -391,6 +387,18 @@ export default function Gauges({ info, user, token }) {
         gauges.set(id, m);
       });
     });
+  }
+  async function importCsv(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applyGauges(csvToGauges(await f.text()));
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applyGauges(GAUGES_EXAMPLE, { skipConfirm: true });
+    meta.set('title', 'סטטוס תוכניות המטה 2026');
   }
 
   return (
@@ -410,6 +418,7 @@ export default function Gauges({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+            <button className="btn" title="טעינת דשבורד לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportCsv}>Excel ‏(CSV) - לטעינה חוזרת</button>

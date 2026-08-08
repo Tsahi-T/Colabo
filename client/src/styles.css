@@ -1005,13 +1005,20 @@ button.db-task-badge.off:hover { border-color: var(--accent); color: var(--accen
 .pj-grid3 { display: grid; grid-template-columns: 1.15fr 1fr .9fr; gap: .9rem; align-items: start; }
 /* two-column block (Goals: status + metrics) */
 .pj-grid2 { display: grid; grid-template-columns: 1fr 1.2fr; gap: .9rem; align-items: start; }
-.pj-metrics-table { display: flex; flex-direction: column; gap: .35rem; }
-.pj-metrics-head {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; font-size: .76rem; font-weight: 700;
-  color: var(--ink3); padding: 0 .1rem .3rem; border-bottom: 1px solid var(--border); margin-bottom: .1rem;
-}
-.pj-metrics-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .5rem; align-items: start; }
-.pj-metrics-row span { font-size: .86rem; color: var(--ink2); padding-top: .1rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.pj-metrics-table { display: flex; flex-direction: column; gap: .6rem; }
+/* each measurable metric is its own labeled card (name + target/current/due-date row +
+   a DOD sentence) instead of one cramped multi-column grid row - a DOD needs room to wrap. */
+.pj-metric-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: .6rem .7rem; display: flex; flex-direction: column; gap: .45rem; }
+.pj-metric-row1 { display: flex; align-items: flex-start; gap: .5rem; }
+.pj-metric-row1 b { font-size: .95rem; unicode-bidi: plaintext; overflow-wrap: anywhere; padding-top: .15rem; }
+.pj-metric-name-in { font-weight: 700; }
+.pj-metric-row2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .6rem; }
+.pj-metric-row2 label { display: flex; flex-direction: column; gap: .2rem; font-size: .76rem; font-weight: 700; color: var(--ink3); }
+.pj-metric-row2 label span { font-size: .86rem; font-weight: 400; color: var(--ink2); unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.pj-metric-date-in { font: inherit; }
+.pj-metric-row3 { display: flex; flex-direction: column; gap: .2rem; }
+.pj-metric-dod-l { font-size: .76rem; font-weight: 700; color: var(--ink3); }
+.pj-metric-row3 p { font-size: .86rem; color: var(--ink2); unicode-bidi: plaintext; overflow-wrap: anywhere; }
 .pj-side-col { display: flex; flex-direction: column; gap: .9rem; }
 .pj-gap { display: flex; gap: .6rem; align-items: flex-start; background: var(--bg); border-radius: 10px; padding: .55rem .7rem; margin-bottom: .5rem; }
 .pj-gap-n { width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 800; font-size: .8rem; display: grid; place-items: center; flex-shrink: 0; }

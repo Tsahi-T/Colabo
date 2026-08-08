@@ -38,7 +38,7 @@ const newGoal = (ord) => ({
   status: '',
   badge: randomTone(),
   updated: today(),
-  metrics: [{ metric: 'מדד לדוגמה', target: '', current: '' }],
+  metrics: [{ metric: 'מדד לדוגמה', target: '', current: '', due: '', dod: '' }],
 });
 
 const download = (text, name, mime = 'text/csv;charset=utf-8') => {
@@ -248,7 +248,7 @@ export default function Goals({ info, user, token }) {
       lines.push(row(['עדכון אחרון', g.updated]));
       lines.push(row(['עדכון ידני', g.updatedManual ? 'כן' : 'לא']));
       lines.push(row(['תגית', g.badge || '']));
-      (g.metrics || []).forEach((m) => lines.push(row(['מדד', m.metric, m.target, m.current])));
+      (g.metrics || []).forEach((m) => lines.push(row(['מדד', m.metric, m.target, m.current, m.due || '', m.dod || ''])));
       const tm = getSub(g.id);
       if (tm) [...tm.values()].map((t) => t.toJSON()).sort((a, b) => (a.ord || 0) - (b.ord || 0))
         .forEach((t) => lines.push(row(['משימה', t.title, TK_ST[t.status] || 'חדש', TK_PRI[t.priority] || 'רגילה', t.assignee || '', t.due || '', t.dueCurrent || '', t.desc || '', logCellOut(t.log)])));
@@ -276,7 +276,7 @@ export default function Goals({ info, user, token }) {
       else if (label === 'עדכון אחרון') cur.updated = v || today();
       else if (label === 'עדכון ידני') cur.updatedManual = v === 'כן';
       else if (label === 'תגית') cur.badge = BADGE_TONES.includes(v) ? v : cur.badge;
-      else if (label === 'מדד') cur.metrics.push({ metric: v, target: (r[2] || '').trim(), current: (r[3] || '').trim() });
+      else if (label === 'מדד') cur.metrics.push({ metric: v, target: (r[2] || '').trim(), current: (r[3] || '').trim(), due: (r[4] || '').trim(), dod: (r[5] || '').trim() });
       else if (label === 'משימה') cur._tasks.push({
         title: v, status: byLabel(TK_ST, (r[2] || '').trim(), 'new'),
         priority: +byLabel(TK_PRI, (r[3] || '').trim(), 1), assignee: (r[4] || '').trim(),
@@ -359,46 +359,49 @@ export default function Goals({ info, user, token }) {
             <button className="btn pj-back" onClick={() => setOpenId(null)}>← חזרה לרשימה</button>
             <GoalRow g={open} editable={editable} set={set} onDelete={() => delGoal(open)} />
 
-            <div className="pj-grid2">
-              <div className="pj-card pj-soft">
-                <div className="pj-card-head"><h3>עמידה ביעד</h3></div>
-                {editable ? (
-                  <>
-                    <GrowingField rows={3} placeholder="תיאור מצב העמידה ביעד." value={open.status || ''}
-                      onChange={(e) => set(open.id, { status: e.target.value })} />
-                    <PresetsButton presetKey="status" value={open.status} onPick={(v) => set(open.id, { status: v })} />
-                  </>
-                ) : <p>{open.status || '-'}</p>}
-              </div>
+            <div className="pj-card pj-soft">
+              <div className="pj-card-head"><h3>עמידה ביעד</h3></div>
+              {editable ? (
+                <>
+                  <GrowingField rows={3} placeholder="תיאור מצב העמידה ביעד." value={open.status || ''}
+                    onChange={(e) => set(open.id, { status: e.target.value })} />
+                  <PresetsButton presetKey="status" value={open.status} onPick={(v) => set(open.id, { status: v })} />
+                </>
+              ) : <p>{open.status || '-'}</p>}
+            </div>
 
-              <div className="pj-card pj-metrics-card">
-                <div className="pj-card-head"><h3>יעדים מדידים</h3></div>
-                <div className="pj-metrics-table">
-                  <div className="pj-metrics-head"><span>מדד</span><span>יעד</span><span>נוכחי</span></div>
-                  {(open.metrics || []).map((m, i) => (
-                    <div key={i} className="pj-metrics-row">
-                      {editable ? (
-                        <>
-                          <GrowingField value={m.metric} placeholder="שם המדד" onChange={(e) => {
-                            const ms = [...open.metrics]; ms[i] = { ...m, metric: e.target.value }; set(open.id, { metrics: ms });
-                          }} />
-                          <GrowingField value={m.target} placeholder="יעד" onChange={(e) => {
-                            const ms = [...open.metrics]; ms[i] = { ...m, target: e.target.value }; set(open.id, { metrics: ms });
-                          }} />
-                          <GrowingField value={m.current} placeholder="נוכחי" onChange={(e) => {
-                            const ms = [...open.metrics]; ms[i] = { ...m, current: e.target.value }; set(open.id, { metrics: ms });
-                          }} />
-                          <button className="pj-x" onClick={() => set(open.id, { metrics: open.metrics.filter((_, j) => j !== i) })}>✕</button>
-                        </>
-                      ) : (
-                        <><span>{m.metric}</span><span>{m.target}</span><span>{m.current}</span></>
-                      )}
+            <div className="pj-card pj-metrics-card">
+              <div className="pj-card-head"><h3>יעדים מדידים</h3><span className="hint">כולל תאריך יעד והגדרת סיום (DOD) ברורה לכל מדד</span></div>
+              <div className="pj-metrics-table">
+                {(open.metrics || []).map((m, i) => {
+                  const upd = (patch) => { const ms = [...open.metrics]; ms[i] = { ...m, ...patch }; set(open.id, { metrics: ms }); };
+                  return (
+                    <div key={i} className="pj-metric-card">
+                      <div className="pj-metric-row1">
+                        {editable
+                          ? <GrowingField className="pj-metric-name-in" value={m.metric} placeholder="שם המדד" onChange={(e) => upd({ metric: e.target.value })} />
+                          : <b>{m.metric || '-'}</b>}
+                        {editable && <button className="pj-x" onClick={() => set(open.id, { metrics: open.metrics.filter((_, j) => j !== i) })}>✕</button>}
+                      </div>
+                      <div className="pj-metric-row2">
+                        <label>יעד{editable ? <GrowingField value={m.target} placeholder="יעד" onChange={(e) => upd({ target: e.target.value })} /> : <span>{m.target || '-'}</span>}</label>
+                        <label>נוכחי{editable ? <GrowingField value={m.current} placeholder="נוכחי" onChange={(e) => upd({ current: e.target.value })} /> : <span>{m.current || '-'}</span>}</label>
+                        <label>תאריך יעד{editable
+                          ? <input type="date" className="pj-metric-date-in" value={m.due || ''} onChange={(e) => upd({ due: e.target.value })} />
+                          : <span>{fmtDate(m.due) || '-'}</span>}</label>
+                      </div>
+                      <div className="pj-metric-row3">
+                        <span className="pj-metric-dod-l">הגדרת סיום (DOD)</span>
+                        {editable
+                          ? <GrowingField rows={2} value={m.dod} placeholder="מתי המדד ייחשב הושלם באופן חד-משמעי?" onChange={(e) => upd({ dod: e.target.value })} />
+                          : <p>{m.dod || '-'}</p>}
+                      </div>
                     </div>
-                  ))}
-                  {!(open.metrics || []).length && <div className="sw-empty">אין עדיין מדדים</div>}
-                </div>
-                {editable && <button className="pj-add-sm" onClick={() => set(open.id, { metrics: [...(open.metrics || []), { metric: '', target: '', current: '' }] })}>+ מדד</button>}
+                  );
+                })}
+                {!(open.metrics || []).length && <div className="sw-empty">אין עדיין מדדים</div>}
               </div>
+              {editable && <button className="pj-add-sm" onClick={() => set(open.id, { metrics: [...(open.metrics || []), { metric: '', target: '', current: '', due: '', dod: '' }] })}>+ מדד</button>}
             </div>
 
             <div className={'pj-acc' + (tasksOpen[open.id] ? ' open' : '')}>

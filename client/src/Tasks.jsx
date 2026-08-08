@@ -6,6 +6,7 @@ import { ShareMenu } from './ShareExport.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
+import { TASKS_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const STATUSES = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
@@ -230,6 +231,22 @@ export default function Tasks({ info, user, token, embed }) {
     [csvRow(CSV_HEADERS), ...rows.map((t) => csvRow([t.title, t.desc, STATUSES[t.status], PRIORITIES[t.priority], t.assignee, t.due, t.dueCurrent, logCellOut(t.log)]))].join('\r\n') + '\r\n',
     `${title || 'ניהול משימות'}.csv`, 'text/csv;charset=utf-8');
 
+  // rows (and so the export) list newest-first (highest ord first) — assigning ord in the
+  // same "first row = highest" direction on the way back in keeps that order instead of
+  // silently reversing it.
+  function applyTasks(parsed, { skipConfirm = false } = {}) {
+    if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
+    if (!skipConfirm && tasks.size && !confirm('הטעינה תחליף את כל המשימות הקיימות. להמשיך?')) return;
+    ydoc.transact(() => {
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      parsed.forEach((p, i) => {
+        const t = new Y.Map();
+        t.set('ord', parsed.length - i);
+        Object.entries(p).forEach(([k, v]) => t.set(k, v));
+        tasks.set(uid(), t);
+      });
+    });
+  }
   async function importCsv(e) {
     const f = e.target.files[0];
     e.target.value = '';
@@ -242,20 +259,12 @@ export default function Tasks({ info, user, token, embed }) {
       title: r[0] || '', desc: r[1] || '', status: revStatus[r[2]] || 'new', priority: revPri[r[3]] || 1,
       assignee: r[4] || '', due: r[5] || '', dueCurrent: r[6] || r[5] || '', log: logCellIn(r[7], revStatus),
     }));
-    if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
-    if (tasks.size && !confirm('הטעינה תחליף את כל המשימות הקיימות. להמשיך?')) return;
-    ydoc.transact(() => {
-      [...tasks.keys()].forEach((k) => tasks.delete(k));
-      // rows (and so the export) list newest-first (highest ord first) — assigning ord in
-      // the same "first row = highest" direction on the way back in keeps that order instead
-      // of silently reversing it.
-      parsed.forEach((p, i) => {
-        const t = new Y.Map();
-        t.set('ord', parsed.length - i);
-        Object.entries(p).forEach(([k, v]) => t.set(k, v));
-        tasks.set(uid(), t);
-      });
-    });
+    applyTasks(parsed);
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל המשימות הקיימות. להמשיך?')) return;
+    applyTasks(TASKS_EXAMPLE, { skipConfirm: true });
+    if (!embedded) ydoc.getMap('meta').set('title', 'משימות תוכניות המטה 2026');
   }
 
   let filtered = rows.filter((t) =>
@@ -307,6 +316,7 @@ export default function Tasks({ info, user, token, embed }) {
             {editable && <>
               <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
               <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+              <button className="btn" title="טעינת משימות לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
             </>}
             <button className="btn" onClick={exportCsv}>הורדה</button>
             <ShareMenu info={info} />

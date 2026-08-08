@@ -9,6 +9,7 @@ import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import Tasks from './Tasks.jsx';
 import Risks from './Risks.jsx';
+import { PROJECT_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const PHASES = ['יזום', 'התנעה', 'מימוש', 'הטמעה', 'שינויים ושיפורים', 'סיום'];
@@ -448,8 +449,13 @@ export default function Project({ info, user, token }) {
         else if (label.endsWith('תיאור')) cur[a.k] = { ...cur[a.k], text: v };
       }
     }
-    if (!parsed.length) return alert('לא נמצאו פרויקטים בקובץ');
-    if (projects.size && !confirm('הטעינה תחליף את כל הפרויקטים הקיימים. להמשיך?')) return;
+    applyProjects(parsed);
+  }
+
+  // shared by both the file-import path and loadExample() below
+  function applyProjects(parsed, { skipConfirm = false } = {}) {
+    if (!parsed.length) return alert('לא נמצאו פרויקטים לטעינה');
+    if (!skipConfirm && projects.size && !confirm('הטעינה תחליף את כל הפרויקטים הקיימים. להמשיך?')) return;
     ydoc.transact(() => {
       [...projects.keys()].forEach((k) => projects.delete(k));
       parsed.forEach((p, i) => {
@@ -466,6 +472,11 @@ export default function Project({ info, user, token }) {
       });
     });
     setOpenId(null);
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל הפרויקטים הקיימים במסמך זה. להמשיך?')) return;
+    applyProjects(PROJECT_EXAMPLE, { skipConfirm: true });
+    meta.set('title', 'תיק פרויקטים - מטה הטמעה וטכנולוגיה 2026');
   }
 
   const open = openId && list.find((p) => p.id === openId);
@@ -487,6 +498,7 @@ export default function Project({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+            <button className="btn" title="טעינת תיק פרויקטים לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportCsv}>Excel ‏(CSV)</button>

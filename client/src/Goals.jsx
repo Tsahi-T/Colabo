@@ -9,6 +9,7 @@ import { PRESETS } from './goals-presets.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
 import Tasks from './Tasks.jsx';
+import { GOALS_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const TK_ST = { new: 'חדש', in_progress: 'בעבודה', waiting: 'ממתין לאחר / בפער', done: 'בוצע' };
@@ -282,8 +283,13 @@ export default function Goals({ info, user, token }) {
         due: (r[5] || '').trim(), dueCurrent: (r[6] || r[5] || '').trim(), desc: (r[7] || '').trim(), log: logCellIn(r[8]),
       });
     }
-    if (!parsed.length) return alert('לא נמצאו יעדים בקובץ');
-    if (goals.size && !confirm('הטעינה תחליף את כל היעדים הקיימים. להמשיך?')) return;
+    applyGoals(parsed);
+  }
+
+  // shared by both the file-import path and loadExample() below
+  function applyGoals(parsed, { skipConfirm = false } = {}) {
+    if (!parsed.length) return alert('לא נמצאו יעדים לטעינה');
+    if (!skipConfirm && goals.size && !confirm('הטעינה תחליף את כל היעדים הקיימים. להמשיך?')) return;
     ydoc.transact(() => {
       [...goals.keys()].forEach((k) => goals.delete(k));
       parsed.forEach((g, i) => {
@@ -296,6 +302,11 @@ export default function Goals({ info, user, token }) {
       });
     });
     setOpenId(null);
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל היעדים הקיימים במסמך זה. להמשיך?')) return;
+    applyGoals(GOALS_EXAMPLE, { skipConfirm: true });
+    meta.set('title', 'יעדי תוכנית העבודה - מטה הטמעה וטכנולוגיה 2026');
   }
 
   const open = openId && list.find((g) => g.id === openId);
@@ -317,6 +328,7 @@ export default function Goals({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importCsv} />
+            <button className="btn" title="טעינת תיק יעדים לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportCsv}>Excel ‏(CSV)</button>

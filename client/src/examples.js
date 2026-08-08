@@ -144,9 +144,203 @@ export const SUN_EXAMPLE_TXT = `תרשים שמש: תוכנית עבודה
 
 // One gauge per project (% complete), each in a different style so the variety of styles
 // is visible right away — matching the same thresholds (behind/on-track/near-done) across all.
+// 6 tasks spanning all 4 projects, varied status/priority/assignee — including one with an
+// update-log entry, to show that feature too.
+const daysAgo = (n) => Date.now() - n * 86400000;
+const daysFromNow = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+export const TASKS_EXAMPLE = [
+  {
+    title: 'השלמת אפיון מסך ניהול לידים', desc: 'סגירת מסמך אפיון מול צוות המכירות, כולל דוגמאות מסך.',
+    status: 'in_progress', priority: 2, assignee: 'רועי לוי', due: daysFromNow(5), dueCurrent: daysFromNow(5),
+    log: [{ at: daysAgo(2), by: 'רועי לוי', from: 'new', to: 'in_progress', note: 'התחלנו עבודה מול צוות המכירות' }],
+  },
+  {
+    title: 'בדיקות קבלה (UAT) לפני עלייה לאוויר', desc: 'תיאום מול נציגי המחלקות לביצוע בדיקות קבלה מסודרות.',
+    status: 'new', priority: 3, assignee: 'רועי לוי', due: daysFromNow(30), dueCurrent: daysFromNow(30), log: [],
+  },
+  {
+    title: 'סיום פריסה למחלקת הכספים', desc: 'הפעלת המערכת החדשה במחלקת הכספים, כולל תמיכת חירום בשבוע הראשון.',
+    status: 'in_progress', priority: 2, assignee: 'מיכל אברהם', due: daysFromNow(10), dueCurrent: daysFromNow(10), log: [],
+  },
+  {
+    title: 'בניית מדריך שימוש למשתמש הקצה', desc: 'מדריך קצר ומצולם-מסך להפצה לכלל המשתמשים.',
+    status: 'done', priority: 1, assignee: 'מיכל אברהם', due: daysFromNow(-3), dueCurrent: daysFromNow(-3), log: [],
+  },
+  {
+    title: 'אפיון ארכיטקטורת המערכת', desc: 'ממתין לאישור תקציב נוסף לתשתיות ענן לפני שממשיכים.',
+    status: 'waiting', priority: 2, assignee: 'אורי שגיא', due: daysFromNow(14), dueCurrent: daysFromNow(21), log: [],
+  },
+  {
+    title: 'תיאום מועדי הדרכה עם כלל הסניפים', desc: 'בניית לוח זמנים לפריסת ההדרכות בגלים לפי אזור.',
+    status: 'in_progress', priority: 1, assignee: 'נועה ברק', due: daysFromNow(7), dueCurrent: daysFromNow(7), log: [],
+  },
+];
+
 export const GAUGES_EXAMPLE = [
   { title: 'CRM חדש - אחוז השלמה', min: 0, max: 100, value: 55, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'classic' },
   { title: 'הטמעת תוכנה למשתמשים - אחוז השלמה', min: 0, max: 100, value: 80, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'full' },
   { title: 'פיתוח מוצר - אחוז השלמה', min: 0, max: 100, value: 22, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'bar' },
   { title: 'פריסת הדרכה וידע - אחוז השלמה', min: 0, max: 100, value: 65, th1: 40, th2: 75, c0: '#ef4444', c1: '#f59e0b', c2: '#22c55e', unit: '%', style: 'traffic' },
+];
+
+// The full portfolio: all four projects, each with a different overall status (green/yellow/red
+// mix), a different badge tone, and its own embedded tasks/risks — mirrors (and reuses text from)
+// TASKS_EXAMPLE/RISKS_EXAMPLE_TXT above so the same items feel connected across screens.
+const puid = () => crypto.randomUUID().slice(0, 8);
+export const PROJECT_EXAMPLE = [
+  {
+    name: 'CRM חדש',
+    purpose: 'פיתוח והטמעת מערכת CRM חדשה למחלקות המכירות והשירות, לשיפור מעקב הלידים ושירות הלקוחות.',
+    phase: 'מימוש', status: 'yellow', badge: 'c1', manager: 'רועי לוי', updated: daysFromNow(-3),
+    schedule: { st: 'yellow', trend: 'flat', text: 'אפיון הושלם ופיתוח בעיצומו. קיים סיכון קל ללוח הזמנים בשל עומס בצוות המכירות.' },
+    scope: { st: 'green', trend: 'up', text: 'תכולת הפרויקט מוגדרת וסגורה מול כלל בעלי העניין.' },
+    resources: { st: 'yellow', trend: 'down', text: 'תלות בזמינות אנשי מכירות לאישור מסכים ותהליכים, עלולה לעכב.' },
+    milestones: [
+      { name: 'אפיון דרישות', date: daysFromNow(-110), st: 'done' },
+      { name: 'תחילת פיתוח', date: daysFromNow(-95), st: 'done' },
+      { name: 'סיום פיתוח ותחילת בדיקות קבלה', date: daysFromNow(20), st: 'active' },
+      { name: 'עלייה לאוויר (Go-Live)', date: daysFromNow(75), st: 'future' },
+    ],
+    gaps: [
+      { title: 'עומס על צוות המכירות', desc: 'פוגע בזמינות לאפיון ואישורים בזמן.' },
+      { title: 'סקר אבטחת מידע טרם בוצע', desc: 'נדרש לפני עלייה לאוויר, בשל מידע רגיש של לקוחות.' },
+    ],
+    decisions: ['אישור תקציב נוסף לרישוי המערכת.', 'החלטה סופית על מועד עלייה לאוויר.'],
+    info: 'פרויקט זה חלק מתוכנית העבודה הרחבה של מטה הטמעה וטכנולוגיה לשנת 2026, לצד שלושה פרויקטים נוספים באותה תוכנית.',
+    links: [
+      { id: puid(), title: 'מסמך אפיון', url: 'https://example.com/crm-spec' },
+      { id: puid(), title: 'לוח מעקב פרויקט', url: 'https://example.com/crm-tracker' },
+    ],
+    _tasks: [
+      { title: 'השלמת אפיון מסך ניהול לידים', desc: 'סגירת מסמך אפיון מול צוות המכירות, כולל דוגמאות מסך.', status: 'in_progress', priority: 2, assignee: 'רועי לוי', due: daysFromNow(5), dueCurrent: daysFromNow(5), log: [{ at: daysAgo(2), by: 'רועי לוי', from: 'new', to: 'in_progress', note: 'התחלנו עבודה מול צוות המכירות' }] },
+      { title: 'בדיקות קבלה (UAT) לפני עלייה לאוויר', desc: 'תיאום מול נציגי המחלקות לביצוע בדיקות קבלה מסודרות.', status: 'new', priority: 3, assignee: 'רועי לוי', due: daysFromNow(30), dueCurrent: daysFromNow(30), log: [] },
+    ],
+    _risks: [
+      { name: 'עיכוב באפיון דרישות ה-CRM עקב עומס בצוות המכירות', sev: 4, prob: 3, detail: 'פגישות אפיון נדחות שוב ושוב בשל זמינות נמוכה של אנשי מכירות מרכזיים.', actions: 'קביעת חלונות זמן קבועים מראש; מעורבות מנהל המכירות באישור הזמינות.' },
+      { name: 'אבטחת מידע ותאימות רגולטורית במערכת החדשה', sev: 5, prob: 2, detail: 'המערכת החדשה מכילה מידע רגיש של לקוחות ודורשת עמידה ברגולציה.', actions: 'סקר אבטחה מקדים; אישור קצין אבטחת מידע לפני עלייה לאוויר.' },
+    ],
+  },
+  {
+    name: 'הטמעת תוכנה למשתמשים',
+    purpose: 'פריסה ארגונית של מערכת תפעולית חדשה לכלל העובדים, כולל הדרכה ותמיכה בשטח.',
+    phase: 'הטמעה', status: 'green', badge: 'c2', manager: 'מיכל אברהם', updated: daysFromNow(-1),
+    schedule: { st: 'green', trend: 'up', text: 'הפיילוט הצליח וההטמעה מתקדמת לפי התוכנית, בגלים לפי מחלקה.' },
+    scope: { st: 'green', trend: 'flat', text: 'תכולת המערכת סגורה; אין שינויים מתוכננים עד סיום הפריסה.' },
+    resources: { st: 'green', trend: 'flat', text: 'צוות התמיכה מאויש במלואו לתקופת ההרצה המקבילה.' },
+    milestones: [
+      { name: 'פיילוט במחלקת המכירות', date: daysFromNow(-85), st: 'done' },
+      { name: 'מעבר לפריסה ארצית', date: daysFromNow(-38), st: 'done' },
+      { name: 'סיום פריסה למחלקת הכספים', date: daysFromNow(10), st: 'active' },
+      { name: 'סגירת פרויקט ומעבר לתחזוקה שוטפת', date: daysFromNow(45), st: 'future' },
+    ],
+    gaps: [{ title: 'מדריכי הפעלה חסרים לתרחישי קצה', desc: 'חלק מהתרחישים החריגים אינם מתועדים עדיין.' }],
+    decisions: ['אישור העברת האחריות התפעולית לצוות התמיכה השוטף עם סיום הפריסה.'],
+    info: 'הפרויקט מבוצע בגלים לפי מחלקה, בליווי צמוד של דנה כהן כספונסרית התוכנית.',
+    links: [{ id: puid(), title: 'לוח פריסה לפי מחלקות', url: 'https://example.com/rollout-tracker' }],
+    _tasks: [
+      { title: 'סיום פריסה למחלקת הכספים', desc: 'הפעלת המערכת החדשה במחלקת הכספים, כולל תמיכת חירום בשבוע הראשון.', status: 'in_progress', priority: 2, assignee: 'מיכל אברהם', due: daysFromNow(10), dueCurrent: daysFromNow(10), log: [] },
+      { title: 'בניית מדריך שימוש למשתמש הקצה', desc: 'מדריך קצר ומצולם-מסך להפצה לכלל המשתמשים.', status: 'done', priority: 1, assignee: 'מיכל אברהם', due: daysFromNow(-3), dueCurrent: daysFromNow(-3), log: [] },
+    ],
+    _risks: [
+      { name: 'התנגדות משתמשים לאימוץ המערכת החדשה', sev: 4, prob: 4, detail: 'סקרי שביעות רצון מצביעים על חשש מהשינוי אצל חלק מהעובדים.', actions: 'תוכנית ניהול שינוי; שגרירי אימוץ בכל מחלקה; תקשורת שקופה ותדירה.' },
+    ],
+  },
+  {
+    name: 'פיתוח מוצר',
+    purpose: 'פיתוח מוצר תוכנה פנים-ארגוני חדש, מרעיון ראשוני ועד גרסת בטא למשתמשים נבחרים.',
+    phase: 'התנעה', status: 'red', badge: 'c3', manager: 'אורי שגיא', updated: daysFromNow(-6),
+    schedule: { st: 'red', trend: 'down', text: 'עיכוב באישור התקציב הנוסף עוצר את תחילת שלב הפיתוח המלא.' },
+    scope: { st: 'yellow', trend: 'flat', text: 'תכולת גרסה ראשונה (MVP) עדיין בגיבוש מול בעלי העניין.' },
+    resources: { st: 'red', trend: 'down', text: 'חוסר בתקציב לתשתיות ענן מעכב את גיוס הצוות הטכני הנדרש.' },
+    milestones: [
+      { name: 'גיבוש רעיון ואפיון ראשוני', date: daysFromNow(-50), st: 'done' },
+      { name: 'אישור תקציב תשתיות ענן', date: daysFromNow(5), st: 'gap' },
+      { name: 'תחילת פיתוח גרסה ראשונה', date: daysFromNow(25), st: 'future' },
+      { name: 'גרסת בטא למשתמשים נבחרים', date: daysFromNow(95), st: 'future' },
+    ],
+    gaps: [
+      { title: 'חריגה מתקציב תשתיות הענן', desc: 'עלויות תשתית ענן גבוהות מהתכנון המקורי, מעכבות אישור המשך.' },
+      { title: 'חוסר באנשי פיתוח', desc: 'טרם אויש תקן מפתח Backend נוסף שאושר.' },
+    ],
+    decisions: ['אישור תקציב תשתיות ענן מעודכן.', 'החלטה על גיוס מפתח נוסף או שכירת קבלן חיצוני.'],
+    info: 'פרויקט זה נמצא בשלב מוקדם יחסית לשאר תוכניות המטה, ומדווח ישירות לדנה כהן.',
+    links: [{ id: puid(), title: 'מסמך חזון מוצר', url: 'https://example.com/product-vision' }],
+    _tasks: [
+      { title: 'אפיון ארכיטקטורת המערכת', desc: 'ממתין לאישור תקציב נוסף לתשתיות ענן לפני שממשיכים.', status: 'waiting', priority: 2, assignee: 'אורי שגיא', due: daysFromNow(14), dueCurrent: daysFromNow(21), log: [] },
+    ],
+    _risks: [
+      { name: 'חריגה מתקציב בפרויקט פיתוח המוצר', sev: 3, prob: 2, detail: 'עלויות תשתית ענן גבוהות מהתכנון המקורי בשלב הפיתוח.', actions: 'בקרת תקציב חודשית; מיטוב שימוש במשאבי ענן.' },
+    ],
+  },
+  {
+    name: 'פריסת הדרכה וידע',
+    purpose: 'השלמת פריסת תוכנית הדרכה והעברת ידע ארגונית לכלל העובדים, בהמשך לפרויקטים הטכנולוגיים המקבילים.',
+    phase: 'הטמעה', status: 'green', badge: 'c4', manager: 'נועה ברק', updated: daysFromNow(-2),
+    schedule: { st: 'green', trend: 'up', text: 'ההדרכה מתקדמת בגלים לפי אזור, בהתאם ללוח הזמנים המתוכנן.' },
+    scope: { st: 'green', trend: 'flat', text: 'תוכן ההדרכה סגור, כולל חומרים למערכת ה-CRM החדשה שיתווספו בהמשך.' },
+    resources: { st: 'yellow', trend: 'flat', text: 'מספר המדריכים המוסמכים מצומצם ביחס לכמות הסניפים.' },
+    milestones: [
+      { name: 'השקת תוכנית ההדרכה הארגונית', date: daysFromNow(-55), st: 'done' },
+      { name: 'השלמת הדרכה למחצית מהעובדים', date: daysFromNow(-20), st: 'done' },
+      { name: 'סיום פריסה בכלל הסניפים', date: daysFromNow(40), st: 'active' },
+      { name: 'הוספת מודול הדרכה למערכת ה-CRM החדשה', date: daysFromNow(80), st: 'future' },
+    ],
+    gaps: [{ title: 'זמינות מדריכים מוסמכים', desc: 'אינה מספיקה לפריסה בכל הסניפים בו-זמנית.' }],
+    decisions: ['אישור הכשרת שני מדריכים נוספים.'],
+    info: 'התוכנית מלווה את שלושת הפרויקטים הטכנולוגיים המקבילים, ותתעדכן עם השקת ה-CRM החדש.',
+    links: [{ id: puid(), title: 'לוח פריסה לפי סניפים', url: 'https://example.com/training-tracker' }],
+    _tasks: [
+      { title: 'תיאום מועדי הדרכה עם כלל הסניפים', desc: 'בניית לוח זמנים לפריסת ההדרכות בגלים לפי אזור.', status: 'in_progress', priority: 1, assignee: 'נועה ברק', due: daysFromNow(7), dueCurrent: daysFromNow(7), log: [] },
+    ],
+    _risks: [
+      { name: 'זמינות מדריכים לפריסת ההדרכה הארצית', sev: 2, prob: 3, detail: 'מספר המדריכים המוסמכים אינו מספיק לפריסה בכל הסניפים בו-זמנית.', actions: 'הכשרת מדריכים נוספים; פריסה בגלים לפי אזור גאוגרפי.' },
+    ],
+  },
+];
+
+// Organizational KPIs for the whole 2026 program (spans all four projects), not per-project.
+export const GOALS_EXAMPLE = [
+  {
+    name: 'עמידה בלוחות הזמנים של ארבע התוכניות',
+    purpose: 'לוודא שכל ארבע התוכניות עומדות באבני הדרך שנקבעו לשנת 2026, ולזהות סטיות מוקדם ככל האפשר.',
+    status: 'שלוש מתוך ארבע התוכניות בלוח זמנים תקין; פרויקט פיתוח המוצר בפיגור עקב עיכוב באישור תקציב.',
+    badge: 'c1', updated: daysFromNow(-2),
+    metrics: [
+      { metric: 'אחוז אבני דרך שהושלמו בזמן', target: '90%', current: '75%' },
+      { metric: 'מספר תוכניות בלוח זמנים תקין', target: '4 מתוך 4', current: '3 מתוך 4' },
+    ],
+    _tasks: [
+      { title: 'סיכום סטטוס אבני דרך רבעוני', desc: 'ריכוז נתוני התקדמות מכל ארבע התוכניות לקראת דיווח לדנה כהן.', status: 'in_progress', priority: 2, assignee: 'דנה כהן', due: daysFromNow(6), dueCurrent: daysFromNow(6), log: [] },
+    ],
+  },
+  {
+    name: 'אימוץ בפועל של המערכות החדשות',
+    purpose: 'מדידת שיעור השימוש בפועל במערכות החדשות (CRM ומערכת התפעול) מול היעד שנקבע.',
+    status: 'אימוץ מערכת התפעול גבוה מהיעד; ה-CRM טרם עלה לאוויר כך שהמדידה תתחיל לאחר ההשקה.',
+    badge: 'c2', updated: daysFromNow(-1),
+    metrics: [
+      { metric: 'שיעור שימוש פעיל במערכת התפעול', target: '85%', current: '88%' },
+      { metric: 'שיעור עובדים שהושלמה עבורם הדרכה', target: '100%', current: '62%' },
+    ],
+  },
+  {
+    name: 'עמידה בתקציב הכולל של התוכנית',
+    purpose: 'מעקב אחר ניצול התקציב הכולל שאושר לארבע התוכניות מול התכנון.',
+    status: 'חריגה קלה בתקציב פרויקט פיתוח המוצר בשל עלויות תשתיות ענן; שאר התוכניות בתקציב.',
+    badge: 'c3', updated: daysFromNow(-5),
+    metrics: [
+      { metric: 'ניצול תקציב מצטבר', target: 'עד 100%', current: '93%' },
+      { metric: 'מספר תוכניות בחריגת תקציב', target: '0', current: '1' },
+    ],
+  },
+  {
+    name: 'שביעות רצון משתמשים ולקוחות',
+    purpose: 'מדידת שביעות רצון עובדים ולקוחות מהשינויים הארגוניים שמובילה התוכנית.',
+    status: 'סקר שביעות רצון ראשוני מצביע על מגמה חיובית, עם חשש מסוים מקצב השינויים.',
+    badge: 'c4', updated: daysFromNow(-4),
+    metrics: [
+      { metric: 'ציון שביעות רצון עובדים (1-5)', target: '4.0', current: '3.6' },
+      { metric: 'ציון שביעות רצון לקוחות שירות (1-5)', target: '4.5', current: '-' },
+    ],
+  },
 ];

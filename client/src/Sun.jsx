@@ -106,11 +106,17 @@ export default function Sun({ info, user, token }) {
 
   const core = meta.get('core') || '';
   const petals = [...nodes.entries()]
-    .map(([id, n]) => ({ id, text: n.get('text') || '', ord: n.get('ord') || 0 }))
+    .map(([id, n]) => ({ id, text: n.get('text') || '', ord: n.get('ord') || 0, px: n.get('px'), py: n.get('py') }))
     .sort((a, b) => a.ord - b.ord || a.id.localeCompare(b.id));
 
   const cx = size.width / 2, cy = size.height / 2;
-  const positions = useMemo(() => layoutNodes(petals.length, size.width, size.height), [petals.length, size.width, size.height]);
+  const autoPositions = useMemo(() => layoutNodes(petals.length, size.width, size.height), [petals.length, size.width, size.height]);
+  // A dragged petal stores its position as a 0..1 fraction of the stage size (not raw
+  // pixels), so it stays proportionally in place if the window/stage is resized. Petals
+  // that were never dragged keep following the auto golden-spiral layout.
+  const positions = petals.map((p, i) => (
+    p.px != null && p.py != null ? { x: p.px * size.width, y: p.py * size.height } : autoPositions[i]
+  ));
 
   function addPetal(text = '') {
     const id = uid(), n = new Y.Map();
@@ -118,6 +124,31 @@ export default function Sun({ info, user, token }) {
   }
   const setPetal = (id, text) => nodes.get(id)?.set('text', text);
   const delPetal = (id) => nodes.delete(id);
+
+  // ---- free-drag repositioning ----
+  const dragRef = useRef(null);
+  const [draggingId, setDraggingId] = useState(null);
+  function downPetalHandle(e, id) {
+    if (!editable) return;
+    e.stopPropagation();
+    dragRef.current = { id };
+    setDraggingId(id);
+    try { stageRef.current.setPointerCapture(e.pointerId); } catch { /* touch/pen edge cases */ }
+  }
+  function moveStage(e) {
+    const d = dragRef.current;
+    if (!d) return;
+    const r = stageRef.current.getBoundingClientRect();
+    const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const n = nodes.get(d.id);
+    if (n) ydoc.transact(() => { n.set('px', fx); n.set('py', fy); });
+  }
+  function upStage(e) {
+    dragRef.current = null;
+    setDraggingId(null);
+    try { stageRef.current.releasePointerCapture(e.pointerId); } catch { /* touch/pen edge cases */ }
+  }
 
   const exportTxt = () => download(
     `תרשים שמש: ${(core || title || 'ללא שם').replace(/\n/g, ' ')}\n\n` +
@@ -185,7 +216,7 @@ export default function Sun({ info, user, token }) {
         </div>
       )}
       <div className="sun-wrap">
-        <div className="sun-stage" ref={stageRef}>
+        <div className="sun-stage" ref={stageRef} onPointerMove={moveStage} onPointerUp={upStage} onPointerCancel={upStage}>
           <svg className="sun-net" width={size.width} height={size.height} aria-hidden="true">
             {petals.map((p, i) => {
               const pos = positions[i];
@@ -206,9 +237,11 @@ export default function Sun({ info, user, token }) {
             const pos = positions[i];
             if (!pos) return null;
             return (
-              <div key={p.id} className="sun-petal" style={{ left: pos.x, top: pos.y, fontSize: petalFont(p.text) + 'rem' }}>
+              <div key={p.id} className={'sun-petal' + (draggingId === p.id ? ' dragging' : '')}
+                style={{ left: pos.x, top: pos.y, fontSize: petalFont(p.text) + 'rem' }}>
                 {editable ? (
                   <>
+                    <span className="sun-petal-drag" title="גרירה למיקום חדש" onPointerDown={(e) => downPetalHandle(e, p.id)}>⠿</span>
                     <AutoText value={p.text} placeholder="כתוב כאן" onChange={(e) => setPetal(p.id, e.target.value)} />
                     <button className="sun-petal-del" title="מחיקה" onClick={() => delPetal(p.id)}>✕</button>
                   </>

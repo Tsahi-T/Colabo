@@ -34,6 +34,7 @@ import Discussion from './Discussion.jsx';
 import Meeting1on1 from './Meeting1on1.jsx';
 import Goals from './Goals.jsx';
 import Gauges from './Gauges.jsx';
+import Matrix from './Matrix.jsx';
 import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import Toolbar from './Toolbar.jsx';
@@ -183,5 +184,6 @@ export default function DocPage() {
   if (info.type === 'meeting1on1') return <Meeting1on1 key={token} info={info} user={user} token={token} />;
   if (info.type === 'goals') return <Goals key={token} info={info} user={user} token={token} />;
   if (info.type === 'gauges') return <Gauges key={token} info={info} user={user} token={token} />;
+  if (info.type === 'matrix') return <Matrix key={token} info={info} user={user} token={token} />;
   return <EditorView key={token} info={info} user={user} token={token} />;
 }

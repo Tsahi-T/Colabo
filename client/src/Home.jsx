@@ -4,7 +4,7 @@ import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
 import {
   IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject, IconDebrief,
-  IconTarget, IconFlag, IconCompass, IconGauge,
+  IconTarget, IconFlag, IconCompass, IconGauge, IconMatrix,
 } from './icons.jsx';
 import turboLogo from './assets/turbo-logo.png';
 
@@ -23,6 +23,7 @@ const TYPE_ICON = {
   meeting1on1: <span className="ricon meeting1on1"><IconCompass /></span>,
   goals: <span className="ricon goals"><IconTarget /></span>,
   gauges: <span className="ricon gauges"><IconGauge /></span>,
+  matrix: <span className="ricon matrix"><IconMatrix /></span>,
 };
 
 const GROUPS = [
@@ -42,6 +43,7 @@ const GROUPS = [
       { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקטים', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
       { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'בניית יעדים', desc: 'מטרות, יעדים מדידים ומשימות לעמידה בהם' },
       { type: 'gauges', cls: 'gauges', icon: <IconGauge />, name: 'דשבורד הערכת מצב', desc: 'שעוני מדידה - נושא, טווח ועמידה נוכחית' },
+      { type: 'matrix', cls: 'matrix', icon: <IconMatrix />, name: 'מטריצת ניתוח', desc: 'מיקום פריטים על שני צירים - X ו-Y' },
     ],
   },
   {

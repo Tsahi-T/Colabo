@@ -50,7 +50,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 *
 // only answers "is the Node process itself alive and serving HTTP".
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
-const DOC_TYPES = ['doc', 'board', 'timeline', 'risks', 'swot', 'chat', 'tasks', 'sun', 'project', 'debrief', 'discussion', 'meeting1on1', 'goals', 'gauges'];
+const DOC_TYPES = ['doc', 'board', 'timeline', 'risks', 'swot', 'chat', 'tasks', 'sun', 'project', 'debrief', 'discussion', 'meeting1on1', 'goals', 'gauges', 'matrix'];
 
 app.post('/api/docs', async (req, res) => {
   try {

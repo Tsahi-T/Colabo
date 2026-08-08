@@ -142,6 +142,16 @@ export const IconDebrief = () => (
   </svg>
 );
 
+export const IconMatrix = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <path {...S} d="M4 3v16a1 1 0 001 1h16" />
+    <circle cx="9.5" cy="14" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="18" r="1.5" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const IconGauge = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M3.5 18a8.5 8.5 0 0117 0" />

@@ -8,6 +8,7 @@ import { Logo } from './icons.jsx';
 import { PASTELS, boardToTxt, txtToBoard } from './board-io.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import { BOARD_EXAMPLE_TXT } from './examples.js';
 
 const NOTE_W = 190, NOTE_H = 170;
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -254,14 +255,10 @@ export default function Board({ info, user, token }) {
     fitAll();
     setTimeout(() => printElementImage('.board-wrap', { title: title || 'לוח חשיבה', landscape: true, clip: true }), 150);
   };
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
-    const { notes: ns, edges: es } = txtToBoard(await f.text());
+  function applyBoardTxt(txt, { skipConfirm = false } = {}) {
+    const { notes: ns, edges: es } = txtToBoard(txt);
     if (!ns.length) return alert('לא נמצאו פתקים בקובץ');
-    if (notes.size && !confirm('הטעינה תחליף את הלוח הנוכחי. להמשיך?')) return;
+    if (!skipConfirm && notes.size && !confirm('הטעינה תחליף את הלוח הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
       [...notes.keys()].forEach((k) => notes.delete(k));
       [...edges.keys()].forEach((k) => edges.delete(k));
@@ -278,6 +275,18 @@ export default function Board({ info, user, token }) {
       es.forEach(([a, b]) => byNum.has(a) && byNum.has(b) && edges.set(uid(), { a: byNum.get(a), b: byNum.get(b) }));
     });
     fitAll();
+  }
+  async function importTxt(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applyBoardTxt(await f.text());
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applyBoardTxt(BOARD_EXAMPLE_TXT, { skipConfirm: true });
+    ydoc.getMap('meta').set('title', 'תהליך ניהול הטמעות - מטה הטמעה וטכנולוגיה');
   }
 
   const center = (id) => {
@@ -306,6 +315,7 @@ export default function Board({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="טעינת לוח לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>

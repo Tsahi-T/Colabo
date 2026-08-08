@@ -7,6 +7,7 @@ import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import { SUN_EXAMPLE_TXT } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const GOLDEN_ANGLE = (137.508 * Math.PI) / 180;
@@ -123,22 +124,30 @@ export default function Sun({ info, user, token }) {
     petals.map((p) => `- ${p.text.replace(/\n/g, ' ')}`).join('\n') + '\n',
     `${title || 'תרשים שמש'}.txt`);
   const exportPdf = () => printElementImage('.sun-stage', { title: title || 'תרשים שמש', landscape: true });
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
-    const lines = (await f.text()).split(/\r?\n/);
+  function applySunTxt(txt, { skipConfirm = false } = {}) {
+    const lines = txt.split(/\r?\n/);
     // accept both the current header and the older "שמש אסוציאציות" one
     const coreLine = lines.find((l) => /^(תרשים שמש|שמש אסוציאציות):/.test(l));
     const items = lines.map((l) => l.match(/^\s*[-*]\s*(.+)/)).filter(Boolean).map((m) => m[1]);
     if (!items.length && !coreLine) return alert('לא נמצא תוכן בקובץ');
-    if ((nodes.size || core) && !confirm('הטעינה תחליף את התוכן הנוכחי. להמשיך?')) return;
+    if (!skipConfirm && (nodes.size || core) && !confirm('הטעינה תחליף את התוכן הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
       if (coreLine) meta.set('core', coreLine.replace(/^(תרשים שמש|שמש אסוציאציות):\s*/, '').trim());
       [...nodes.keys()].forEach((k) => nodes.delete(k));
       items.forEach((text, i) => { const nn = new Y.Map(); nn.set('text', text); nn.set('ord', i + 1); nodes.set(uid(), nn); });
     });
+  }
+  async function importTxt(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applySunTxt(await f.text());
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applySunTxt(SUN_EXAMPLE_TXT, { skipConfirm: true });
+    meta.set('title', 'תוכנית עבודה - אסוציאציות');
   }
 
   return (
@@ -158,6 +167,7 @@ export default function Sun({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="טעינת תרשים לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>

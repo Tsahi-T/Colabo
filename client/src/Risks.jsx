@@ -7,6 +7,7 @@ import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import { RISKS_EXAMPLE_TXT } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const level = (score) => (score > 14 ? 'r' : score >= 12 ? 'o' : score >= 7 ? 'y' : 'g');
@@ -104,14 +105,10 @@ export default function Risks({ info, user, token, embed }) {
       `[${r.num}] ${r.name.replace(/\n/g, ' / ')} | חומרה: ${r.sev} | הסתברות: ${r.prob} | משוקלל: ${r.score}\nפירוט: ${r.detail.replace(/\n/g, ' / ')}\nפעולות: ${r.actions.replace(/\n/g, ' / ')}\n`
     ).join('\n'), `${title || 'ניהול סיכונים'}.txt`);
   const exportPdf = () => printElementImage('.rk-page', { title: title || 'ניהול סיכונים' });
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
+  function applyRisksTxt(txt, { skipConfirm = false } = {}) {
     const parsed = [];
     let cur = null;
-    for (const line of (await f.text()).split(/\r?\n/)) {
+    for (const line of txt.split(/\r?\n/)) {
       const h = line.match(/^\[\d+\]\s*(.*?)\s*\|\s*חומרה:\s*(\d)\s*\|\s*הסתברות:\s*(\d)/);
       if (h) { cur = { name: h[1], sev: +h[2], prob: +h[3], detail: '', actions: '' }; parsed.push(cur); continue; }
       const d = cur && line.match(/^פירוט:\s*(.*)/);
@@ -120,7 +117,7 @@ export default function Risks({ info, user, token, embed }) {
       if (a) { cur.actions = a[1]; continue; }
     }
     if (!parsed.length) return alert('לא נמצאו סיכונים בקובץ');
-    if (risks.size && !confirm('הטעינה תחליף את הטבלה הנוכחית. להמשיך?')) return;
+    if (!skipConfirm && risks.size && !confirm('הטעינה תחליף את הטבלה הנוכחית. להמשיך?')) return;
     ydoc.transact(() => {
       [...risks.keys()].forEach((k) => risks.delete(k));
       parsed.forEach((p, i) => {
@@ -130,6 +127,18 @@ export default function Risks({ info, user, token, embed }) {
         risks.set(uid(), r);
       });
     });
+  }
+  async function importTxt(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applyRisksTxt(await f.text());
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applyRisksTxt(RISKS_EXAMPLE_TXT, { skipConfirm: true });
+    if (!embedded) ydoc.getMap('meta').set('title', 'סיכוני תוכניות המטה 2026');
   }
 
   const nums15 = [1, 2, 3, 4, 5];
@@ -152,6 +161,7 @@ export default function Risks({ info, user, token, embed }) {
             {editable && <>
               <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
               <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+              <button className="btn" title="טעינת טבלת סיכונים לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
             </>}
             <Menu label="הורדה">
               <button onClick={exportPdf}>PDF (הדפסה)</button>

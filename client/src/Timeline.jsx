@@ -7,6 +7,7 @@ import { ThemeToggle } from './theme.jsx';
 import { Logo } from './icons.jsx';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import { TIMELINE_EXAMPLE_TXT } from './examples.js';
 
 const DAY = 864e5;
 const uid = () => crypto.randomUUID().slice(0, 8);
@@ -167,19 +168,14 @@ export default function Timeline({ info, user, token }) {
     `ציר זמן: ${title || 'ללא שם'}\n\n` + sorted.map((m) => `${m.date} | ${colorName(m.color)} | ${m.text.replace(/\n/g, ' / ')}`).join('\n') + '\n',
     `${title || 'ציר זמן'}.txt`);
   const exportPdf = () => printElementImage('.tl-stage', { title: title || 'ציר זמן', landscape: true });
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
-    // the color segment is optional in the regex so files exported before this fix (just
-    // "date | text") still load fine — they just fall back to blue, same as before.
+  // the color segment is optional in the regex so files exported before this fix (just
+  // "date | text") still load fine — they just fall back to blue, same as before.
+  function applyTimelineTxt(txt, { skipConfirm = false } = {}) {
     const colorAlt = Object.keys(MARKS).join('|');
     const lineRe = new RegExp(`^(\\d{4}-\\d{2}-\\d{2})\\s*\\|\\s*(?:(${colorAlt})\\s*\\|\\s*)?(.*)$`);
-    const rows = (await f.text()).split(/\r?\n/)
-      .map((l) => l.match(lineRe)).filter(Boolean);
+    const rows = txt.split(/\r?\n/).map((l) => l.match(lineRe)).filter(Boolean);
     if (!rows.length) return alert('לא נמצאו אבני דרך בקובץ (פורמט: YYYY-MM-DD | תיאור)');
-    if (items.size && !confirm('הטעינה תחליף את ציר הזמן הנוכחי. להמשיך?')) return;
+    if (!skipConfirm && items.size && !confirm('הטעינה תחליף את ציר הזמן הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
       [...items.keys()].forEach((k) => items.delete(k));
       rows.forEach(([, date, colorNameMatch, text]) => {
@@ -188,6 +184,18 @@ export default function Timeline({ info, user, token }) {
         items.set(uid(), m);
       });
     });
+  }
+  async function importTxt(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applyTimelineTxt(await f.text());
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applyTimelineTxt(TIMELINE_EXAMPLE_TXT, { skipConfirm: true });
+    ydoc.getMap('meta').set('title', 'תוכניות המטה 2026');
   }
 
   return (
@@ -207,6 +215,7 @@ export default function Timeline({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="טעינת ציר זמן לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>

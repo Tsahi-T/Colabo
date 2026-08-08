@@ -8,6 +8,7 @@ import { Logo } from './icons.jsx';
 import { PRESETS } from './swot-presets.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { printElementImage } from './imageExport.js';
+import { SWOT_EXAMPLE_TXT } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const QUADS = [
@@ -138,12 +139,8 @@ export default function SWOT({ info, user, token }) {
     download(out, `${title || 'SWOT'}.txt`);
   };
   const exportPdf = () => printElementImage('.sw-grid', { title: title || 'ניתוח SWOT', landscape: true });
-  async function importTxt(e) {
-    const f = e.target.files[0];
-    e.target.value = '';
-    if (!f) return;
-    bumpReimport();
-    const lines = (await f.text()).split(/\r?\n/);
+  function applySwotTxt(txt, { skipConfirm = false } = {}) {
+    const lines = txt.split(/\r?\n/);
     const parsed = { S: [], W: [], O: [], T: [] };
     let cur = null;
     for (const line of lines) {
@@ -154,7 +151,7 @@ export default function SWOT({ info, user, token }) {
     }
     const total = Object.values(parsed).flat().length;
     if (!total) return alert('לא נמצאו שורות בקובץ (פורמט: כותרת רביע ואז שורות עם "-")');
-    if (items.size && !confirm('הטעינה תחליף את הניתוח הנוכחי. להמשיך?')) return;
+    if (!skipConfirm && items.size && !confirm('הטעינה תחליף את הניתוח הנוכחי. להמשיך?')) return;
     ydoc.transact(() => {
       [...items.keys()].forEach((k) => items.delete(k));
       Object.entries(parsed).forEach(([qk, rows]) => rows.forEach((text, i) => {
@@ -163,6 +160,18 @@ export default function SWOT({ info, user, token }) {
         items.set(uid(), m);
       }));
     });
+  }
+  async function importTxt(e) {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    bumpReimport();
+    applySwotTxt(await f.text());
+  }
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
+    applySwotTxt(SWOT_EXAMPLE_TXT, { skipConfirm: true });
+    ydoc.getMap('meta').set('title', 'יכולת ניהול תוכניות המטה 2026');
   }
 
   return (
@@ -182,6 +191,7 @@ export default function SWOT({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="טעינת ניתוח SWOT לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>

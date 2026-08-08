@@ -9,6 +9,7 @@ import { PRESETS } from './discussion-presets.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { exportDocxHtml } from './export.js';
 import Tasks from './Tasks.jsx';
+import { DISCUSSION_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const fmtDate = (iso) => (iso ? new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -412,6 +413,40 @@ export default function Discussion({ info, user, token }) {
     if (!f.name.toLowerCase().endsWith('.csv')) return alert('ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד');
     return importCsv(f);
   }
+  // Loads DISCUSSION_EXAMPLE directly — mirrors the same transact shape importCsv builds above.
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל תוכן הסיכום, כולל לוח המשימות. להמשיך?')) return;
+    const d = DISCUSSION_EXAMPLE;
+    ydoc.transact(() => {
+      meta.set('title', d.title);
+      meta.set('subject', d.subject); meta.set('chair', d.chair); meta.set('date', d.date);
+      [...lines.keys()].forEach((k) => lines.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      let taskOrd = 0;
+      d.proceedings.forEach((row, i) => { const m = new Y.Map(); m.set('section', 'proceedings'); m.set('text', row.text); m.set('url', row.url || ''); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
+      d.decisions.forEach((row, i) => {
+        const m = new Y.Map(); m.set('section', 'decisions'); m.set('text', row.text); m.set('ord', i + 1); m.set('url', '');
+        if (row.taskTitle) {
+          const taskId = uid(), t = new Y.Map();
+          t.set('ord', ++taskOrd); t.set('title', row.taskTitle); t.set('desc', row.text);
+          t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+          t.set('assignee', row.assignee); t.set('log', row.log || []);
+          tasks.set(taskId, t);
+          m.set('taskId', taskId);
+        } else m.set('taskId', null);
+        lines.set(uid(), m);
+      });
+      d.participants.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'participants'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); m.set('url', ''); lines.set(uid(), m); });
+      d.distribution.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'distribution'); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); m.set('url', ''); lines.set(uid(), m); });
+      (d.tasks || []).forEach((t) => {
+        const m = new Y.Map();
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
+        m.set('assignee', t.assignee); m.set('log', t.log || []);
+        tasks.set(uid(), m);
+      });
+    });
+  }
 
   return (
     <div className="doc-page">
@@ -430,6 +465,7 @@ export default function Discussion({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importFile} />
+            <button className="btn" title="טעינת סיכום דיון לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportWord}>Word ‏(.docx) - הכל</button>

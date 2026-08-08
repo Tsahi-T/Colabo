@@ -9,6 +9,7 @@ import { PRESETS, backgroundPresets } from './meeting1on1-presets.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { exportDocxHtml } from './export.js';
 import Tasks from './Tasks.jsx';
+import { MEETING1ON1_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const fmtDate = (iso) => (iso ? new Date(iso + 'T00:00').toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -464,6 +465,44 @@ export default function Meeting1on1({ info, user, token }) {
     if (!f.name.toLowerCase().endsWith('.csv')) return alert('ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד');
     return importCsv(f);
   }
+  // Loads MEETING1ON1_EXAMPLE directly — mirrors the same transact shape importCsv builds above.
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל תוכן הפגישה, כולל לוח המשימות. להמשיך?')) return;
+    const d = MEETING1ON1_EXAMPLE;
+    ydoc.transact(() => {
+      meta.set('title', d.title);
+      meta.set('personName', d.personName); meta.set('meetingDate', d.meetingDate);
+      meta.set('closing', d.closing); meta.set('signerName', d.signerName);
+      [...lines.keys()].forEach((k) => lines.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      const seed = (sec, rows2) => rows2.forEach((text, i) => { const m = new Y.Map(); m.set('section', sec); m.set('text', text); m.set('ord', i + 1); m.set('taskId', null); lines.set(uid(), m); });
+      seed('background', d.background);
+      seed('hobbies', d.hobbies);
+      seed('needs', d.needs);
+      seed('issues', d.issues);
+      seed('requests', d.requests);
+      let taskOrd = 0;
+      d.goals.forEach((row, i) => {
+        const m = new Y.Map(); m.set('section', 'goals'); m.set('text', row.text); m.set('ord', i + 1);
+        if (row.taskTitle) {
+          const taskId = uid(), t = new Y.Map();
+          t.set('ord', ++taskOrd); t.set('title', row.taskTitle); t.set('desc', row.text);
+          t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+          t.set('assignee', row.assignee); t.set('log', row.log || []);
+          tasks.set(taskId, t);
+          m.set('taskId', taskId);
+        } else m.set('taskId', null);
+        lines.set(uid(), m);
+      });
+      (d.tasks || []).forEach((t) => {
+        const m = new Y.Map();
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
+        m.set('assignee', t.assignee); m.set('log', t.log || []);
+        tasks.set(uid(), m);
+      });
+    });
+  }
 
   return (
     <div className="doc-page">
@@ -482,6 +521,7 @@ export default function Meeting1on1({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv" hidden onChange={importFile} />
+            <button className="btn" title="טעינת פגישה לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportWord}>Word ‏(.docx) - הכל</button>

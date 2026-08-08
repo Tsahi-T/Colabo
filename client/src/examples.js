@@ -344,3 +344,86 @@ export const GOALS_EXAMPLE = [
     ],
   },
 ];
+
+// Debrief on the pilot phase of the "הטמעת תוכנה למשתמשים" project — lessons/summary lines
+// each auto-create a linked task (how Debrief.jsx actually works), plus one standalone task.
+export const DEBRIEF_EXAMPLE = {
+  title: 'תחקיר - פיילוט הטמעת התוכנה במחלקת המכירות',
+  background: 'תחקיר זה מסכם את שלב הפיילוט של פרויקט הטמעת תוכנה למשתמשים במחלקת המכירות. מטרת הפיילוט הייתה לבחון את תהליך ההטמעה בקנה מידה קטן לפני מעבר לפריסה ארצית.',
+  chronoNotes: 'הפיילוט התקיים על פני כחודשיים; להלן ציר הזמן המרכזי של האירועים הרלוונטיים.',
+  chrono: [
+    { date: daysFromNow(-95), time: '09:00:00', text: 'פתיחת הפיילוט במחלקת המכירות עם 15 משתמשים ראשונים' },
+    { date: daysFromNow(-80), time: '14:30:00', text: 'תקלה בסנכרון נתונים מול מערכת ה-CRM הישנה; טופלה תוך יום' },
+    { date: daysFromNow(-70), time: '10:00:00', text: 'ביצוע סקר שביעות רצון ראשוני בקרב המשתמשים בפיילוט' },
+    { date: daysFromNow(-50), time: '11:00:00', text: 'החלטה על הרחבת הפיילוט לכלל אנשי המכירות לפני מעבר ארצי' },
+    { date: daysFromNow(-38), time: '16:00:00', text: 'סיום הפיילוט ואישור המעבר לפריסה ארצית' },
+  ],
+  findings: [
+    'רוב המשתמשים דיווחו על עקומת למידה קצרה יחסית בזכות ממשק פשוט',
+    'תקלת הסנכרון מול המערכת הישנה חזרה על עצמה פעמיים נוספות במהלך הפיילוט',
+    'משתמשים שקיבלו הדרכה פרונטלית הראו אימוץ מהיר יותר מאלו שקיבלו הדרכה מוקלטת בלבד',
+  ],
+  lessons: [
+    { text: 'יש לבצע בדיקת עומסים מול מערכת ה-CRM הישנה לפני כל גל פריסה נוסף', status: 'in_progress', priority: 2, assignee: 'מיכל אברהם', due: daysFromNow(15), dueCurrent: daysFromNow(15), log: [] },
+    { text: 'הדרכה פרונטלית עדיפה על פני הדרכה מוקלטת בשלבים הראשונים של כל גל', status: 'new', priority: 2, assignee: 'נועה ברק', due: daysFromNow(20), dueCurrent: daysFromNow(20), log: [] },
+    { text: 'כדאי למנות אלוף אימוץ בכל מחלקה לפני תחילת הגל שלה', status: 'done', priority: 1, assignee: 'מיכל אברהם', due: daysFromNow(-10), dueCurrent: daysFromNow(-10), log: [{ at: daysAgo(60), by: 'מיכל אברהם', from: 'new', to: 'done', note: 'מונו אלופי אימוץ בשלוש המחלקות הראשונות' }] },
+  ],
+  summary: [
+    { text: 'הפיילוט הצליח והוכיח כי ניתן להמשיך לפריסה ארצית בגלים לפי מחלקה', status: 'done', priority: 1, assignee: 'מיכל אברהם', due: daysFromNow(-38), dueCurrent: daysFromNow(-38), log: [] },
+    { text: 'יש לשלב את בדיקת העומסים ואת מינוי אלופי האימוץ כשלב קבוע בפתיחת כל גל', status: 'new', priority: 2, assignee: 'מיכל אברהם', due: daysFromNow(25), dueCurrent: daysFromNow(25), log: [] },
+  ],
+  tasks: [
+    { title: 'עדכון מדריך ההדרכה בהתאם ללקחי הפיילוט', desc: 'שילוב הדגשים על הדרכה פרונטלית ומינוי אלופי אימוץ.', status: 'waiting', priority: 1, assignee: 'נועה ברק', due: daysFromNow(30), dueCurrent: daysFromNow(30), log: [] },
+  ],
+};
+
+// Steering-committee meeting reviewing all four projects together.
+export const DISCUSSION_EXAMPLE = {
+  title: 'סיכום ישיבת היגוי - תוכנית העבודה 2026',
+  subject: 'סקירת התקדמות רבעונית לארבע התוכניות',
+  chair: 'דנה כהן',
+  date: daysFromNow(-2),
+  proceedings: [
+    { text: 'רועי לוי סקר את התקדמות פרויקט ה-CRM החדש; שלב הפיתוח בעיצומו עם סיכון קל ללוח הזמנים.', url: '' },
+    { text: 'מיכל אברהם עדכנה כי הפיילוט להטמעת התוכנה למשתמשים הצליח והפרויקט עובר לפריסה ארצית.', url: '' },
+    { text: 'אורי שגיא הציג את הבקשה לתקציב תשתיות ענן נוסף לפרויקט פיתוח המוצר.', url: 'https://example.com/product-budget-request' },
+    { text: 'נועה ברק דיווחה על התקדמות פריסת ההדרכה וצורך בהכשרת מדריכים נוספים.', url: '' },
+    { text: 'הוצג לוח הסיכונים המרכזי של כלל התוכניות לבחינת ההנהלה.', url: 'https://example.com/risk-dashboard' },
+  ],
+  decisions: [
+    { text: 'אישור תקציב תשתיות ענן נוסף לפרויקט פיתוח המוצר, בכפוף להצגת פירוט עלויות מעודכן.', taskTitle: 'הכנת פירוט עלויות תשתיות ענן מעודכן', status: 'new', priority: 2, assignee: 'אורי שגיא', due: daysFromNow(10), dueCurrent: daysFromNow(10), log: [] },
+    { text: 'אישור הכשרת שני מדריכים נוספים לפריסת ההדרכה הארצית.', taskTitle: 'גיוס והכשרת שני מדריכים נוספים', status: 'in_progress', priority: 1, assignee: 'נועה ברק', due: daysFromNow(20), dueCurrent: daysFromNow(20), log: [] },
+    { text: 'הוחלט להעביר את האחריות התפעולית של מערכת התפעול לצוות התמיכה השוטף עם סיום הפריסה הארצית.', taskTitle: '' },
+    { text: 'הוחלט לבצע סקר אבטחת מידע לפרויקט ה-CRM לפני עלייה לאוויר.', taskTitle: 'תיאום סקר אבטחת מידע ל-CRM', status: 'new', priority: 3, assignee: 'רועי לוי', due: daysFromNow(25), dueCurrent: daysFromNow(25), log: [] },
+  ],
+  participants: ['דנה כהן', 'רועי לוי', 'מיכל אברהם', 'אורי שגיא', 'נועה ברק'],
+  distribution: ['מנכ"ל החברה', 'סמנכ"ל טכנולוגיות'],
+  tasks: [
+    { title: 'תיאום מועד ישיבת ההיגוי הבאה', desc: 'קביעת מועד לסקירה הרבעונית הבאה מול כלל מובילי הפרויקטים.', status: 'new', priority: 1, assignee: 'דנה כהן', due: daysFromNow(85), dueCurrent: daysFromNow(85), log: [] },
+  ],
+};
+
+// Manager (דנה כהן) 1-on-1 with the CRM project lead (רועי לוי).
+export const MEETING1ON1_EXAMPLE = {
+  title: 'פגישה אישית - רועי לוי',
+  personName: 'רועי לוי',
+  meetingDate: daysFromNow(-1),
+  background: [
+    'רועי מוביל את פרויקט ה-CRM החדש כבר כחצי שנה, ומדווח ישירות לדנה.',
+    'לאחרונה עבר לתפקיד ניהולי מורחב הכולל גם תיאום מול צוות המכירות.',
+  ],
+  needs: ['זקוק לתמיכה נוספת בניהול הזמן מול ריבוי הפגישות עם צוות המכירות.'],
+  issues: ['הביע חשש מעומס לקראת שלב הבדיקות והעלייה לאוויר הקרובה.'],
+  requests: ['ביקש להצטרף להכשרה מקצועית בניהול פרויקטים טכנולוגיים.'],
+  hobbies: ['משחק כדורסל בליגת חובבים בסופי שבוע.'],
+  goals: [
+    { text: 'להוביל את פרויקט ה-CRM לעלייה לאוויר מוצלחת עד אוקטובר 2026', taskTitle: 'מעקב אישי אחר לוח הזמנים לעלייה לאוויר', status: 'in_progress', priority: 2, assignee: 'רועי לוי', due: daysFromNow(60), dueCurrent: daysFromNow(60), log: [] },
+    { text: 'לשפר את תהליך העברת עדכונים שוטפים לדנה בין ישיבות ההיגוי', taskTitle: '' },
+    { text: 'להשתתף בהכשרה מקצועית בניהול פרויקטים טכנולוגיים ברבעון הבא', taskTitle: 'תיאום הרשמה להכשרה בניהול פרויקטים', status: 'new', priority: 1, assignee: 'רועי לוי', due: daysFromNow(75), dueCurrent: daysFromNow(75), log: [] },
+  ],
+  closing: 'בברכה,',
+  signerName: 'דנה כהן',
+  tasks: [
+    { title: 'תיאום פגישת מעקב הבאה', desc: 'קביעת מועד לפגישה האישית הבאה עם רועי.', status: 'new', priority: 1, assignee: 'דנה כהן', due: daysFromNow(45), dueCurrent: daysFromNow(45), log: [] },
+  ],
+};

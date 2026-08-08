@@ -9,6 +9,7 @@ import { PRESETS } from './debrief-presets.js';
 import { touchRecent, bumpDownload, bumpReimport } from './identity.js';
 import { exportDocxHtml } from './export.js';
 import Tasks from './Tasks.jsx';
+import { DEBRIEF_EXAMPLE } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -545,6 +546,41 @@ export default function Debrief({ info, user, token }) {
     if (f.name.toLowerCase().endsWith('.csv')) return importCsv(f);
     return importTxtLegacy(f);
   }
+  // Loads DEBRIEF_EXAMPLE directly (not through importCsv's row parser) — mirrors the same
+  // transact shape importCsv builds, since lessons/summary lines each auto-create a linked task.
+  function loadExample() {
+    if (!confirm('טעינת דוגמה תחליף את כל תוכן התחקיר, כולל לוח המשימות. להמשיך?')) return;
+    const d = DEBRIEF_EXAMPLE;
+    ydoc.transact(() => {
+      meta.set('title', d.title);
+      meta.set('background', d.background);
+      meta.set('chronoNotes', d.chronoNotes);
+      [...chrono.keys()].forEach((k) => chrono.delete(k));
+      [...lines.keys()].forEach((k) => lines.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      d.chrono.forEach((c, i) => { const m = new Y.Map(); m.set('date', c.date); m.set('time', c.time); m.set('text', c.text); m.set('ord', i + 1); chrono.set(uid(), m); });
+      d.findings.forEach((text, i) => { const m = new Y.Map(); m.set('section', 'findings'); m.set('text', text); m.set('ord', i + 1); lines.set(uid(), m); });
+      let taskOrd = 0;
+      const addLinked = (sec, label, rows) => rows.forEach((row, i) => {
+        const taskId = uid(), t = new Y.Map();
+        t.set('ord', ++taskOrd); t.set('title', label); t.set('desc', row.text);
+        t.set('status', row.status); t.set('priority', row.priority); t.set('due', row.due); t.set('dueCurrent', row.dueCurrent);
+        t.set('assignee', row.assignee); t.set('log', row.log || []);
+        tasks.set(taskId, t);
+        const m = new Y.Map(); m.set('section', sec); m.set('text', row.text); m.set('ord', i + 1); m.set('taskId', taskId);
+        lines.set(uid(), m);
+      });
+      addLinked('lessons', TASK_LABEL.lessons, d.lessons);
+      addLinked('summary', TASK_LABEL.summary, d.summary);
+      (d.tasks || []).forEach((t) => {
+        const m = new Y.Map();
+        m.set('ord', ++taskOrd); m.set('title', t.title); m.set('desc', t.desc);
+        m.set('status', t.status); m.set('priority', t.priority); m.set('due', t.due); m.set('dueCurrent', t.dueCurrent);
+        m.set('assignee', t.assignee); m.set('log', t.log || []);
+        tasks.set(uid(), m);
+      });
+    });
+  }
 
   return (
     <div className="doc-page">
@@ -563,6 +599,7 @@ export default function Debrief({ info, user, token }) {
           {editable && <>
             <button className="btn" title="ניתן לטעון קובץ CSV בפורמט שיוצא מהמערכת (קבצי TXT ישנים עדיין נתמכים)" onClick={() => fileRef.current.click()}>טעינה</button>
             <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={importFile} />
+            <button className="btn" title="טעינת תחקיר לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportWord}>Word ‏(.docx) - הכל</button>

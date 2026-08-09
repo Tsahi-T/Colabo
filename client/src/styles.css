@@ -651,14 +651,17 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-page { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 .gt-canvas { flex: 1; overflow: auto; position: relative; background: var(--bg); }
 .gt-stage { position: relative; }
+/* the title used to be squeezed into the 148px corner cell and get clipped — it now lives
+   in its own full-width row alongside the table-toggle button. */
+.gt-canvas-topbar { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .6rem 0; flex-shrink: 0; }
+.gt-canvas-title { font-weight: 800; font-size: .95rem; color: var(--ink); unicode-bidi: plaintext; overflow-wrap: anywhere; }
 
 .gt-header-row { display: flex; position: sticky; z-index: 4; }
 .gt-header-years { top: 0; height: 28px; }
 .gt-header-units { top: 28px; height: 30px; }
 .gt-corner {
-  position: sticky; left: 0; z-index: 5; width: 148px; flex-shrink: 0; display: flex; align-items: center;
-  padding: 0 .6rem; background: var(--panel); border-bottom: 1px solid var(--border); border-inline-end: 1px solid var(--border);
-  font-weight: 800; font-size: .84rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  position: sticky; left: 0; z-index: 5; width: 148px; flex-shrink: 0;
+  background: var(--panel); border-bottom: 1px solid var(--border); border-inline-end: 1px solid var(--border);
 }
 .gt-corner-sub { background: var(--bg); }
 .gt-header-track { position: relative; background: var(--panel); border-bottom: 1px solid var(--border); }
@@ -690,7 +693,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   color: #ef4444; white-space: nowrap;
 }
 
-.gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }
+/* z-index above bars/milestones (2) so an arrowhead landing right at a bar's edge is never
+   hidden underneath it — it used to share the same stacking level and lose to DOM order. */
+.gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 3; }
 .gt-link { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
 .gt-link-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .gt-arrowhead { fill: var(--ink2); }
@@ -702,10 +707,6 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   overflow: hidden; white-space: nowrap; z-index: 2; unicode-bidi: plaintext;
 }
 .gt-bar.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
-.gt-bar.texture {
-  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .4) 0 6px, transparent 6px 12px);
-  background-blend-mode: overlay;
-}
 .gt-bar-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 .gt-bar-pct { flex-shrink: 0; opacity: .9; margin-inline-start: .3rem; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 /* a bar too narrow for gt-bar-label renders this instead — positioned just past the bar's
@@ -728,8 +729,11 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 
 .gt-milestone { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .35rem; z-index: 2; cursor: grab; }
 .gt-diamond { width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid var(--panel); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); flex-shrink: 0; }
+/* renders BELOW the diamond, in the extra row-height reserved for a milestone lane
+   (MS_EXTRA) — centered on both axes at the point the component hands it, so it never
+   spills sideways into a neighboring bar or swimlane the way a beside-the-diamond label did. */
 .gt-milestone-label {
-  position: absolute; transform: translateY(-50%); font-size: .76rem; font-weight: 700; color: var(--ink);
+  position: absolute; transform: translate(-50%, -50%); font-size: .76rem; font-weight: 700; color: var(--ink);
   white-space: nowrap; background: var(--panel); padding: .05rem .35rem; border-radius: 4px;
   box-shadow: var(--shadow-chip); unicode-bidi: plaintext; max-width: 130px; overflow: hidden;
   text-overflow: ellipsis; z-index: 3; cursor: grab;
@@ -748,36 +752,58 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .gt-add-group-btn { align-self: stretch; font-size: .85rem; padding: .5rem; }
 .gt-canvas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.gt-table-toggle { align-self: flex-start; margin: .5rem .6rem 0; flex-shrink: 0; }
+.gt-table-toggle { flex-shrink: 0; }
 .gt-empty-table { padding: 1rem .4rem; text-align: center; font-size: .82rem; color: var(--ink3); }
 
 .gt-gcard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--card-shadow); flex-shrink: 0; }
 .gt-gcard.sel { border-color: var(--accent); }
 .gt-gcard-head {
-  display: flex; align-items: flex-start; gap: .45rem; padding: .55rem .6rem;
+  display: flex; align-items: flex-start; gap: .45rem; padding: .5rem .6rem;
   border-inline-start: 5px solid; cursor: pointer; background: color-mix(in srgb, var(--ink) 3%, var(--panel));
 }
-.gt-gcard-head b { padding-top: .2rem; font-size: .92rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
-.gt-gcard-name-in { flex: 1; min-width: 0; font-weight: 800; font-size: .92rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .15rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-gcard-head b { padding-top: .2rem; font-size: .86rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-gcard-name-in { flex: 1; min-width: 0; font-weight: 800; font-size: .86rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .12rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
 .gt-gcard-name-in:hover, .gt-gcard-name-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
-.gt-gcard-tasks { display: flex; flex-direction: column; gap: .45rem; padding: .55rem; }
+.gt-gcard-tasks { display: flex; flex-direction: column; gap: .35rem; padding: .5rem; }
 
-.gt-tcard { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: .5rem .6rem; display: flex; flex-direction: column; gap: .4rem; cursor: pointer; flex-shrink: 0; }
+/* task cards are collapsed by default: row1 (color/name/expand/delete) plus a one-line
+   compact summary — the full field set (row2 + dependency pickers) only renders when
+   expanded, so a long task list stays scannable instead of showing every field at once. */
+.gt-tcard { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: .4rem .55rem; display: flex; flex-direction: column; gap: .3rem; }
 .gt-tcard.sel { border-color: var(--accent); outline: 1px solid var(--accent); }
-.gt-tcard-row1 { display: flex; align-items: flex-start; gap: .4rem; }
-.gt-tcard-name-in { flex: 1; min-width: 0; font-weight: 700; font-size: .88rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .1rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-tcard-row1 { display: flex; align-items: flex-start; gap: .35rem; cursor: pointer; }
+.gt-tcard-name-in { flex: 1; min-width: 0; font-weight: 700; font-size: .82rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .08rem .25rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
 .gt-tcard-name-in:hover, .gt-tcard-name-in:focus { border-color: var(--border); background: var(--panel); outline: 0; }
-.gt-tcard-name-ro { padding-top: .1rem; font-size: .88rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
-.gt-tcard-row2 { display: flex; flex-wrap: wrap; gap: .6rem .7rem; align-items: end; }
-.gt-tcard-row2 label { display: flex; flex-direction: column; gap: .15rem; font-size: .68rem; font-weight: 700; color: var(--ink3); }
-.gt-tcard-row2 label span { font-size: .82rem; font-weight: 400; color: var(--ink2); }
-.gt-tcard-row2 input[type=date] { font: inherit; font-size: .8rem; }
-.gt-pct-in { width: 3.4em; font: inherit; font-size: .8rem; }
-.gt-tcard-cb { flex-direction: row !important; align-items: center; gap: .25rem !important; cursor: pointer; font-size: .95rem !important; color: var(--ink2) !important; }
-.gt-tcard-cb input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+.gt-tcard-name-ro { flex: 1; min-width: 0; padding-top: .1rem; font-size: .82rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-tcard-expand {
+  flex-shrink: 0; border: 0; background: none; color: var(--ink3); font-size: .8rem; line-height: 1;
+  padding: .2rem .35rem; border-radius: 5px; cursor: pointer;
+}
+.gt-tcard-expand:hover { background: var(--hover); color: var(--ink); }
+.gt-tcard-summary { font-size: .72rem; color: var(--ink3); padding-inline-start: 1.55rem; cursor: pointer; }
+.gt-tcard-row2 { display: flex; flex-wrap: wrap; gap: .5rem .6rem; align-items: end; padding-top: .1rem; }
+.gt-tcard-row2 label { display: flex; flex-direction: column; gap: .12rem; font-size: .64rem; font-weight: 700; color: var(--ink3); }
+.gt-tcard-row2 label span { font-size: .78rem; font-weight: 400; color: var(--ink2); }
+.gt-tcard-row2 input[type=date] { font: inherit; font-size: .76rem; }
+.gt-pct-in { width: 3.2em; font: inherit; font-size: .76rem; }
+.gt-tcard-cb { flex-direction: row !important; align-items: center; gap: .2rem !important; cursor: pointer; font-size: .88rem !important; color: var(--ink2) !important; }
+.gt-tcard-cb input { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
+
+/* predecessor/successor lists — lets links be managed as text in the table instead of only
+   via imprecise canvas dragging. */
+.gt-deps { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; padding-top: .3rem; border-top: 1px dashed var(--border); }
+.gt-deps-col { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.gt-deps-l { font-size: .62rem; font-weight: 700; color: var(--ink3); }
+.gt-deps-empty { font-size: .74rem; color: var(--ink3); }
+.gt-dep-row {
+  display: flex; align-items: center; justify-content: space-between; gap: .3rem;
+  background: var(--panel); border-radius: 5px; padding: .12rem .4rem; font-size: .74rem; min-width: 0;
+}
+.gt-dep-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.gt-dep-add { font-size: .72rem; padding: .15rem .3rem; border-radius: 5px; border: 1px dashed var(--border); background: transparent; color: var(--ink3); }
 
 .gt-color-wrap { position: relative; flex-shrink: 0; }
-.gt-color-chip { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; cursor: pointer; margin-top: .1rem; padding: 0; }
+.gt-color-chip { width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; cursor: pointer; margin-top: .12rem; padding: 0; }
 .gt-color-pop {
   position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; background: var(--panel);
   border: 1px solid var(--border); border-radius: 8px; padding: .4rem; display: flex; flex-wrap: wrap;

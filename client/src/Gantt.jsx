@@ -24,9 +24,10 @@ const defaultStart = () => startOfMonth(today());
 const defaultEnd = () => addMonths(defaultStart(), 18);
 const num = (v, fb = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
 const fmt = (iso) => (iso ? parseISO(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+const fmtShort = (iso) => (iso ? iso.split('-').reverse().join('.') : ''); // DD.MM.YYYY — compact, for accordion summaries
 
 // ---- layout geometry ----------------------------------------------------------------
-const ROW_H = 34, BAR_H = 24, GROUP_GAP = 3, LEFT_W = 148;
+const ROW_H = 34, BAR_H = 24, GROUP_GAP = 3, LEFT_W = 148, MS_EXTRA = 16;
 
 // Greedy interval packing: each task gets the first sub-row ("lane") within its module
 // whose last-placed task doesn't overlap it, so overlapping tasks stack instead of
@@ -79,6 +80,16 @@ function weekSegments(startISO, endISO, xOf) {
   }
   return segs;
 }
+// Whole calendar months in range, for the Excel export's column grid.
+function monthList(startISO, endISO) {
+  const list = [];
+  const s = parseISO(startISO), e = parseISO(endISO);
+  for (let d = new Date(s.getFullYear(), s.getMonth(), 1); d < e; d.setMonth(d.getMonth() + 1)) {
+    const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    list.push({ label: d.toLocaleDateString('he-IL', { month: 'short', year: 'numeric' }), start: +d, end: +next });
+  }
+  return list;
+}
 
 // Right-angle "finish-to-start" connector, source-right to target-left. Handles the
 // backward/overlapping case (target starts before source ends) the same way as the normal
@@ -105,16 +116,17 @@ function GrowingField({ className, value, onChange, placeholder, rows }) {
   return <textarea ref={ref} className={className} rows={rows || 1} placeholder={placeholder} value={value} onChange={onChange} />;
 }
 
-const download = (text, name) => {
+const download = (text, name, mime = 'text/plain;charset=utf-8') => {
   bumpDownload();
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
+  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
 };
 const esc = (s) => { s = String(s ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 const row = (arr) => arr.map(esc).join(',');
+const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function parseCsvLine(line) {
   // single-line CSV field splitter (good enough here — no field in this format needs \n)
   const out = []; let f = '', q = false;
@@ -157,57 +169,102 @@ function ColorPop({ value, onPick, onReset }) {
   );
 }
 
-function TaskCard({ t, groupColor, editable, sel, onSelect, onChange, onDelete }) {
+// Collapsed by default — a compact one-line summary (name + dates) — and expands to the
+// full field set (dates/%/milestone + predecessor/successor lists) on demand, so a long
+// task list stays scannable instead of showing every field for every row at once.
+function TaskCard({ t, groupColor, editable, sel, open, onToggleOpen, onSelect, onChange, onDelete, showPct, predecessors, successors, taskOptions, onAddLink, onDelLink }) {
   return (
-    <div className={'gt-tcard' + (sel ? ' sel' : '')} onClick={() => onSelect(t.id)}>
-      <div className="gt-tcard-row1">
+    <div className={'gt-tcard' + (sel ? ' sel' : '')}>
+      <div className="gt-tcard-row1" onClick={() => onSelect(t.id)}>
         {editable
           ? <ColorPop value={t.color || groupColor} onPick={(hex) => onChange({ color: hex })} onReset={() => onChange({ color: '' })} />
           : <span className="gt-color-chip" style={{ background: t.color || groupColor }} />}
         {editable
           ? <GrowingField className="gt-tcard-name-in" value={t.name} placeholder="שם המשימה" onChange={(e) => onChange({ name: e.target.value })} />
           : <b className="gt-tcard-name-ro">{t.name || '-'}</b>}
+        <button type="button" className="gt-tcard-expand" title={open ? 'כיווץ' : 'הרחבה'} onClick={(e) => { e.stopPropagation(); onToggleOpen(); }}>
+          {open ? '︿' : '﹀'}
+        </button>
         {editable && <button className="pj-x" onClick={(e) => { e.stopPropagation(); onDelete(); }}>✕</button>}
       </div>
-      <div className="gt-tcard-row2">
-        <label>התחלה
-          {editable
-            ? <input type="date" value={t.start} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && onChange({
-                start: e.target.value,
-                end: t.milestone ? e.target.value : (e.target.value >= t.end ? toISO(new Date(+parseISO(e.target.value) + DAY)) : t.end),
-              })} />
-            : <span>{fmt(t.start)}</span>}
-        </label>
-        {!t.milestone && (
-          <label>סיום
-            {editable
-              ? <input type="date" value={t.end} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && e.target.value > t.start && onChange({ end: e.target.value })} />
-              : <span>{fmt(t.end)}</span>}
-          </label>
-        )}
-        {!t.milestone && (
-          <label>%
-            {editable
-              ? <input type="number" min={0} max={100} className="gt-pct-in" value={t.progress} onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => onChange({ progress: e.target.value })}
-                  onBlur={(e) => onChange({ progress: Math.min(100, Math.max(0, num(e.target.value, 0))) })} />
-              : <span>{t.progress}%</span>}
-          </label>
-        )}
-        {editable && (
-          <label className="gt-tcard-cb" title="אבן דרך מעוינת" onClick={(e) => e.stopPropagation()}>
-            <input type="checkbox" checked={t.milestone} onChange={(e) => onChange({
-              milestone: e.target.checked,
-              end: e.target.checked ? t.start : (t.end > t.start ? t.end : toISO(new Date(+parseISO(t.start) + 7 * DAY))),
-            })} />◆
-          </label>
-        )}
-        {editable && (
-          <label className="gt-tcard-cb" title="מרקם (פסים)" onClick={(e) => e.stopPropagation()}>
-            <input type="checkbox" checked={t.texture} onChange={(e) => onChange({ texture: e.target.checked })} />▦
-          </label>
-        )}
-      </div>
+      {!open && (
+        <div className="gt-tcard-summary" onClick={() => onSelect(t.id)}>
+          {t.milestone ? `◆ ${fmtShort(t.start)}` : `${fmtShort(t.start)} - ${fmtShort(t.end)}`}
+          {!t.milestone && showPct ? ` · ${t.progress}%` : ''}
+        </div>
+      )}
+      {open && (
+        <>
+          <div className="gt-tcard-row2">
+            <label>התחלה
+              {editable
+                ? <input type="date" value={t.start} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && onChange({
+                    start: e.target.value,
+                    end: t.milestone ? e.target.value : (e.target.value >= t.end ? toISO(new Date(+parseISO(e.target.value) + DAY)) : t.end),
+                  })} />
+                : <span>{fmt(t.start)}</span>}
+            </label>
+            {!t.milestone && (
+              <label>סיום
+                {editable
+                  ? <input type="date" value={t.end} onClick={(e) => e.stopPropagation()} onChange={(e) => e.target.value && e.target.value > t.start && onChange({ end: e.target.value })} />
+                  : <span>{fmt(t.end)}</span>}
+              </label>
+            )}
+            {!t.milestone && showPct && (
+              <label>%
+                {editable
+                  ? <input type="number" min={0} max={100} className="gt-pct-in" value={t.progress} onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => onChange({ progress: e.target.value })}
+                      onBlur={(e) => onChange({ progress: Math.min(100, Math.max(0, num(e.target.value, 0))) })} />
+                  : <span>{t.progress}%</span>}
+              </label>
+            )}
+            {editable && (
+              <label className="gt-tcard-cb" title="אבן דרך מעוינת" onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" checked={t.milestone} onChange={(e) => onChange({
+                  milestone: e.target.checked,
+                  end: e.target.checked ? t.start : (t.end > t.start ? t.end : toISO(new Date(+parseISO(t.start) + 7 * DAY))),
+                })} />◆
+              </label>
+            )}
+          </div>
+          <div className="gt-deps" onClick={(e) => e.stopPropagation()}>
+            <div className="gt-deps-col">
+              <span className="gt-deps-l">תלות מקדימה</span>
+              {predecessors.map((p) => (
+                <div key={p.linkId} className="gt-dep-row">
+                  <span>{p.name || 'ללא שם'}</span>
+                  {editable && <button className="pj-x" onClick={() => onDelLink(p.linkId)}>✕</button>}
+                </div>
+              ))}
+              {editable && taskOptions.length > 0 && (
+                <select className="gt-dep-add" value="" onChange={(e) => { if (e.target.value) onAddLink(e.target.value, t.id); }}>
+                  <option value="">+ הוספת תלות מקדימה</option>
+                  {taskOptions.map((o) => <option key={o.id} value={o.id}>{o.name || 'ללא שם'}</option>)}
+                </select>
+              )}
+              {!predecessors.length && !editable && <span className="gt-deps-empty">אין</span>}
+            </div>
+            <div className="gt-deps-col">
+              <span className="gt-deps-l">תלות מאוחרת</span>
+              {successors.map((s) => (
+                <div key={s.linkId} className="gt-dep-row">
+                  <span>{s.name || 'ללא שם'}</span>
+                  {editable && <button className="pj-x" onClick={() => onDelLink(s.linkId)}>✕</button>}
+                </div>
+              ))}
+              {editable && taskOptions.length > 0 && (
+                <select className="gt-dep-add" value="" onChange={(e) => { if (e.target.value) onAddLink(t.id, e.target.value); }}>
+                  <option value="">+ הוספת תלות מאוחרת</option>
+                  {taskOptions.map((o) => <option key={o.id} value={o.id}>{o.name || 'ללא שם'}</option>)}
+                </select>
+              )}
+              {!successors.length && !editable && <span className="gt-deps-empty">אין</span>}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -240,6 +297,7 @@ export default function Gantt({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [sel, setSel] = useState(null); // {kind:'task'|'group', id}
   const [tableOpen, setTableOpen] = useState(true);
+  const [openTaskIds, setOpenTaskIds] = useState(() => new Set()); // accordion state, per-viewer
   const [zoom, setZoom] = useState(1);
   const [connect, setConnect] = useState(null); // {from, x, y} — live link-drag preview, grid-local coords
   const canvasRef = useRef();
@@ -308,6 +366,13 @@ export default function Gantt({ info, user, token }) {
     tPts.current.delete(e.pointerId);
     if (tPts.current.size < 2) tPinch.current = null;
   }
+  function toggleTaskOpen(id) {
+    setOpenTaskIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   // ---- data ----
   const rangeStart = meta.get('start') || defaultStart();
@@ -315,6 +380,7 @@ export default function Gantt({ info, user, token }) {
   const gran = meta.get('gran') === 'week' ? 'week' : 'month';
   const showToday = meta.get('showToday') !== false;
   const showLinks = meta.get('showLinks') !== false;
+  const showPct = meta.get('showPct') !== false;
 
   const groupList = [...groups.entries()]
     .map(([id, m]) => ({ id, name: m.get('name') || 'מודול', color: m.get('color') || PASTELS['אפור'], ord: m.get('ord') || 0 }))
@@ -324,9 +390,10 @@ export default function Gantt({ info, user, token }) {
     id, groupId: m.get('groupId'), name: m.get('name') || '',
     start: m.get('start') || today(), end: m.get('end') || m.get('start') || today(),
     progress: Math.min(100, Math.max(0, num(m.get('progress'), 0))),
-    color: m.get('color') || '', texture: !!m.get('texture'), milestone: !!m.get('milestone'),
+    color: m.get('color') || '', milestone: !!m.get('milestone'),
     ord: m.get('ord') || 0,
   }));
+  const taskNameById = new Map(allTasks.map((t) => [t.id, t.name]));
 
   const startT = +parseISO(rangeStart), endT = +parseISO(rangeEnd);
   const spanDays = Math.max(1, (endT - startT) / DAY);
@@ -339,6 +406,9 @@ export default function Gantt({ info, user, token }) {
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
 
+  // Per-module lane packing — a lane that hosts a milestone gets extra height reserved
+  // below it for the milestone's own label, so the label never has to spill sideways into
+  // a neighboring bar or swimlane (its old failure mode).
   let cumTop = 0;
   const groupsLaid = groupList.map((g) => {
     const gTasks = allTasks
@@ -350,9 +420,13 @@ export default function Gantt({ info, user, token }) {
       })
       .sort((a, b) => a.startT - b.startT || a.ord - b.ord);
     const { lane, count } = packLanes(gTasks);
-    const laid = gTasks.map((t) => ({ ...t, lane: lane[t.id], top: cumTop + lane[t.id] * ROW_H }));
-    const gLaid = { ...g, top: cumTop, height: count * ROW_H };
-    cumTop += count * ROW_H + GROUP_GAP;
+    const laneHasMs = Array.from({ length: count }, (_, i) => gTasks.some((t) => lane[t.id] === i && t.milestone));
+    const laneH = laneHasMs.map((has) => (has ? ROW_H + MS_EXTRA : ROW_H));
+    const laneTop = []; let acc = 0;
+    for (let i = 0; i < count; i++) { laneTop.push(acc); acc += laneH[i]; }
+    const laid = gTasks.map((t) => ({ ...t, lane: lane[t.id], top: cumTop + laneTop[lane[t.id]] }));
+    const gLaid = { ...g, top: cumTop, height: acc };
+    cumTop += acc + GROUP_GAP;
     return { group: gLaid, tasks: laid };
   });
   const totalHeight = Math.max(cumTop - GROUP_GAP, 0);
@@ -403,11 +477,12 @@ export default function Gantt({ info, user, token }) {
     const ord = Math.max(0, ...gTasks.map((t) => t.ord)) + 1;
     const s = gTasks.length ? gTasks[gTasks.length - 1].end : rangeStart;
     ydoc.transact(() => {
-      m.set('groupId', gid); m.set('name', ''); m.set('start', s); m.set('end', addMonths(s, 0) === s ? toISO(new Date(+parseISO(s) + 14 * DAY)) : s);
-      m.set('progress', 0); m.set('color', ''); m.set('texture', false); m.set('milestone', false); m.set('ord', ord);
+      m.set('groupId', gid); m.set('name', ''); m.set('start', s); m.set('end', toISO(new Date(+parseISO(s) + 14 * DAY)));
+      m.set('progress', 0); m.set('color', ''); m.set('milestone', false); m.set('ord', ord);
       tasks.set(id, m);
     });
     setSel({ kind: 'task', id });
+    setOpenTaskIds((prev) => new Set(prev).add(id));
   }
   function setTask(id, patch) {
     const m = tasks.get(id);
@@ -444,10 +519,10 @@ export default function Gantt({ info, user, token }) {
   const capture = (e) => { try { gridRef.current.setPointerCapture(e.pointerId); } catch { /* touch/pen edge cases */ } };
 
   // Drag distance uses raw clientX deltas, not grid-relative coordinates re-measured on
-  // every move: selecting a task opens the edit panel, which shrinks the canvas and shifts
-  // the grid's on-screen position mid-drag — re-measuring against the grid's rect on each
-  // move would then read a corrupted delta for that same gesture. A plain screen-space
-  // delta between two pointer events is immune to any layout shift in between.
+  // every move: selecting a task can shift the layout mid-drag (accordion open/close,
+  // panel widths) — re-measuring against the grid's rect on each move would then read a
+  // corrupted delta for that same gesture. A plain screen-space delta between two pointer
+  // events is immune to any layout shift in between.
   function downBar(e, t) {
     if (!editable) return;
     e.stopPropagation();
@@ -502,7 +577,7 @@ export default function Gantt({ info, user, token }) {
     }
   }
 
-  // ---- TXT export/import ----
+  // ---- TXT export/import (full round-trip, incl. links) ----
   const boolHe = (b) => (b ? 'כן' : 'לא');
   const exportTxt = () => {
     const gNum = new Map(groupList.map((g, i) => [g.id, i + 1]));
@@ -514,19 +589,56 @@ export default function Gantt({ info, user, token }) {
       row(['רמת פירוט', gran === 'week' ? 'שבועות' : 'חודשים']),
       row(['הצגת היום', boolHe(showToday)]),
       row(['הצגת קשרים', boolHe(showLinks)]),
+      row(['הצגת אחוזים', boolHe(showPct)]),
       '',
       ...groupList.map((g) => `[G${gNum.get(g.id)}] מודול,${esc(g.name)},${esc(g.color)}`),
       '',
-      ...allTasks.map((t) => `[T${tNum.get(t.id)}] משימה,${row([gNum.get(t.groupId) || '', t.name, t.start, t.end, t.progress, t.color, boolHe(t.texture), boolHe(t.milestone)])}`),
+      ...allTasks.map((t) => `[T${tNum.get(t.id)}] משימה,${row([gNum.get(t.groupId) || '', t.name, t.start, t.end, t.progress, t.color, boolHe(t.milestone)])}`),
       '',
       ...linkList.filter((l) => tNum.has(l.from) && tNum.has(l.to)).map((l) => row(['קשר', tNum.get(l.from), tNum.get(l.to)])),
     ];
     download(lines.join('\r\n') + '\r\n', `${title || 'לוח גאנט'}.txt`);
   };
   const exportPdf = () => printElementImage('.gt-canvas', { title: title || 'לוח גאנט', landscape: true, clip: true });
+  // Excel: a real HTML <table> saved with an .xls extension — Excel opens this natively and
+  // renders the inline cell colors, no binary xlsx library needed. Leading columns carry the
+  // same structured fields as the TXT format (minus link IDs, which don't survive a human
+  // editing colored cells by hand) so the file re-imports cleanly; the month columns are the
+  // colored "Gantt in a spreadsheet" view this was asked for.
+  const exportExcel = () => {
+    const months = monthList(rangeStart, rangeEnd);
+    const head = ['מודול', 'משימה', 'התחלה', 'סיום', '%', 'אבן דרך', 'תלות מקדימה', 'תלות מאוחרת', ...months.map((m) => m.label)];
+    const bodyRows = allTasks.map((t) => {
+      const g = groupList.find((x) => x.id === t.groupId);
+      const sT = +parseISO(t.start), eT = t.milestone ? sT + DAY : +parseISO(t.end);
+      const preds = linkList.filter((l) => l.to === t.id).map((l) => taskNameById.get(l.from)).filter(Boolean).join('; ');
+      const succs = linkList.filter((l) => l.from === t.id).map((l) => taskNameById.get(l.to)).filter(Boolean).join('; ');
+      const color = t.color || g?.color || '#3b82f6';
+      const monthCells = months.map((m) => {
+        const active = sT < m.end && eT > m.start;
+        return `<td style="background:${active ? color : '#ffffff'};border:1px solid #ccc;width:24px;"></td>`;
+      }).join('');
+      return `<tr>
+        <td style="background:${g?.color || '#fff'};font-weight:bold;border:1px solid #ccc;padding:3px 6px;">${escHtml(g?.name || '')}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(t.name)}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${t.start}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${t.milestone ? '' : t.end}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${t.milestone ? '' : t.progress}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${t.milestone ? 'כן' : 'לא'}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(preds)}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(succs)}</td>
+        ${monthCells}
+      </tr>`;
+    }).join('');
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head>` +
+      `<body dir="rtl"><table border="1" style="border-collapse:collapse;font-family:Arial;font-size:12px;">` +
+      `<tr>${head.map((h) => `<th style="background:#eef1f5;border:1px solid #ccc;padding:3px 6px;">${escHtml(h)}</th>`).join('')}</tr>` +
+      `${bodyRows}</table></body></html>`;
+    download(html, `${title || 'לוח גאנט'}.xls`, 'application/vnd.ms-excel;charset=utf-8');
+  };
   function applyGanttTxt(txt, { skipConfirm = false } = {}) {
     const lines = txt.split(/\r?\n/);
-    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true;
+    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true, newShowPct = true;
     const parsedGroups = [], parsedTasks = [], parsedLinks = [];
     for (const line of lines) {
       const g = line.match(/^\[G(\d+)\]\s*מודול,(.*)/); if (g) { const f = parseCsvLine(g[2]); parsedGroups.push({ num: +g[1], name: f[0] || 'מודול', color: f[1] || PASTELS['אפור'] }); continue; }
@@ -535,7 +647,7 @@ export default function Gantt({ info, user, token }) {
         const f = parseCsvLine(t[2]);
         parsedTasks.push({
           num: +t[1], groupNum: +f[0], name: f[1] || '', start: f[2] || today(), end: f[3] || today(),
-          progress: +f[4] || 0, color: f[5] || '', texture: f[6] === 'כן', milestone: f[7] === 'כן',
+          progress: +f[4] || 0, color: f[5] || '', milestone: f[6] === 'כן',
         });
         continue;
       }
@@ -548,6 +660,7 @@ export default function Gantt({ info, user, token }) {
       else if (label === 'רמת פירוט') newGran = (rowFields[1] || '').trim() === 'שבועות' ? 'week' : 'month';
       else if (label === 'הצגת היום') newShowToday = (rowFields[1] || '').trim() !== 'לא';
       else if (label === 'הצגת קשרים') newShowLinks = (rowFields[1] || '').trim() !== 'לא';
+      else if (label === 'הצגת אחוזים') newShowPct = (rowFields[1] || '').trim() !== 'לא';
     }
     if (!parsedGroups.length && !parsedTasks.length) return alert('לא נמצא תוכן תקין בקובץ');
     if (!skipConfirm && (groups.size || tasks.size) && !confirm('הטעינה תחליף את לוח הגאנט הנוכחי. להמשיך?')) return;
@@ -555,7 +668,7 @@ export default function Gantt({ info, user, token }) {
       if (newTitle) meta.set('title', newTitle);
       if (newStart) meta.set('start', newStart);
       if (newEnd) meta.set('end', newEnd);
-      meta.set('gran', newGran); meta.set('showToday', newShowToday); meta.set('showLinks', newShowLinks);
+      meta.set('gran', newGran); meta.set('showToday', newShowToday); meta.set('showLinks', newShowLinks); meta.set('showPct', newShowPct);
       [...groups.keys()].forEach((k) => groups.delete(k));
       [...tasks.keys()].forEach((k) => tasks.delete(k));
       [...links.keys()].forEach((k) => links.delete(k));
@@ -571,7 +684,7 @@ export default function Gantt({ info, user, token }) {
         const id = uid(), m = new Y.Map();
         m.set('groupId', groupIdByNum.get(t.groupNum) || ''); m.set('name', t.name);
         m.set('start', t.start); m.set('end', t.end); m.set('progress', t.progress);
-        m.set('color', t.color); m.set('texture', t.texture); m.set('milestone', t.milestone); m.set('ord', i + 1);
+        m.set('color', t.color); m.set('milestone', t.milestone); m.set('ord', i + 1);
         tasks.set(id, m);
         taskIdByNum.set(t.num, id);
       });
@@ -585,17 +698,91 @@ export default function Gantt({ info, user, token }) {
     });
     setSel(null);
   }
-  async function importTxt(e) {
+  // Reads the exported .xls back — it's a plain HTML <table>, so DOMParser handles it with no
+  // library. Reconstructs modules (one per distinct name, in first-seen order) and tasks from
+  // the leading structured columns; the colored month cells are decorative and ignored on
+  // read, and — since a human may have hand-edited names in Excel — predecessor/successor
+  // links are matched best-effort by name rather than reconstructed (the TXT format remains
+  // the fully reliable round-trip for links).
+  function applyExcelHtml(text, { skipConfirm = false } = {}) {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const trs = [...doc.querySelectorAll('table tr')].slice(1); // skip header row
+    const groupNames = [];
+    const parsed = [];
+    trs.forEach((tr) => {
+      const cells = [...tr.children].map((td) => td.textContent.trim());
+      if (!cells.length) return;
+      const [groupName, name, start, end, pctStr, msStr, predsStr, succsStr] = cells;
+      if (!groupName && !name) return;
+      let gi = groupNames.indexOf(groupName);
+      if (gi === -1) { gi = groupNames.length; groupNames.push(groupName || 'מודול'); }
+      const milestone = msStr === 'כן';
+      parsed.push({
+        groupIdx: gi, name: name || '', start: start || today(),
+        end: milestone ? (start || today()) : (end || start || today()),
+        progress: +pctStr || 0, milestone,
+        preds: (predsStr || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean),
+        succs: (succsStr || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean),
+      });
+    });
+    if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
+    if (!skipConfirm && (groups.size || tasks.size) && !confirm('הטעינה תחליף את לוח הגאנט הנוכחי. להמשיך?')) return;
+    ydoc.transact(() => {
+      [...groups.keys()].forEach((k) => groups.delete(k));
+      [...tasks.keys()].forEach((k) => tasks.delete(k));
+      [...links.keys()].forEach((k) => links.delete(k));
+      const palette = Object.values(PASTELS);
+      const groupIds = groupNames.map((name, i) => {
+        const id = uid(), m = new Y.Map();
+        m.set('name', name); m.set('color', palette[i % palette.length]); m.set('ord', i + 1);
+        groups.set(id, m);
+        return id;
+      });
+      const taskIdByName = new Map();
+      const createdIds = parsed.map((t, i) => {
+        const id = uid(), m = new Y.Map();
+        m.set('groupId', groupIds[t.groupIdx]); m.set('name', t.name);
+        m.set('start', t.start); m.set('end', t.end); m.set('progress', t.progress);
+        m.set('color', ''); m.set('milestone', t.milestone); m.set('ord', i + 1);
+        tasks.set(id, m);
+        if (t.name) taskIdByName.set(t.name, id);
+        return id;
+      });
+      // Each link appears twice in the sheet — as a "successor" on the source row and a
+      // "predecessor" on the target row — so this pass needs its own seen-set; the from|to
+      // pairs already created within this same loop aren't reflected in the component's
+      // stale linkList closure.
+      const seenPairs = new Set();
+      const addOnce = (fromId, toId) => {
+        if (!fromId || !toId || fromId === toId) return;
+        const key = fromId + '|' + toId;
+        if (seenPairs.has(key)) return;
+        seenPairs.add(key);
+        const id = uid(), m = new Y.Map();
+        m.set('from', fromId); m.set('to', toId);
+        links.set(id, m);
+      };
+      parsed.forEach((t, i) => {
+        const toId = createdIds[i];
+        t.preds.forEach((predName) => addOnce(taskIdByName.get(predName), toId));
+        t.succs.forEach((succName) => addOnce(toId, taskIdByName.get(succName)));
+      });
+    });
+    setSel(null);
+  }
+  async function importFile(e) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
     bumpReimport();
-    applyGanttTxt(await f.text());
+    const text = await f.text();
+    if (/<table/i.test(text)) return applyExcelHtml(text);
+    return applyGanttTxt(text);
   }
   function loadExample() {
     if (!confirm('טעינת דוגמה תחליף את לוח הגאנט הנוכחי. להמשיך?')) return;
     applyGanttTxt(GANTT_EXAMPLE_TXT, { skipConfirm: true });
-    meta.set('title', 'לוח גאנט - תוכנית העבודה 2026');
+    meta.set('title', 'לוח גאנט - פרויקט 2026-2027');
   }
 
   function fitAll() {
@@ -621,12 +808,13 @@ export default function Gantt({ info, user, token }) {
         </div>
         <div className="actions">
           {editable && <>
-            <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
-            <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+            <button className="btn" title="ניתן לטעון קובץ TXT או Excel (.xls) בפורמט שיוצא מהמערכת" onClick={() => fileRef.current.click()}>טעינה</button>
+            <input ref={fileRef} type="file" accept=".txt,.xls" hidden onChange={importFile} />
             <button className="btn" title="טעינת לוח גאנט לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
+            <button onClick={exportExcel}>Excel (טבלה צבעונית)</button>
             <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
@@ -651,6 +839,9 @@ export default function Gantt({ info, user, token }) {
           <label className="tl-check" title="הצגה/הסתרה של חצי התלות בין משימות">
             <input type="checkbox" checked={showLinks} onChange={(e) => meta.set('showLinks', e.target.checked)} /> קשרים
           </label>
+          <label className="tl-check" title="הצגה/הסתרה של אחוזי ההשלמה על גבי המשימות">
+            <input type="checkbox" checked={showPct} onChange={(e) => meta.set('showPct', e.target.checked)} /> אחוזים
+          </label>
           <span className="sep" />
           <button className="tb" title="הקטנה" onClick={() => setZoom((z) => Math.max(0.4, z / 1.3))}>−</button>
           <button className="tb" title="הגדלה" onClick={() => setZoom((z) => Math.min(8, z * 1.3))}>+</button>
@@ -668,11 +859,18 @@ export default function Gantt({ info, user, token }) {
                 <GroupCard key={g.id} g={g} editable={editable} sel={sel?.kind === 'group' && sel.id === g.id}
                   onSelect={(id) => setSel({ kind: 'group', id })} onChange={(patch) => setGroup(g.id, patch)}
                   onDelete={() => delGroup(g)} onAddTask={() => addTaskToGroup(g.id)}>
-                  {gTasks.map((t) => (
-                    <TaskCard key={t.id} t={t} groupColor={g.color} editable={editable}
-                      sel={sel?.kind === 'task' && sel.id === t.id} onSelect={(id) => setSel({ kind: 'task', id })}
-                      onChange={(patch) => setTask(t.id, patch)} onDelete={() => delTask(t)} />
-                  ))}
+                  {gTasks.map((t) => {
+                    const predecessors = linkList.filter((l) => l.to === t.id).map((l) => ({ linkId: l.id, name: taskNameById.get(l.from) }));
+                    const successors = linkList.filter((l) => l.from === t.id).map((l) => ({ linkId: l.id, name: taskNameById.get(l.to) }));
+                    const taskOptions = allTasks.filter((o) => o.id !== t.id).map((o) => ({ id: o.id, name: o.name }));
+                    return (
+                      <TaskCard key={t.id} t={t} groupColor={g.color} editable={editable}
+                        sel={sel?.kind === 'task' && sel.id === t.id} open={openTaskIds.has(t.id)} onToggleOpen={() => toggleTaskOpen(t.id)}
+                        onSelect={(id) => setSel({ kind: 'task', id })} onChange={(patch) => setTask(t.id, patch)} onDelete={() => delTask(t)}
+                        showPct={showPct} predecessors={predecessors} successors={successors} taskOptions={taskOptions}
+                        onAddLink={addLink} onDelLink={delLink} />
+                    );
+                  })}
                   {!gTasks.length && <div className="gt-empty-table">אין עדיין משימות במודול הזה</div>}
                 </GroupCard>
               ))}
@@ -680,126 +878,128 @@ export default function Gantt({ info, user, token }) {
             </aside>
           )}
           <div className="gt-canvas-col">
-            <button type="button" className="btn gt-table-toggle" onClick={() => setTableOpen((v) => !v)}>
-              {tableOpen ? '‹ הסתרת טבלה' : 'הצגת טבלה ›'}
-            </button>
+            <div className="gt-canvas-topbar">
+              <span className="gt-canvas-title">{title || 'לוח גאנט'}</span>
+              <button type="button" className="btn gt-table-toggle" onClick={() => setTableOpen((v) => !v)}>
+                {tableOpen ? '‹ הסתרת טבלה' : 'הצגת טבלה ›'}
+              </button>
+            </div>
             <div className="gt-canvas" ref={canvasRef}
               onPointerDownCapture={cDown} onPointerMoveCapture={cMove} onPointerUpCapture={cUp} onPointerCancelCapture={cUp}>
               <div className="gt-stage" dir="ltr" style={{ width: LEFT_W + stageW }}>
-            <div className="gt-header-row gt-header-years">
-              <div className="gt-corner">{title || 'לוח גאנט'}</div>
-              <div className="gt-header-track" style={{ width: stageW }}>
-                {yearSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-year" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
-              </div>
-            </div>
-            <div className="gt-header-row gt-header-units">
-              <div className="gt-corner gt-corner-sub" />
-              <div className="gt-header-track" style={{ width: stageW }}>
-                {unitSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-unit" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
-              </div>
-            </div>
-            <div className="gt-body" style={{ height: totalHeight || ROW_H }}>
-              <div className="gt-left">
-                {groupsLaid.map(({ group: g }) => (
-                  <div key={g.id} className={'gt-group-label' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
-                    style={{ top: g.top, height: g.height, background: g.color }}
-                    onClick={() => editable && setSel({ kind: 'group', id: g.id })}>
-                    {g.name}
+                <div className="gt-header-row gt-header-years">
+                  <div className="gt-corner" />
+                  <div className="gt-header-track" style={{ width: stageW }}>
+                    {yearSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-year" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
                   </div>
-                ))}
-                {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
-              </div>
-              <div className="gt-grid" ref={gridRef} style={{ width: stageW, height: totalHeight || ROW_H }}
-                onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
-                onPointerMove={moveGrid} onPointerUp={upGrid} onPointerCancel={upGrid}>
-                {unitSegs.map((s) => <div key={s.key} className="gt-gridline" style={{ left: s.x }} />)}
-                {groupsLaid.map(({ group: g }, i) => (
-                  <div key={g.id} className={'gt-band' + (i % 2 ? ' alt' : '')} style={{ top: g.top, height: g.height }} />
-                ))}
-                {todayVisible && <div className="gt-today" style={{ left: xOf(todayT) }} title="היום" />}
-                {showLinks && (
-                  <svg className="gt-links-svg" style={{ width: stageW, height: totalHeight || ROW_H }}>
-                    <defs>
-                      <marker id="gt-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="3.5" orient="auto">
-                        <path d="M0.5,0.5 L6.5,3.5 L0.5,6.5 Z" className="gt-arrowhead" />
-                      </marker>
-                    </defs>
-                    {linkList.map((l) => {
-                      const from = taskById.get(l.from), to = taskById.get(l.to);
-                      if (!from || !to) return null;
-                      const x1 = xOf(from.endT), y1 = from.top + (from.lane + 0.5) * ROW_H;
-                      const x2 = xOf(to.startT), y2 = to.top + (to.lane + 0.5) * ROW_H;
-                      const d = elbowPath(x1, y1, x2 - 1, y2);
+                </div>
+                <div className="gt-header-row gt-header-units">
+                  <div className="gt-corner gt-corner-sub" />
+                  <div className="gt-header-track" style={{ width: stageW }}>
+                    {unitSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-unit" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
+                  </div>
+                </div>
+                <div className="gt-body" style={{ height: totalHeight || ROW_H }}>
+                  <div className="gt-left">
+                    {groupsLaid.map(({ group: g }) => (
+                      <div key={g.id} className={'gt-group-label' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
+                        style={{ top: g.top, height: g.height, background: g.color }}
+                        onClick={() => editable && setSel({ kind: 'group', id: g.id })}>
+                        {g.name}
+                      </div>
+                    ))}
+                    {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
+                  </div>
+                  <div className="gt-grid" ref={gridRef} style={{ width: stageW, height: totalHeight || ROW_H }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
+                    onPointerMove={moveGrid} onPointerUp={upGrid} onPointerCancel={upGrid}>
+                    {unitSegs.map((s) => <div key={s.key} className="gt-gridline" style={{ left: s.x }} />)}
+                    {groupsLaid.map(({ group: g }, i) => (
+                      <div key={g.id} className={'gt-band' + (i % 2 ? ' alt' : '')} style={{ top: g.top, height: g.height }} />
+                    ))}
+                    {todayVisible && <div className="gt-today" style={{ left: xOf(todayT) }} title="היום" />}
+                    {showLinks && (
+                      <svg className="gt-links-svg" style={{ width: stageW, height: totalHeight || ROW_H }}>
+                        <defs>
+                          <marker id="gt-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="3.5" orient="auto">
+                            <path d="M0.5,0.5 L6.5,3.5 L0.5,6.5 Z" className="gt-arrowhead" />
+                          </marker>
+                        </defs>
+                        {linkList.map((l) => {
+                          const from = taskById.get(l.from), to = taskById.get(l.to);
+                          if (!from || !to) return null;
+                          const x1 = xOf(from.endT), y1 = from.top + ROW_H / 2;
+                          const x2 = xOf(to.startT), y2 = to.top + ROW_H / 2;
+                          const d = elbowPath(x1, y1, x2 - 1, y2);
+                          return (
+                            <g key={l.id} className="gt-link-g">
+                              <path d={d} className="gt-link" style={{ stroke: from.color || PASTELS['אפור'] }} markerEnd="url(#gt-arrow)" />
+                              {editable && <path d={d} className="gt-link-hit" onClick={(e) => { e.stopPropagation(); delLink(l.id); }} />}
+                            </g>
+                          );
+                        })}
+                        {connect && (() => {
+                          const from = taskById.get(connect.from);
+                          if (!from) return null;
+                          const x1 = xOf(from.endT), y1 = from.top + ROW_H / 2;
+                          return <line x1={x1} y1={y1} x2={connect.x} y2={connect.y} className="gt-link-preview" />;
+                        })()}
+                      </svg>
+                    )}
+                    {laidTasks.map((t) => {
+                      const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
+                      if (t.milestone) {
+                        // The diamond sits exactly at its date (its own centered transform);
+                        // the label renders BELOW it, in the extra row-height reserved for
+                        // milestone lanes — not beside it, which used to spill sideways into
+                        // whatever bar or swimlane happened to be nearby.
+                        const x = xOf(t.startT);
+                        return (
+                          <Fragment key={t.id}>
+                            <div className={'gt-milestone' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
+                              data-task={t.id} style={{ left: x, top: t.top + ROW_H / 2 }}
+                              onPointerDown={(e) => downBar(e, t)}>
+                              <span className="gt-diamond" style={{ background: color }} />
+                              {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                            </div>
+                            <span className="gt-milestone-label" data-task={t.id} style={{ left: x, top: t.top + ROW_H + MS_EXTRA / 2 }}
+                              onPointerDown={(e) => downBar(e, t)}>
+                              {t.name || 'אבן דרך'}
+                            </span>
+                          </Fragment>
+                        );
+                      }
+                      const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));
+                      // A bar too narrow for its own text hides the label entirely (overflow:
+                      // hidden) — instead render it just past the bar's end, always readable.
+                      const outside = w < estLabelW(t.name, showPct);
                       return (
-                        <g key={l.id} className="gt-link-g">
-                          <path d={d} className="gt-link" style={{ stroke: from.color || PASTELS['אפור'] }} markerEnd="url(#gt-arrow)" />
-                          {editable && <path d={d} className="gt-link-hit" onClick={(e) => { e.stopPropagation(); delLink(l.id); }} />}
-                        </g>
+                        <Fragment key={t.id}>
+                          <div className={'gt-bar' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
+                            data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
+                            onPointerDown={(e) => downBar(e, t)}>
+                            {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
+                            {!outside && <span className="gt-bar-label">{t.name}</span>}
+                            {!outside && showPct && <span className="gt-bar-pct">{t.progress}%</span>}
+                            {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
+                            {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                          </div>
+                          {outside && (
+                            <span className="gt-bar-label-ext" data-task={t.id} style={{ left: x + w + 6, top: t.top + ROW_H / 2 }}
+                              onPointerDown={(e) => downBar(e, t)}>
+                              {t.name || 'ללא שם'}{showPct && t.progress ? ` · ${t.progress}%` : ''}
+                            </span>
+                          )}
+                        </Fragment>
                       );
                     })}
-                    {connect && (() => {
-                      const from = taskById.get(connect.from);
-                      if (!from) return null;
-                      const x1 = xOf(from.endT), y1 = from.top + (from.lane + 0.5) * ROW_H;
-                      return <line x1={x1} y1={y1} x2={connect.x} y2={connect.y} className="gt-link-preview" />;
-                    })()}
-                  </svg>
-                )}
-                {laidTasks.map((t) => {
-                  const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
-                  if (t.milestone) {
-                    // The diamond sits exactly at its date (its own centered transform); the
-                    // label is a separate sibling starting just past it and extending in one
-                    // predictable direction — same convention as the external bar label,
-                    // instead of a centered diamond+label group whose combined width shifted
-                    // the diamond off its true date and let the label spill both directions.
-                    const x = xOf(t.startT);
-                    return (
-                      <Fragment key={t.id}>
-                        <div className={'gt-milestone' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
-                          data-task={t.id} style={{ left: x, top: t.top + ROW_H / 2 }}
-                          onPointerDown={(e) => downBar(e, t)}>
-                          <span className="gt-diamond" style={{ background: color }} />
-                          {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                        </div>
-                        <span className="gt-milestone-label" data-task={t.id} style={{ left: x + 12, top: t.top + ROW_H / 2 }}
-                          onPointerDown={(e) => downBar(e, t)}>
-                          {t.name || 'אבן דרך'}
-                        </span>
-                      </Fragment>
-                    );
-                  }
-                  const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));
-                  // A bar too narrow for its own text hides the label entirely (overflow:
-                  // hidden) — instead render it just past the bar's end, always readable.
-                  const outside = w < estLabelW(t.name, t.progress);
-                  return (
-                    <Fragment key={t.id}>
-                      <div className={'gt-bar' + (t.texture ? ' texture' : '') + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
-                        data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
-                        onPointerDown={(e) => downBar(e, t)}>
-                        {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
-                        {!outside && <span className="gt-bar-label">{t.name}</span>}
-                        {!outside && <span className="gt-bar-pct">{t.progress}%</span>}
-                        {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
-                        {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                      </div>
-                      {outside && (
-                        <span className="gt-bar-label-ext" data-task={t.id} style={{ left: x + w + 6, top: t.top + ROW_H / 2 }}
-                          onPointerDown={(e) => downBar(e, t)}>
-                          {t.name || 'ללא שם'}{t.progress ? ` · ${t.progress}%` : ''}
-                        </span>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-        </div>
       </div>
     </div>
-  </div>
   );
 }

@@ -672,7 +672,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-header-years { top: 0; height: 28px; }
 .gt-header-units { top: 28px; height: 30px; }
 .gt-corner {
-  position: sticky; left: 0; z-index: 5; width: 148px; flex-shrink: 0;
+  position: sticky; left: 0; z-index: 5; width: 210px; flex-shrink: 0;
   background: var(--panel); border-bottom: 1px solid var(--border); border-inline-end: 1px solid var(--border);
 }
 .gt-corner-sub { background: var(--bg); }
@@ -686,19 +686,35 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-seg-unit { font-size: .7rem; font-weight: 600; }
 
 .gt-body { display: flex; flex: 1; }
-.gt-left { position: sticky; left: 0; z-index: 3; width: 148px; flex-shrink: 0; background: var(--panel); border-inline-end: 1px solid var(--border); }
-.gt-group-label {
-  position: absolute; left: 0; right: 0; display: flex; align-items: center; padding: .3rem .6rem;
-  font-size: .82rem; font-weight: 700; color: #1f2937; cursor: pointer; border-bottom: 2px solid var(--panel);
-  overflow-wrap: anywhere; unicode-bidi: plaintext;
+.gt-left { position: sticky; left: 0; z-index: 3; width: 210px; flex-shrink: 0; background: var(--panel); border-inline-end: 1px solid var(--border); }
+/* One left cell per chart row, absolutely positioned at the same `top` the bar uses, so a
+   name and its bar are always on exactly the same line — the chart reads like the reference
+   Gantts (name column beside the timeline) instead of needing captions on the bars. */
+.gt-row-l {
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: .3rem;
+  padding: 0 .5rem; font-size: .76rem; cursor: pointer; overflow: hidden; white-space: nowrap;
+  direction: rtl; unicode-bidi: plaintext;
 }
-.gt-group-label.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gt-row-l-group { font-weight: 800; font-size: .78rem; color: var(--ink); border-top: 1px solid var(--border); }
+.gt-row-l-task { color: var(--ink2); padding-inline-start: 1.3rem; }
+.gt-row-l:hover { background: var(--hover); }
+.gt-row-l.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); font-weight: 700; }
+.gt-row-caret {
+  flex-shrink: 0; width: 14px; height: 14px; display: grid; place-items: center; padding: 0;
+  border: 0; background: transparent; color: var(--ink3); font-size: .6rem; cursor: pointer; line-height: 1;
+}
+.gt-row-caret:hover { color: var(--ink); }
+.gt-row-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 2px; }
+.gt-row-num { flex-shrink: 0; color: var(--ink3); font-variant-numeric: tabular-nums; font-weight: 700; font-size: .68rem; }
+.gt-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gt-empty-left { padding: 1rem .6rem; font-size: .8rem; color: var(--ink3); }
 
 .gt-grid { position: relative; background: var(--panel); }
-.gt-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); opacity: .6; }
-.gt-band { position: absolute; left: 0; right: 0; }
-.gt-band.alt { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.gt-gridline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); opacity: .45; }
+/* row banding replaces the old per-module band — a hairline per row keeps a long plan
+   trackable across a wide timeline without adding visual weight. */
+.gt-rowband { position: absolute; left: 0; right: 0; border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+.gt-rowband.grouprow { background: color-mix(in srgb, var(--ink) 4%, transparent); border-top-color: var(--border); }
 .gt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 2; }
 .gt-today::after {
   content: 'היום'; position: absolute; top: -18px; right: -14px; font-size: .66rem; font-weight: 700;
@@ -708,59 +724,39 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* z-index above bars/milestones (2) so an arrowhead landing right at a bar's edge is never
    hidden underneath it — it used to share the same stacking level and lose to DOM order. */
 .gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 3; }
-/* A soft double drop-shadow (not a second wide "casing" path — that read as a big blocky
-   white shape at some zoom levels) keeps the line legible crossing a colored bar, as a thin
-   glow instead of an obvious geometric outline. Applies to the marker too since SVG paints
-   markers as part of the element carrying the filter. */
-.gt-link {
-  fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .95;
-  filter: drop-shadow(0 0 1.3px var(--panel)) drop-shadow(0 0 1.3px var(--panel));
-}
+/* Flat, single-weight connector: with one task per row the router keeps every horizontal run
+   in empty space, so the line no longer needs a glow/casing to stay legible over a bar — the
+   halo those needed was itself the thing that read as heavy and "not flat". */
+.gt-link { fill: none; stroke: var(--ink3); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: butt; }
 .gt-link-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
-.gt-arrowhead { fill: var(--ink2); }
+.gt-arrowhead { fill: var(--ink3); }
 .gt-link-preview { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 4; }
 
+/* module "hammock" — the thin summary bar on a module's own row, spanning its tasks. */
+.gt-ghammock { position: absolute; border-radius: 2px; z-index: 2; opacity: .9; }
+
 .gt-bar {
-  position: absolute; border-radius: 5px; display: flex; align-items: center; padding: 0 .4rem;
-  color: #fff; font-size: .72rem; font-weight: 700; cursor: grab; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  position: absolute; border-radius: 3px; display: flex; align-items: center; justify-content: flex-end;
+  padding: 0 .3rem; color: #fff; font-size: .64rem; font-weight: 700; cursor: grab;
   overflow: hidden; white-space: nowrap; z-index: 2; unicode-bidi: plaintext;
 }
 .gt-bar.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
-.gt-bar-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
-.gt-bar-pct { flex-shrink: 0; opacity: .9; margin-inline-start: .3rem; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
-/* "1", "2.3" reference numbers — a dimmed prefix via opacity (adapts to whatever text color
-   it's inherited into, light-on-dark module colors included) rather than a fixed color. */
+/* completion shown as a flat darker inset rather than a gradient or striped texture */
+.gt-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, .22); pointer-events: none; }
+.gt-bar-pct { position: relative; flex-shrink: 0; opacity: .95; }
 .gt-num { font-weight: 800; opacity: .7; margin-inline-end: .3rem; font-variant-numeric: tabular-nums; }
-.gt-num-bar { flex-shrink: 0; opacity: .8; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
-/* a bar too narrow for gt-bar-label renders this instead — positioned just past the bar's
-   end so the name is always readable regardless of how short the task's duration is. */
-.gt-bar-label-ext {
-  position: absolute; transform: translateY(-50%); font-size: .74rem; font-weight: 700; color: var(--ink);
-  white-space: nowrap; z-index: 3; cursor: grab; unicode-bidi: plaintext;
-  max-width: 150px; overflow: hidden; text-overflow: ellipsis;
-  background: var(--panel); padding: .05rem .3rem; border-radius: 4px; box-shadow: var(--shadow-chip);
-}
-.gt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.gt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 1; }
 .gt-handle-s { left: 0; }
 .gt-handle-e { right: 0; }
 .gt-link-anchor {
   position: absolute; top: 50%; right: -6px; width: 11px; height: 11px; border-radius: 50%;
   background: var(--panel); border: 2px solid var(--ink2); transform: translateY(-50%); cursor: crosshair;
-  opacity: 0; transition: opacity .12s;
+  opacity: 0; transition: opacity .12s; z-index: 2;
 }
 .gt-bar:hover .gt-link-anchor, .gt-milestone:hover .gt-link-anchor { opacity: 1; }
 
-.gt-milestone { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .35rem; z-index: 2; cursor: grab; }
-.gt-diamond { width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid var(--panel); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); flex-shrink: 0; }
-/* renders BELOW the diamond, in the extra row-height reserved for a milestone lane
-   (MS_EXTRA) — centered on both axes at the point the component hands it, so it never
-   spills sideways into a neighboring bar or swimlane the way a beside-the-diamond label did. */
-.gt-milestone-label {
-  position: absolute; transform: translate(-50%, -50%); font-size: .76rem; font-weight: 700; color: var(--ink);
-  white-space: nowrap; background: var(--panel); padding: .05rem .35rem; border-radius: 4px;
-  box-shadow: var(--shadow-chip); unicode-bidi: plaintext; max-width: 130px; overflow: hidden;
-  text-overflow: ellipsis; z-index: 3; cursor: grab;
-}
+.gt-milestone { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; z-index: 2; cursor: grab; }
+.gt-diamond { width: 13px; height: 13px; transform: rotate(45deg); flex-shrink: 0; }
 .gt-milestone.sel .gt-diamond { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .gt-swatch-reset { display: grid; place-items: center; font-size: .7rem; background: var(--bg); border: 1px solid var(--border); color: var(--ink2); }
@@ -809,6 +805,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-tcard-row2 label span { font-size: .78rem; font-weight: 400; color: var(--ink2); }
 .gt-tcard-row2 input[type=date] { font: inherit; font-size: .76rem; }
 .gt-pct-in { width: 3.2em; font: inherit; font-size: .76rem; }
+.gt-owner-l { min-width: 6em; }
+.gt-owner-in { width: 100%; min-width: 5em; font: inherit; font-size: .76rem; padding: .1rem .25rem; border: 1px solid var(--border); border-radius: 5px; background: var(--panel); color: var(--ink); unicode-bidi: plaintext; }
 .gt-tcard-cb { flex-direction: row !important; align-items: center; gap: .2rem !important; cursor: pointer; font-size: .88rem !important; color: var(--ink2) !important; }
 .gt-tcard-cb input { width: 13px; height: 13px; accent-color: var(--accent); cursor: pointer; }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useReducer, useRef, useCallback, Fragment } from 'react';
+import { useEffect, useMemo, useState, useReducer, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -27,22 +27,12 @@ const fmt = (iso) => (iso ? parseISO(iso).toLocaleDateString('he-IL', { day: 'nu
 const fmtShort = (iso) => (iso ? iso.split('-').reverse().join('.') : ''); // DD.MM.YYYY — compact, for accordion summaries
 
 // ---- layout geometry ----------------------------------------------------------------
-const ROW_H = 34, BAR_H = 24, GROUP_GAP = 3, LEFT_W = 148, MS_EXTRA = 22;
-
-// Greedy interval packing: each task gets the first sub-row ("lane") within its module
-// whose last-placed task doesn't overlap it, so overlapping tasks stack instead of
-// colliding — same idea as the "swimlane" look in the reference screenshots.
-function packLanes(tasksSortedByStart) {
-  const laneEnds = [];
-  const lane = {};
-  tasksSortedByStart.forEach((t) => {
-    let i = laneEnds.findIndex((endT) => endT <= t.startT);
-    if (i === -1) { i = laneEnds.length; laneEnds.push(0); }
-    laneEnds[i] = t.endT;
-    lane[t.id] = i;
-  });
-  return { lane, count: Math.max(1, laneEnds.length) };
-}
+// One row per task (plus one header row per module), the way a standard Gantt reads: the
+// name lives in the sticky left column aligned to its own row, so a bar never has to carry
+// its own text and can never collide with a neighbour's. This replaced an earlier
+// "pack several tasks into shared lanes" layout, which looked compact but made labels,
+// milestone captions and dependency arrows pile on top of each other at any real data size.
+const ROW_H = 28, BAR_H = 15, GROUP_ROW_H = 30, GROUP_BAR_H = 8, GROUP_GAP = 8, LEFT_W = 210;
 
 function yearSegments(startISO, endISO, xOf) {
   const segs = [];
@@ -91,31 +81,30 @@ function monthList(startISO, endISO) {
   return list;
 }
 
-// Right-angle "finish-to-start" connector, source-right to target-left. Always makes its
-// FINAL approach into the target moving rightward (entering the target's left edge), even
-// for a backward/overlapping dependency (target starts before source ends) — a naive router
-// that just draws straight to the target's x can end up approaching from the target's right
-// side instead, which points the arrowhead the "wrong" way and reads as backwards.
-function elbowPath(x1, y1, x2, y2) {
-  const GAP = 14;
-  if (y1 === y2 && x2 >= x1) return `M ${x1} ${y1} H ${x2}`; // simple same-lane forward case
-  const exitX = x1 + GAP; // always leave the source moving right
-  const approachX = x2 - GAP; // always arrive at the target moving right, from just left of it
-  return `M ${x1} ${y1} H ${exitX} V ${y2} H ${approachX} H ${x2}`;
+// Right-angle "finish-to-start" connector, source-right to target-left.
+//
+// The long horizontal run is deliberately placed in the target ROW's empty upper band
+// (above that row's bar) rather than at either bar's centre line: a row holds exactly one
+// task, and that task's bar starts at x2, so everything left of x2 in its band is
+// guaranteed empty. That's what keeps a connector from ever being drawn across a bar or a
+// module label — the previous router ran horizontally at the target's centre line and had
+// to cross whatever happened to sit between the two rows.
+//
+// The final segment always moves rightward into the target's left edge, so the arrowhead
+// points the natural way even for a backward dependency (target starting before the source
+// ends), where the run travels right-to-left in the band before dropping in.
+function elbowPath(x1, y1, x2, y2, bandY, exitX) {
+  const G = 12;
+  if (Math.abs(y1 - y2) < 0.5) return `M ${x1} ${y1} H ${x2}`; // same row — a straight hop
+  const ex = exitX ?? x1 + G; // leave the source moving right, down a clear vertical channel
+  const approachX = x2 - G; // ...and arrive moving right, from just left of the target
+  return `M ${x1} ${y1} H ${ex} V ${bandY} H ${approachX} V ${y2} H ${x2}`;
 }
-// Rough per-character width estimate (Hebrew UI font, .72rem bold) — used only to decide
-// whether a bar is wide enough to hold its own label before rendering it outside instead.
-const estLabelW = (name, pct) => name.length * 6.4 + (pct ? 26 : 8) + 14;
-// White text reads on a dark module color, dark text on a light one — the old fixed dark
-// text was unreadable once dark blues (not just light pastels) became a normal color choice.
-function textColorFor(hex) {
-  if (!hex || hex[0] !== '#' || hex.length < 7) return '#1f2937';
-  const n = parseInt(hex.slice(1, 7), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? '#1f2937' : '#ffffff';
-}
-
+// Half the diamond's rotated bounding box. A milestone is centred on its date, so a
+// connector has to start/end at the diamond's side vertex — using the bar formula
+// (xOf(endT), which for a milestone is just one day past its centre) put the endpoint a
+// couple of pixels from the centre, i.e. buried inside the diamond.
+const MS_HALF = 9.5;
 function autoGrow(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -240,6 +229,16 @@ function TaskCard({ t, num, groupColor, editable, sel, open, onToggleOpen, onSel
                 })} />◆
               </label>
             )}
+            {/* Owner is an export-only field on purpose: it rides along in the TXT and Excel
+                files, but is never drawn on the chart, which is meant to stay readable as a
+                schedule rather than turn into a staffing table. */}
+            <label className="gt-owner-l" title="אחראי - מיוצא לאקסל, לא מוצג על הלוח">
+              אחראי
+              {editable
+                ? <input className="gt-owner-in" value={t.owner} placeholder="שם" onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => onChange({ owner: e.target.value })} />
+                : <span>{t.owner || '-'}</span>}
+            </label>
           </div>
           <div className="gt-deps" onClick={(e) => e.stopPropagation()}>
             <div className="gt-deps-col">
@@ -437,28 +436,30 @@ export default function Gantt({ info, user, token }) {
     start: m.get('start') || today(), end: m.get('end') || m.get('start') || today(),
     progress: Math.min(100, Math.max(0, num(m.get('progress'), 0))),
     color: m.get('color') || '', milestone: !!m.get('milestone'),
+    owner: m.get('owner') || '',
     ord: m.get('ord') || 0,
   }));
   const taskNameById = new Map(allTasks.map((t) => [t.id, t.name]));
 
   const startT = +parseISO(rangeStart), endT = +parseISO(rangeEnd);
   const spanDays = Math.max(1, (endT - startT) / DAY);
-  // basePpd (the zoom=1 default) has its own floor so a long plan starts out readable
-  // instead of squeezing every label into unreadable overlaps. The zoom multiplier itself
-  // is deliberately NOT floored at that same value — it used to be, which silently disabled
-  // the "−" button below the default spacing; a user asking to zoom out for a small-screen
-  // overview should get exactly that, even if labels get tight or hidden as a result.
-  // Narrower than the very first fix (4.5) — the external-label fallback and the
-  // milestone's own reserved row space now do most of the overlap-avoidance work, so the
-  // raw per-day spacing needed for a readable *default* view is smaller than it used to be.
-  const basePpd = Math.max(2.8, (cw - LEFT_W - 8) / spanDays);
+  // basePpd (the zoom=1 default) has its own floor so a long plan starts out readable.
+  // The zoom multiplier itself is deliberately NOT floored at that same value — it used to
+  // be, which silently disabled the "−" button below the default spacing; a user asking to
+  // zoom out for a small-screen overview should get exactly that.
+  const basePpd = Math.max(2.4, (cw - LEFT_W - 8) / spanDays);
   const ppd = Math.min(240, Math.max(0.6, basePpd * zoom));
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
 
-  // Per-module lane packing — a lane that hosts a milestone gets extra height reserved
-  // below it for the milestone's own label, so the label never has to spill sideways into
-  // a neighboring bar or swimlane (its old failure mode).
+  // "1", "2.3" style reference numbers — module order, then the task's position within it —
+  // so a module/task can be pointed to precisely in conversation instead of only by name.
+  const groupNumById = new Map(groupList.map((g, i) => [g.id, i + 1]));
+
+  // Flat row model: a header row per module, then one row per task beneath it. Collapsing a
+  // module (the same per-viewer state the edit table uses) drops its task rows here too, so
+  // the chart and the table always agree on what's showing.
+  const rows = [];
   let cumTop = 0;
   const groupsLaid = groupList.map((g) => {
     const gTasks = allTasks
@@ -468,40 +469,71 @@ export default function Gantt({ info, user, token }) {
         const eT = t.milestone ? sT + DAY : Math.max(+parseISO(t.end), sT + DAY);
         return { ...t, startT: sT, endT: eT };
       })
-      .sort((a, b) => a.startT - b.startT || a.ord - b.ord);
-    const { lane, count } = packLanes(gTasks);
-    const laneHasMs = Array.from({ length: count }, (_, i) => gTasks.some((t) => lane[t.id] === i && t.milestone));
-    const laneH = laneHasMs.map((has) => (has ? ROW_H + MS_EXTRA : ROW_H));
-    const laneTop = []; let acc = 0;
-    for (let i = 0; i < count; i++) { laneTop.push(acc); acc += laneH[i]; }
-    const laid = gTasks.map((t) => ({ ...t, lane: lane[t.id], top: cumTop + laneTop[lane[t.id]] }));
-    const gLaid = { ...g, top: cumTop, height: acc };
-    cumTop += acc + GROUP_GAP;
-    return { group: gLaid, tasks: laid };
+      .sort((a, b) => a.startT - b.startT || a.ord - b.ord)
+      .map((t, i) => ({ ...t, num: `${groupNumById.get(g.id)}.${i + 1}` }));
+    const collapsed = closedGroupIds.has(g.id);
+    const spanStart = gTasks.length ? Math.min(...gTasks.map((t) => t.startT)) : null;
+    const spanEnd = gTasks.length ? Math.max(...gTasks.map((t) => t.endT)) : null;
+    const gLaid = { ...g, top: cumTop, spanStart, spanEnd, num: groupNumById.get(g.id) };
+    rows.push({ kind: 'group', id: g.id, top: cumTop, h: GROUP_ROW_H, group: gLaid });
+    cumTop += GROUP_ROW_H;
+    const laid = collapsed ? [] : gTasks.map((t) => {
+      const placed = { ...t, top: cumTop, h: ROW_H };
+      rows.push({ kind: 'task', id: t.id, top: cumTop, h: ROW_H, task: placed });
+      cumTop += ROW_H;
+      return placed;
+    });
+    gLaid.height = cumTop - gLaid.top;
+    cumTop += GROUP_GAP;
+    // gTasks (not `laid`) so a collapsed module still lists its tasks in the edit table
+    return { group: gLaid, tasks: gTasks, visibleTasks: laid, collapsed };
   });
   const totalHeight = Math.max(cumTop - GROUP_GAP, 0);
-  const laidTasks = groupsLaid.flatMap((x) => x.tasks);
+  const laidTasks = groupsLaid.flatMap((x) => x.visibleTasks);
   const taskById = new Map(laidTasks.map((t) => [t.id, t]));
-  // "1", "2.3" style reference numbers — module order, then the task's position within its
-  // module (same display order already used everywhere) — so a module/task can be pointed
-  // to precisely in conversation instead of only by its (often-truncated) name.
-  const groupNumById = new Map(groupList.map((g, i) => [g.id, i + 1]));
   const taskNumById = new Map();
-  groupsLaid.forEach(({ group: g, tasks: gTasks }) => {
-    gTasks.forEach((t, i) => taskNumById.set(t.id, `${groupNumById.get(g.id)}.${i + 1}`));
+  groupsLaid.forEach(({ tasks: gTasks }) => gTasks.forEach((t) => taskNumById.set(t.id, t.num)));
+
+  // What each row occupies horizontally — bars, milestone diamonds and module hammocks alike
+  // — so a connector can be routed around them rather than straight over them.
+  const rowIndexById = new Map(rows.map((r, i) => [r.id, i]));
+  const rowBlocks = rows.map((r) => {
+    if (r.kind === 'group') {
+      return r.group.spanStart == null ? [] : [{ a: xOf(r.group.spanStart), b: xOf(r.group.spanEnd) }];
+    }
+    const t = r.task;
+    return t.milestone
+      ? [{ a: xOf(t.startT) - MS_HALF, b: xOf(t.startT) + MS_HALF }]
+      : [{ a: xOf(t.startT), b: xOf(t.endT) }];
   });
-  // An outside label (for a bar too narrow to hold its own text) used to only cap its width
-  // at a fixed 150px — fine on a spacious view, but at the new narrower default spacing that
-  // fixed cap can still reach past the START of the next task sharing the same lane, painting
-  // over its bar/label. Cap it dynamically at the actual pixel gap to that next task instead.
-  const nextInLaneXById = new Map();
-  groupsLaid.forEach(({ tasks: gTasks }) => {
-    const byLane = new Map();
-    gTasks.forEach((t) => { if (!byLane.has(t.lane)) byLane.set(t.lane, []); byLane.get(t.lane).push(t); });
-    byLane.forEach((arr) => {
-      for (let i = 0; i < arr.length - 1; i++) nextInLaneXById.set(arr[i].id, xOf(arr[i + 1].startT));
-    });
-  });
+  // A connector's horizontal runs are clear by construction (see elbowPath), so its vertical
+  // drop is the only part that can land on something — and it did, any time a dependency
+  // spanned rows with work scheduled underneath it. Pick the leftmost x at or after the
+  // source's exit point that misses everything in the rows being crossed; if the whole span
+  // is congested, fall back to the plain exit point rather than wandering off the chart.
+  function freeChannelX(fromId, toId, minX) {
+    const i1 = rowIndexById.get(fromId), i2 = rowIndexById.get(toId);
+    if (i1 == null || i2 == null) return minX;
+    const blocks = [];
+    for (let i = Math.min(i1, i2) + 1; i <= Math.max(i1, i2) - 1; i++) blocks.push(...rowBlocks[i]);
+    if (!blocks.length) return minX;
+    // Merge the blocked spans, then walk right from the exit point, hopping past each one
+    // until a genuine gap opens up. (Testing only the right edge of each span missed gaps
+    // that sit between two spans, which is exactly the case a dense zoomed-out chart hits.)
+    const M = 3;
+    const merged = blocks.slice().sort((p, q) => p.a - q.a).reduce((acc, bl) => {
+      const last = acc[acc.length - 1];
+      if (last && bl.a - M <= last.b + M) last.b = Math.max(last.b, bl.b);
+      else acc.push({ a: bl.a, b: bl.b });
+      return acc;
+    }, []);
+    let x = minX;
+    for (const bl of merged) {
+      if (x < bl.a - M) return x; // a gap before this span
+      if (x <= bl.b + M) x = bl.b + M + 1;
+    }
+    return x < stageW - 2 ? x : minX; // everything to the right is congested — accept the plain exit
+  }
 
   const yearSegs = yearSegments(rangeStart, rangeEnd, xOf);
   const unitSegs = gran === 'week' ? weekSegments(rangeStart, rangeEnd, xOf) : monthSegments(rangeStart, rangeEnd, xOf);
@@ -548,7 +580,7 @@ export default function Gantt({ info, user, token }) {
     const s = gTasks.length ? gTasks[gTasks.length - 1].end : rangeStart;
     ydoc.transact(() => {
       m.set('groupId', gid); m.set('name', ''); m.set('start', s); m.set('end', toISO(new Date(+parseISO(s) + 14 * DAY)));
-      m.set('progress', 0); m.set('color', ''); m.set('milestone', false); m.set('ord', ord);
+      m.set('progress', 0); m.set('color', ''); m.set('milestone', false); m.set('owner', ''); m.set('ord', ord);
       tasks.set(id, m);
     });
     setSel({ kind: 'task', id }); // the sel-effect below opens its module + accordion and scrolls to it
@@ -662,7 +694,7 @@ export default function Gantt({ info, user, token }) {
       '',
       ...groupList.map((g) => `[G${gNum.get(g.id)}] מודול,${esc(g.name)},${esc(g.color)}`),
       '',
-      ...allTasks.map((t) => `[T${tNum.get(t.id)}] משימה,${row([gNum.get(t.groupId) || '', t.name, t.start, t.end, t.progress, t.color, boolHe(t.milestone)])}`),
+      ...allTasks.map((t) => `[T${tNum.get(t.id)}] משימה,${row([gNum.get(t.groupId) || '', t.name, t.start, t.end, t.progress, t.color, boolHe(t.milestone), t.owner])}`),
       '',
       ...linkList.filter((l) => tNum.has(l.from) && tNum.has(l.to)).map((l) => row(['קשר', tNum.get(l.from), tNum.get(l.to)])),
     ];
@@ -676,7 +708,7 @@ export default function Gantt({ info, user, token }) {
   // colored "Gantt in a spreadsheet" view this was asked for.
   const exportExcel = () => {
     const months = monthList(rangeStart, rangeEnd);
-    const head = ['מודול', 'משימה', 'התחלה', 'סיום', '%', 'אבן דרך', 'תלות מקדימה', 'תלות מאוחרת', ...months.map((m) => m.label)];
+    const head = ['מודול', 'משימה', 'אחראי', 'התחלה', 'סיום', '%', 'אבן דרך', 'תלות מקדימה', 'תלות מאוחרת', ...months.map((m) => m.label)];
     const bodyRows = allTasks.map((t) => {
       const g = groupList.find((x) => x.id === t.groupId);
       const sT = +parseISO(t.start), eT = t.milestone ? sT + DAY : +parseISO(t.end);
@@ -690,6 +722,7 @@ export default function Gantt({ info, user, token }) {
       return `<tr>
         <td style="background:${g?.color || '#fff'};font-weight:bold;border:1px solid #ccc;padding:3px 6px;">${escHtml(g?.name || '')}</td>
         <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(t.name)}</td>
+        <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(t.owner)}</td>
         <td style="border:1px solid #ccc;padding:3px 6px;">${t.start}</td>
         <td style="border:1px solid #ccc;padding:3px 6px;">${t.milestone ? '' : t.end}</td>
         <td style="border:1px solid #ccc;padding:3px 6px;">${t.milestone ? '' : t.progress}</td>
@@ -716,7 +749,7 @@ export default function Gantt({ info, user, token }) {
         const f = parseCsvLine(t[2]);
         parsedTasks.push({
           num: +t[1], groupNum: +f[0], name: f[1] || '', start: f[2] || today(), end: f[3] || today(),
-          progress: +f[4] || 0, color: f[5] || '', milestone: f[6] === 'כן',
+          progress: +f[4] || 0, color: f[5] || '', milestone: f[6] === 'כן', owner: f[7] || '', // owner absent in files exported before it existed
         });
         continue;
       }
@@ -753,7 +786,7 @@ export default function Gantt({ info, user, token }) {
         const id = uid(), m = new Y.Map();
         m.set('groupId', groupIdByNum.get(t.groupNum) || ''); m.set('name', t.name);
         m.set('start', t.start); m.set('end', t.end); m.set('progress', t.progress);
-        m.set('color', t.color); m.set('milestone', t.milestone); m.set('ord', i + 1);
+        m.set('color', t.color); m.set('milestone', t.milestone); m.set('owner', t.owner || ''); m.set('ord', i + 1);
         tasks.set(id, m);
         taskIdByNum.set(t.num, id);
       });
@@ -775,23 +808,38 @@ export default function Gantt({ info, user, token }) {
   // the fully reliable round-trip for links).
   function applyExcelHtml(text, { skipConfirm = false } = {}) {
     const doc = new DOMParser().parseFromString(text, 'text/html');
-    const trs = [...doc.querySelectorAll('table tr')].slice(1); // skip header row
+    const allTrs = [...doc.querySelectorAll('table tr')];
+    // Columns are located by their header text rather than by fixed position: the sheet is
+    // meant to be edited by hand in Excel, and the leading columns have already changed once
+    // (אחראי was added). Name-matching keeps older exports loading, and survives a user who
+    // reorders or inserts columns.
+    const headCells = [...(allTrs[0]?.children || [])].map((c) => c.textContent.trim());
+    const col = (label, fallback) => {
+      const i = headCells.indexOf(label);
+      return i === -1 ? fallback : i;
+    };
+    const cGroup = col('מודול', 0), cName = col('משימה', 1), cOwner = col('אחראי', -1);
+    const hasOwner = cOwner !== -1;
+    const cStart = col('התחלה', hasOwner ? 3 : 2), cEnd = col('סיום', hasOwner ? 4 : 3);
+    const cPct = col('%', hasOwner ? 5 : 4), cMs = col('אבן דרך', hasOwner ? 6 : 5);
+    const cPred = col('תלות מקדימה', hasOwner ? 7 : 6), cSucc = col('תלות מאוחרת', hasOwner ? 8 : 7);
     const groupNames = [];
     const parsed = [];
-    trs.forEach((tr) => {
+    allTrs.slice(1).forEach((tr) => {
       const cells = [...tr.children].map((td) => td.textContent.trim());
       if (!cells.length) return;
-      const [groupName, name, start, end, pctStr, msStr, predsStr, succsStr] = cells;
+      const at = (i) => (i >= 0 ? cells[i] || '' : '');
+      const groupName = at(cGroup), name = at(cName), start = at(cStart), end = at(cEnd);
       if (!groupName && !name) return;
       let gi = groupNames.indexOf(groupName);
       if (gi === -1) { gi = groupNames.length; groupNames.push(groupName || 'מודול'); }
-      const milestone = msStr === 'כן';
+      const milestone = at(cMs) === 'כן';
       parsed.push({
-        groupIdx: gi, name: name || '', start: start || today(),
+        groupIdx: gi, name, start: start || today(),
         end: milestone ? (start || today()) : (end || start || today()),
-        progress: +pctStr || 0, milestone,
-        preds: (predsStr || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean),
-        succs: (succsStr || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean),
+        progress: +at(cPct) || 0, milestone, owner: at(cOwner),
+        preds: at(cPred).split(/[;,]/).map((s) => s.trim()).filter(Boolean),
+        succs: at(cSucc).split(/[;,]/).map((s) => s.trim()).filter(Boolean),
       });
     });
     if (!parsed.length) return alert('לא נמצאו משימות בקובץ');
@@ -812,7 +860,7 @@ export default function Gantt({ info, user, token }) {
         const id = uid(), m = new Y.Map();
         m.set('groupId', groupIds[t.groupIdx]); m.set('name', t.name);
         m.set('start', t.start); m.set('end', t.end); m.set('progress', t.progress);
-        m.set('color', ''); m.set('milestone', t.milestone); m.set('ord', i + 1);
+        m.set('color', ''); m.set('milestone', t.milestone); m.set('owner', t.owner || ''); m.set('ord', i + 1);
         tasks.set(id, m);
         if (t.name) taskIdByName.set(t.name, id);
         return id;
@@ -971,39 +1019,64 @@ export default function Gantt({ info, user, token }) {
                 </div>
                 <div className="gt-body" style={{ minHeight: totalHeight || ROW_H }}>
                   <div className="gt-left">
-                    {groupsLaid.map(({ group: g }) => (
-                      <div key={g.id} className={'gt-group-label' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
-                        style={{ top: g.top, height: g.height, background: g.color, color: textColorFor(g.color) }}
-                        onClick={() => editable && setSel({ kind: 'group', id: g.id })}>
-                        <span className="gt-num">{groupNumById.get(g.id)}</span>{g.name}
+                    {rows.map((r) => (r.kind === 'group' ? (
+                      <div key={r.id} className={'gt-row-l gt-row-l-group' + (sel?.kind === 'group' && sel.id === r.id ? ' sel' : '')}
+                        style={{ top: r.top, height: r.h }}
+                        onClick={() => editable && setSel({ kind: 'group', id: r.id })}>
+                        {editable && (
+                          <button type="button" className="gt-row-caret" title={r.group.collapsed ? 'הרחבה' : 'כיווץ'}
+                            onClick={(e) => { e.stopPropagation(); toggleGroupOpen(r.id); }}>
+                            {closedGroupIds.has(r.id) ? '▸' : '▾'}
+                          </button>
+                        )}
+                        <span className="gt-row-dot" style={{ background: r.group.color }} />
+                        <span className="gt-row-num">{r.group.num}</span>
+                        <span className="gt-row-name">{r.group.name}</span>
                       </div>
-                    ))}
+                    ) : (
+                      <div key={r.id} className={'gt-row-l gt-row-l-task' + (sel?.kind === 'task' && sel.id === r.id ? ' sel' : '')}
+                        style={{ top: r.top, height: r.h }}
+                        onClick={() => editable && setSel({ kind: 'task', id: r.id })}>
+                        <span className="gt-row-num">{r.task.num}</span>
+                        <span className="gt-row-name">{r.task.name || (r.task.milestone ? 'אבן דרך' : 'ללא שם')}</span>
+                      </div>
+                    )))}
                     {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
                   </div>
                   <div className="gt-grid" ref={gridRef} style={{ width: stageW, minHeight: totalHeight || ROW_H }}
                     onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
                     onPointerMove={moveGrid} onPointerUp={upGrid} onPointerCancel={upGrid}>
                     {unitSegs.map((s) => <div key={s.key} className="gt-gridline" style={{ left: s.x }} />)}
-                    {groupsLaid.map(({ group: g }, i) => (
-                      <div key={g.id} className={'gt-band' + (i % 2 ? ' alt' : '')} style={{ top: g.top, height: g.height }} />
+                    {rows.map((r) => (
+                      <div key={r.id} className={'gt-rowband' + (r.kind === 'group' ? ' grouprow' : '')}
+                        style={{ top: r.top, height: r.h }} />
                     ))}
                     {todayVisible && <div className="gt-today" style={{ left: xOf(todayT) }} title="היום" />}
+                    {/* module "hammock": a thin summary bar spanning its tasks' full extent */}
+                    {groupsLaid.map(({ group: g }) => (g.spanStart == null ? null : (
+                      <div key={g.id} className="gt-ghammock"
+                        style={{ left: xOf(g.spanStart), width: Math.max(4, xOf(g.spanEnd) - xOf(g.spanStart)),
+                          top: g.top + (GROUP_ROW_H - GROUP_BAR_H) / 2, height: GROUP_BAR_H, background: g.color }} />
+                    )))}
                     {showLinks && (
                       <svg className="gt-links-svg" style={{ width: stageW, height: totalHeight || ROW_H }}>
                         <defs>
-                          <marker id="gt-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="3.5" orient="auto">
-                            <path d="M0.5,0.5 L6.5,3.5 L0.5,6.5 Z" className="gt-arrowhead" />
+                          <marker id="gt-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                            <path d="M0.5,0.5 L6,3 L0.5,5.5 Z" className="gt-arrowhead" />
                           </marker>
                         </defs>
                         {linkList.map((l) => {
                           const from = taskById.get(l.from), to = taskById.get(l.to);
                           if (!from || !to) return null;
-                          const x1 = xOf(from.endT), y1 = from.top + ROW_H / 2;
-                          const x2 = xOf(to.startT), y2 = to.top + ROW_H / 2;
-                          const d = elbowPath(x1, y1, x2 - 1, y2);
+                          const x1 = from.milestone ? xOf(from.startT) + MS_HALF : xOf(from.endT);
+                          const x2 = to.milestone ? xOf(to.startT) - MS_HALF : xOf(to.startT);
+                          const y1 = from.top + ROW_H / 2, y2 = to.top + ROW_H / 2;
+                          // run horizontally through the target row's empty upper band
+                          const bandY = to.top + (ROW_H - BAR_H) / 4;
+                          const d = elbowPath(x1, y1, x2 - 1, y2, bandY, freeChannelX(l.from, l.to, x1 + 12));
                           return (
                             <g key={l.id} className="gt-link-g">
-                              <path d={d} className="gt-link" style={{ stroke: from.color || PASTELS['אפור'] }} markerEnd="url(#gt-arrow)" />
+                              <path d={d} className="gt-link" markerEnd="url(#gt-arrow)" />
                               {editable && <path d={d} className="gt-link-hit" onClick={(e) => { e.stopPropagation(); delLink(l.id); }} />}
                             </g>
                           );
@@ -1011,62 +1084,39 @@ export default function Gantt({ info, user, token }) {
                         {connect && (() => {
                           const from = taskById.get(connect.from);
                           if (!from) return null;
-                          const x1 = xOf(from.endT), y1 = from.top + ROW_H / 2;
+                          const x1 = from.milestone ? xOf(from.startT) + MS_HALF : xOf(from.endT);
+                          const y1 = from.top + ROW_H / 2;
                           return <line x1={x1} y1={y1} x2={connect.x} y2={connect.y} className="gt-link-preview" />;
                         })()}
                       </svg>
                     )}
                     {laidTasks.map((t) => {
                       const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
-                      const tnum = taskNumById.get(t.id);
+                      const isSel = sel?.kind === 'task' && sel.id === t.id;
+                      // No caption on the canvas at all — the name is already in this row's
+                      // left cell, so bars and diamonds stay clean at any zoom.
                       if (t.milestone) {
-                        // The diamond sits exactly at its date (its own centered transform);
-                        // the label renders BELOW it, in the extra row-height reserved for
-                        // milestone lanes — not beside it, which used to spill sideways into
-                        // whatever bar or swimlane happened to be nearby.
-                        const x = xOf(t.startT);
                         return (
-                          <Fragment key={t.id}>
-                            <div className={'gt-milestone' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
-                              data-task={t.id} style={{ left: x, top: t.top + ROW_H / 2 }}
-                              onPointerDown={(e) => downBar(e, t)}>
-                              <span className="gt-diamond" style={{ background: color }} />
-                              {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                            </div>
-                            <span className="gt-milestone-label" data-task={t.id} style={{ left: x, top: t.top + ROW_H + MS_EXTRA / 2 }}
-                              onPointerDown={(e) => downBar(e, t)}>
-                              <span className="gt-num">{tnum}</span>{t.name || 'אבן דרך'}
-                            </span>
-                          </Fragment>
+                          <div key={t.id} className={'gt-milestone' + (isSel ? ' sel' : '')}
+                            data-task={t.id} style={{ left: xOf(t.startT), top: t.top + ROW_H / 2 }}
+                            onPointerDown={(e) => downBar(e, t)}>
+                            <span className="gt-diamond" style={{ background: color }} />
+                            {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                          </div>
                         );
                       }
                       const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));
-                      // A bar too narrow for its own text hides the label entirely (overflow:
-                      // hidden) — instead render it just past the bar's end, always readable.
-                      const outside = w < estLabelW(t.name, showPct) + 22;
+                      const pctFits = showPct && w > 34;
                       return (
-                        <Fragment key={t.id}>
-                          <div className={'gt-bar' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
-                            data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
-                            onPointerDown={(e) => downBar(e, t)}>
-                            {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
-                            {!outside && <span className="gt-num gt-num-bar">{tnum}</span>}
-                            {!outside && <span className="gt-bar-label">{t.name}</span>}
-                            {!outside && showPct && <span className="gt-bar-pct">{t.progress}%</span>}
-                            {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
-                            {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                          </div>
-                          {outside && (() => {
-                            const nextX = nextInLaneXById.get(t.id);
-                            const maxW = nextX != null ? Math.max(20, Math.min(150, nextX - (x + w + 6) - 4)) : 150;
-                            return (
-                              <span className="gt-bar-label-ext" data-task={t.id} style={{ left: x + w + 6, top: t.top + ROW_H / 2, maxWidth: maxW }}
-                                onPointerDown={(e) => downBar(e, t)}>
-                                <span className="gt-num">{tnum}</span>{t.name || 'ללא שם'}{showPct && t.progress ? ` · ${t.progress}%` : ''}
-                              </span>
-                            );
-                          })()}
-                        </Fragment>
+                        <div key={t.id} className={'gt-bar' + (isSel ? ' sel' : '')}
+                          data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
+                          onPointerDown={(e) => downBar(e, t)}>
+                          {t.progress > 0 && <span className="gt-bar-fill" style={{ width: `${t.progress}%` }} />}
+                          {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
+                          {pctFits && <span className="gt-bar-pct">{t.progress}%</span>}
+                          {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
+                          {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                        </div>
                       );
                     })}
                   </div>

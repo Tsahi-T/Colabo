@@ -686,7 +686,9 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-seg-unit { font-size: .7rem; font-weight: 600; }
 
 .gt-body { display: flex; flex: 1; }
-.gt-left { position: sticky; left: 0; z-index: 3; width: 210px; flex-shrink: 0; background: var(--panel); border-inline-end: 1px solid var(--border); }
+/* above the links SVG (3): the name column must always win, so a connector routed near the
+   left edge can never be painted across a task or module name. */
+.gt-left { position: sticky; left: 0; z-index: 4; width: 210px; flex-shrink: 0; background: var(--panel); border-inline-end: 1px solid var(--border); }
 /* One left cell per chart row, absolutely positioned at the same `top` the bar uses, so a
    name and its bar are always on exactly the same line — the chart reads like the reference
    Gantts (name column beside the timeline) instead of needing captions on the bars. */
@@ -737,7 +739,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 
 .gt-bar {
   position: absolute; border-radius: 3px; display: flex; align-items: center; justify-content: flex-end;
-  padding: 0 .3rem; color: #fff; font-size: .64rem; font-weight: 700; cursor: grab;
+  gap: .25rem; padding: 0 .3rem; color: #fff; font-size: .64rem; font-weight: 700; cursor: grab;
   overflow: hidden; white-space: nowrap; z-index: 2; unicode-bidi: plaintext;
 }
 .gt-bar.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -745,6 +747,32 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 0, 0, .22); pointer-events: none; }
 .gt-bar-pct { position: relative; flex-shrink: 0; opacity: .95; }
 .gt-num { font-weight: 800; opacity: .7; margin-inline-end: .3rem; font-variant-numeric: tabular-nums; }
+
+/* ---- "labels" chart style: module swimlanes + captions on/beside the bars ---- */
+.gt-swimlane {
+  position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: .25rem;
+  padding: .2rem .45rem; font-size: .78rem; font-weight: 800; cursor: pointer;
+  border-bottom: 2px solid var(--panel); overflow: hidden; direction: rtl; unicode-bidi: plaintext;
+}
+.gt-swimlane.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gt-swim-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gt-swim-caret { color: inherit; opacity: .75; align-self: flex-start; }
+.gt-swim-caret:hover { color: inherit; opacity: 1; }
+.gt-swimlane .gt-row-num { color: inherit; opacity: .7; }
+/* caption inside its bar — only rendered when it actually fits (see labelGeom) */
+.gt-bar-label {
+  position: relative; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  text-align: start; font-size: .68rem;
+}
+/* ...otherwise just past the bar's end. A row holds one task, so this has the rest of the
+   row to itself — no clamping against a neighbour is needed, unlike the old packed layout. */
+.gt-bar-label-ext {
+  position: absolute; transform: translateY(-50%); font-size: .7rem; font-weight: 700;
+  color: var(--ink); white-space: nowrap; z-index: 2; cursor: grab; unicode-bidi: plaintext;
+  pointer-events: auto;
+}
+/* flipped to before the bar (no room after it) — anchor its right edge at the given x */
+.gt-bar-label-ext.before { transform: translate(-100%, -50%); }
 .gt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 1; }
 .gt-handle-s { left: 0; }
 .gt-handle-e { right: 0; }

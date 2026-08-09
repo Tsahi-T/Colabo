@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useReducer, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useReducer, useRef, useCallback, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import * as Y from 'yjs';
 import { HocuspocusProvider } from '@hocuspocus/provider';
@@ -96,8 +96,11 @@ function monthList(startISO, endISO) {
 function elbowPath(x1, y1, x2, y2, bandY, exitX) {
   const G = 12;
   if (Math.abs(y1 - y2) < 0.5) return `M ${x1} ${y1} H ${x2}`; // same row — a straight hop
-  const ex = exitX ?? x1 + G; // leave the source moving right, down a clear vertical channel
-  const approachX = x2 - G; // ...and arrive moving right, from just left of the target
+  // Never let the approach run off the left edge of the grid: a task starting on the very
+  // first days of the range put x2-G at a negative x, and the SVG (overflow:visible) then
+  // painted the elbow and its arrowhead straight across the sticky name column.
+  const approachX = Math.max(2, x2 - G);
+  const ex = exitX ?? approachX; // vertical drop, in a channel clear of the rows it crosses
   return `M ${x1} ${y1} H ${ex} V ${bandY} H ${approachX} V ${y2} H ${x2}`;
 }
 // Half the diamond's rotated bounding box. A milestone is centred on its date, so a
@@ -105,6 +108,23 @@ function elbowPath(x1, y1, x2, y2, bandY, exitX) {
 // (xOf(endT), which for a milestone is just one day past its centre) put the endpoint a
 // couple of pixels from the centre, i.e. buried inside the diamond.
 const MS_HALF = 9.5;
+// Rough per-character width estimate (Hebrew UI font at the bar label's size) — only used to
+// decide whether a bar is wide enough to hold its own caption in the "labels" chart style.
+const estLabelW = (name, pct) => (name || '').length * 6.2 + (pct ? 30 : 6) + 16;
+// The swimlane style paints module names onto the module's own colour, which users pick
+// freely — so pick whichever of white/near-black actually contrasts better, by real WCAG
+// contrast ratio. A simple "is it a light colour" luminance threshold picked white for
+// mid-brightness blues like #0ea5e9, where white only reaches 2.8:1 and dark reaches 5.2:1.
+const DARK_INK = '#111827', DARK_INK_LUM = 0.0092;
+function textColorFor(hex) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return DARK_INK;
+  const n = parseInt(hex.slice(1, 7), 16);
+  const chan = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const lum = 0.2126 * chan((n >> 16) & 255) + 0.7152 * chan((n >> 8) & 255) + 0.0722 * chan(n & 255);
+  const vsWhite = 1.05 / (lum + 0.05);
+  const vsDark = (lum + 0.05) / (DARK_INK_LUM + 0.05);
+  return vsWhite >= vsDark ? '#ffffff' : DARK_INK;
+}
 function autoGrow(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -426,6 +446,12 @@ export default function Gantt({ info, user, token }) {
   const showToday = meta.get('showToday') !== false;
   const showLinks = meta.get('showLinks') !== false;
   const showPct = meta.get('showPct') !== false;
+  // 'table'  — names in a wide aligned column beside the timeline (clearest for editing)
+  // 'labels' — module swimlanes on the left, task names on/beside their own bar (reads best
+  //            pasted into a deck, and is the layout the reference charts use)
+  const chartStyle = meta.get('style') === 'labels' ? 'labels' : 'table';
+  const labelStyle = chartStyle === 'labels';
+  const leftW = labelStyle ? 132 : LEFT_W;
 
   const groupList = [...groups.entries()]
     .map(([id, m]) => ({ id, name: m.get('name') || 'מודול', color: m.get('color') || PASTELS['אפור'], ord: m.get('ord') || 0 }))
@@ -447,7 +473,7 @@ export default function Gantt({ info, user, token }) {
   // The zoom multiplier itself is deliberately NOT floored at that same value — it used to
   // be, which silently disabled the "−" button below the default spacing; a user asking to
   // zoom out for a small-screen overview should get exactly that.
-  const basePpd = Math.max(2.4, (cw - LEFT_W - 8) / spanDays);
+  const basePpd = Math.max(2.4, (cw - leftW - 8) / spanDays);
   const ppd = Math.min(240, Math.max(0.6, basePpd * zoom));
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
@@ -494,32 +520,56 @@ export default function Gantt({ info, user, token }) {
   const taskNumById = new Map();
   groupsLaid.forEach(({ tasks: gTasks }) => gTasks.forEach((t) => taskNumById.set(t.id, t.num)));
 
-  // What each row occupies horizontally — bars, milestone diamonds and module hammocks alike
-  // — so a connector can be routed around them rather than straight over them.
+  // Where a task's caption sits in the "labels" style: inside its own bar when it fits,
+  // otherwise just past the bar's end. A row holds one task, so an outside caption has the
+  // rest of the row to itself and can never run into another task's label.
+  function labelGeom(t) {
+    const x = xOf(t.startT);
+    const w = t.milestone ? 0 : Math.max(6, xOf(t.endT) - x);
+    const lw = estLabelW(t.name || (t.milestone ? 'אבן דרך' : 'ללא שם'), showPct && !t.milestone && t.progress > 0);
+    const inside = !t.milestone && w >= lw;
+    const after = t.milestone ? x + MS_HALF + 5 : x + w + 6;
+    // A task finishing near the end of the range has no room for its caption after the bar,
+    // so it flips to before it — which is also just a nicer reading for end-of-plan items.
+    const before = after + lw > stageW - 4;
+    const anchorX = before ? (t.milestone ? x - MS_HALF - 5 : x - 6) : after;
+    return { x, w, lw, inside, before, anchorX, a: before ? anchorX - lw : anchorX, b: before ? anchorX : anchorX + lw };
+  }
+
+  // What each row occupies horizontally — bars, milestone diamonds, module hammocks and (in
+  // the labels style) the captions themselves — so a connector can be routed around them
+  // rather than straight over them.
   const rowIndexById = new Map(rows.map((r, i) => [r.id, i]));
   const rowBlocks = rows.map((r) => {
     if (r.kind === 'group') {
       return r.group.spanStart == null ? [] : [{ a: xOf(r.group.spanStart), b: xOf(r.group.spanEnd) }];
     }
     const t = r.task;
-    return t.milestone
-      ? [{ a: xOf(t.startT) - MS_HALF, b: xOf(t.startT) + MS_HALF }]
-      : [{ a: xOf(t.startT), b: xOf(t.endT) }];
+    const base = t.milestone
+      ? { a: xOf(t.startT) - MS_HALF, b: xOf(t.startT) + MS_HALF }
+      : { a: xOf(t.startT), b: xOf(t.endT) };
+    if (!labelStyle) return [base];
+    const g = labelGeom(t);
+    return [g.inside ? base : { a: Math.min(base.a, g.a), b: Math.max(base.b, g.b) }];
   });
   // A connector's horizontal runs are clear by construction (see elbowPath), so its vertical
   // drop is the only part that can land on something — and it did, any time a dependency
-  // spanned rows with work scheduled underneath it. Pick the leftmost x at or after the
-  // source's exit point that misses everything in the rows being crossed; if the whole span
-  // is congested, fall back to the plain exit point rather than wandering off the chart.
-  function freeChannelX(fromId, toId, minX) {
+  // spanned rows with work scheduled underneath it.
+  //
+  // The channel is chosen as close as possible to where the connector wants to arrive
+  // (just left of the target). Taking the first clear channel to the RIGHT of the source
+  // instead — the obvious reading of "route around it" — sent paths on a 600px excursion
+  // out to the right of the chart and back, which looked far worse than the collision it
+  // was avoiding.
+  // minX keeps the channel to the right of the source's own bar. The first leg runs
+  // horizontally at the SOURCE's centre line, so a channel left of the source end would send
+  // that leg straight back across the bar it just left.
+  function freeChannelX(fromId, toId, idealX, minX) {
     const i1 = rowIndexById.get(fromId), i2 = rowIndexById.get(toId);
-    if (i1 == null || i2 == null) return minX;
+    if (i1 == null || i2 == null) return idealX;
     const blocks = [];
     for (let i = Math.min(i1, i2) + 1; i <= Math.max(i1, i2) - 1; i++) blocks.push(...rowBlocks[i]);
-    if (!blocks.length) return minX;
-    // Merge the blocked spans, then walk right from the exit point, hopping past each one
-    // until a genuine gap opens up. (Testing only the right edge of each span missed gaps
-    // that sit between two spans, which is exactly the case a dense zoomed-out chart hits.)
+    if (!blocks.length) return idealX;
     const M = 3;
     const merged = blocks.slice().sort((p, q) => p.a - q.a).reduce((acc, bl) => {
       const last = acc[acc.length - 1];
@@ -527,12 +577,18 @@ export default function Gantt({ info, user, token }) {
       else acc.push({ a: bl.a, b: bl.b });
       return acc;
     }, []);
-    let x = minX;
-    for (const bl of merged) {
-      if (x < bl.a - M) return x; // a gap before this span
-      if (x <= bl.b + M) x = bl.b + M + 1;
-    }
-    return x < stageW - 2 ? x : minX; // everything to the right is congested — accept the plain exit
+    const free = (x) => !merged.some((bl) => x > bl.a - M && x < bl.b + M);
+    if (free(idealX)) return idealX;
+    // merged spans are disjoint, so just outside one is necessarily clear of it.
+    // MAX_DETOUR caps how far the route may wander to find that gap: on a dense chart the
+    // nearest clear channel can be most of the timeline away, and a 800px excursion out and
+    // back reads far worse than the thin crossing it avoids.
+    const MAX_DETOUR = 150;
+    const hi = stageW - 2;
+    const cands = merged.flatMap((bl) => [bl.a - M - 1, bl.b + M + 1])
+      .filter((x) => x >= minX && x <= hi && free(x) && Math.abs(x - idealX) <= MAX_DETOUR)
+      .sort((a, b) => Math.abs(a - idealX) - Math.abs(b - idealX));
+    return cands[0] ?? idealX;
   }
 
   const yearSegs = yearSegments(rangeStart, rangeEnd, xOf);
@@ -688,6 +744,7 @@ export default function Gantt({ info, user, token }) {
       row(['טווח התחלה', rangeStart]),
       row(['טווח סיום', rangeEnd]),
       row(['רמת פירוט', gran === 'week' ? 'שבועות' : 'חודשים']),
+      row(['סגנון תצוגה', labelStyle ? 'ערסלים' : 'טבלה']),
       row(['הצגת היום', boolHe(showToday)]),
       row(['הצגת קשרים', boolHe(showLinks)]),
       row(['הצגת אחוזים', boolHe(showPct)]),
@@ -740,7 +797,7 @@ export default function Gantt({ info, user, token }) {
   };
   function applyGanttTxt(txt, { skipConfirm = false } = {}) {
     const lines = txt.split(/\r?\n/);
-    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true, newShowPct = true;
+    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true, newShowPct = true, newStyle = 'table';
     const parsedGroups = [], parsedTasks = [], parsedLinks = [];
     for (const line of lines) {
       const g = line.match(/^\[G(\d+)\]\s*מודול,(.*)/); if (g) { const f = parseCsvLine(g[2]); parsedGroups.push({ num: +g[1], name: f[0] || 'מודול', color: f[1] || PASTELS['אפור'] }); continue; }
@@ -760,6 +817,7 @@ export default function Gantt({ info, user, token }) {
       else if (label === 'טווח התחלה') newStart = (rowFields[1] || '').trim();
       else if (label === 'טווח סיום') newEnd = (rowFields[1] || '').trim();
       else if (label === 'רמת פירוט') newGran = (rowFields[1] || '').trim() === 'שבועות' ? 'week' : 'month';
+      else if (label === 'סגנון תצוגה') newStyle = (rowFields[1] || '').trim() === 'ערסלים' ? 'labels' : 'table';
       else if (label === 'הצגת היום') newShowToday = (rowFields[1] || '').trim() !== 'לא';
       else if (label === 'הצגת קשרים') newShowLinks = (rowFields[1] || '').trim() !== 'לא';
       else if (label === 'הצגת אחוזים') newShowPct = (rowFields[1] || '').trim() !== 'לא';
@@ -770,7 +828,8 @@ export default function Gantt({ info, user, token }) {
       if (newTitle) meta.set('title', newTitle);
       if (newStart) meta.set('start', newStart);
       if (newEnd) meta.set('end', newEnd);
-      meta.set('gran', newGran); meta.set('showToday', newShowToday); meta.set('showLinks', newShowLinks); meta.set('showPct', newShowPct);
+      meta.set('gran', newGran); meta.set('showToday', newShowToday); meta.set('showLinks', newShowLinks);
+      meta.set('showPct', newShowPct); meta.set('style', newStyle);
       [...groups.keys()].forEach((k) => groups.delete(k));
       [...tasks.keys()].forEach((k) => tasks.delete(k));
       [...links.keys()].forEach((k) => links.delete(k));
@@ -931,7 +990,7 @@ export default function Gantt({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportPdf}>PDF (הדפסה)</button>
-            <button onClick={exportExcel}>Excel (טבלה צבעונית)</button>
+            <button onClick={exportExcel}>Excel (טבלה צבעונית) - לטעינה חוזרת</button>
             <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
           </Menu>
           <ShareMenu info={info} />
@@ -948,6 +1007,13 @@ export default function Gantt({ info, user, token }) {
           <div className="gz-style-picker gt-gran-picker">
             <button type="button" className={'gz-style-btn' + (gran === 'month' ? ' sel' : '')} onClick={() => meta.set('gran', 'month')}>חודשים</button>
             <button type="button" className={'gz-style-btn' + (gran === 'week' ? ' sel' : '')} onClick={() => meta.set('gran', 'week')}>שבועות</button>
+          </div>
+          <span className="sep" />
+          <div className="gz-style-picker gt-gran-picker">
+            <button type="button" title="שמות המשימות בעמודה מיושרת לצד הלוח" className={'gz-style-btn' + (!labelStyle ? ' sel' : '')}
+              onClick={() => meta.set('style', 'table')}>טבלה</button>
+            <button type="button" title="ערסלי מודולים, ושם המשימה על הבר או לצידו" className={'gz-style-btn' + (labelStyle ? ' sel' : '')}
+              onClick={() => meta.set('style', 'labels')}>ערסלים</button>
           </div>
           <span className="sep" />
           <label className="tl-check" title="הצגה/הסתרה של קו התאריך הנוכחי">
@@ -1004,22 +1070,35 @@ export default function Gantt({ info, user, token }) {
             </div>
             <div className="gt-canvas" ref={canvasRef}
               onPointerDownCapture={cDown} onPointerMoveCapture={cMove} onPointerUpCapture={cUp} onPointerCancelCapture={cUp}>
-              <div className="gt-stage" dir="ltr" style={{ width: LEFT_W + stageW }}>
+              <div className="gt-stage" dir="ltr" style={{ width: leftW + stageW }}>
                 <div className="gt-header-row gt-header-years">
-                  <div className="gt-corner" />
+                  <div className="gt-corner" style={{ width: leftW }} />
                   <div className="gt-header-track" style={{ width: stageW }}>
                     {yearSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-year" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
                   </div>
                 </div>
                 <div className="gt-header-row gt-header-units">
-                  <div className="gt-corner gt-corner-sub" />
+                  <div className="gt-corner gt-corner-sub" style={{ width: leftW }} />
                   <div className="gt-header-track" style={{ width: stageW }}>
                     {unitSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-unit" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
                   </div>
                 </div>
                 <div className="gt-body" style={{ minHeight: totalHeight || ROW_H }}>
-                  <div className="gt-left">
-                    {rows.map((r) => (r.kind === 'group' ? (
+                  <div className="gt-left" style={{ width: leftW }}>
+                    {labelStyle ? groupsLaid.map(({ group: g }) => (
+                      // swimlane: one cell per module, spanning all of its rows
+                      <div key={g.id} className={'gt-swimlane' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
+                        style={{ top: g.top, height: g.height, background: g.color, color: textColorFor(g.color) }}
+                        onClick={() => editable && setSel({ kind: 'group', id: g.id })}>
+                        {editable && (
+                          <button type="button" className="gt-row-caret gt-swim-caret" title={closedGroupIds.has(g.id) ? 'הרחבה' : 'כיווץ'}
+                            onClick={(e) => { e.stopPropagation(); toggleGroupOpen(g.id); }}>
+                            {closedGroupIds.has(g.id) ? '▸' : '▾'}
+                          </button>
+                        )}
+                        <span className="gt-swim-name"><span className="gt-row-num">{g.num}</span>{g.name}</span>
+                      </div>
+                    )) : rows.map((r) => (r.kind === 'group' ? (
                       <div key={r.id} className={'gt-row-l gt-row-l-group' + (sel?.kind === 'group' && sel.id === r.id ? ' sel' : '')}
                         style={{ top: r.top, height: r.h }}
                         onClick={() => editable && setSel({ kind: 'group', id: r.id })}>
@@ -1042,6 +1121,7 @@ export default function Gantt({ info, user, token }) {
                       </div>
                     )))}
                     {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
+
                   </div>
                   <div className="gt-grid" ref={gridRef} style={{ width: stageW, minHeight: totalHeight || ROW_H }}
                     onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
@@ -1068,12 +1148,20 @@ export default function Gantt({ info, user, token }) {
                         {linkList.map((l) => {
                           const from = taskById.get(l.from), to = taskById.get(l.to);
                           if (!from || !to) return null;
-                          const x1 = from.milestone ? xOf(from.startT) + MS_HALF : xOf(from.endT);
+                          // In the labels style a caption sitting just past the bar's end is
+                          // exactly where the connector would otherwise exit, so the link
+                          // leaves from after the text instead of straight through it.
+                          const fromLg = labelStyle ? labelGeom(from) : null;
+                          const x1 = fromLg && !fromLg.inside && !fromLg.before
+                            ? fromLg.b + 2
+                            : (from.milestone ? xOf(from.startT) + MS_HALF : xOf(from.endT));
                           const x2 = to.milestone ? xOf(to.startT) - MS_HALF : xOf(to.startT);
                           const y1 = from.top + ROW_H / 2, y2 = to.top + ROW_H / 2;
                           // run horizontally through the target row's empty upper band
                           const bandY = to.top + (ROW_H - BAR_H) / 4;
-                          const d = elbowPath(x1, y1, x2 - 1, y2, bandY, freeChannelX(l.from, l.to, x1 + 12));
+                          const minEx = x1 + 12; // never re-cross the source's own bar
+                          const d = elbowPath(x1, y1, x2 - 1, y2, bandY,
+                            freeChannelX(l.from, l.to, Math.max(minEx, x2 - 13), minEx));
                           return (
                             <g key={l.id} className="gt-link-g">
                               <path d={d} className="gt-link" markerEnd="url(#gt-arrow)" />
@@ -1093,30 +1181,54 @@ export default function Gantt({ info, user, token }) {
                     {laidTasks.map((t) => {
                       const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
                       const isSel = sel?.kind === 'task' && sel.id === t.id;
-                      // No caption on the canvas at all — the name is already in this row's
-                      // left cell, so bars and diamonds stay clean at any zoom.
+                      // In the "table" style the name already sits in this row's left cell, so
+                      // the canvas carries no caption at all. In the "labels" style the caption
+                      // rides the bar instead — inside it when it fits, just past its end when
+                      // not — which is what the reference charts do.
+                      const lg = labelStyle ? labelGeom(t) : null;
+                      const caption = t.name || (t.milestone ? 'אבן דרך' : 'ללא שם');
+                      const outside = lg && !lg.inside && (
+                        <span className={'gt-bar-label-ext' + (lg.before ? ' before' : '')} data-task={t.id}
+                          style={{ left: lg.anchorX, top: t.top + ROW_H / 2 }}
+                          onPointerDown={(e) => downBar(e, t)}>
+                          <span className="gt-num">{t.num}</span>{caption}
+                          {showPct && !t.milestone && t.progress > 0 ? ` · ${t.progress}%` : ''}
+                        </span>
+                      );
                       if (t.milestone) {
                         return (
-                          <div key={t.id} className={'gt-milestone' + (isSel ? ' sel' : '')}
-                            data-task={t.id} style={{ left: xOf(t.startT), top: t.top + ROW_H / 2 }}
-                            onPointerDown={(e) => downBar(e, t)}>
-                            <span className="gt-diamond" style={{ background: color }} />
-                            {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                          </div>
+                          <Fragment key={t.id}>
+                            <div className={'gt-milestone' + (isSel ? ' sel' : '')}
+                              data-task={t.id} style={{ left: xOf(t.startT), top: t.top + ROW_H / 2 }}
+                              onPointerDown={(e) => downBar(e, t)}>
+                              <span className="gt-diamond" style={{ background: color }} />
+                              {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                            </div>
+                            {outside}
+                          </Fragment>
                         );
                       }
                       const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));
-                      const pctFits = showPct && w > 34;
+                      const pctFits = showPct && !labelStyle && w > 34;
                       return (
-                        <div key={t.id} className={'gt-bar' + (isSel ? ' sel' : '')}
-                          data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
-                          onPointerDown={(e) => downBar(e, t)}>
-                          {t.progress > 0 && <span className="gt-bar-fill" style={{ width: `${t.progress}%` }} />}
-                          {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
-                          {pctFits && <span className="gt-bar-pct">{t.progress}%</span>}
-                          {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
-                          {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                        </div>
+                        <Fragment key={t.id}>
+                          <div className={'gt-bar' + (isSel ? ' sel' : '')}
+                            data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
+                            onPointerDown={(e) => downBar(e, t)}>
+                            {t.progress > 0 && <span className="gt-bar-fill" style={{ width: `${t.progress}%` }} />}
+                            {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
+                            {lg?.inside && (
+                              <span className="gt-bar-label">
+                                <span className="gt-num">{t.num}</span>{caption}
+                                {showPct && t.progress > 0 ? ` · ${t.progress}%` : ''}
+                              </span>
+                            )}
+                            {pctFits && <span className="gt-bar-pct">{t.progress}%</span>}
+                            {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
+                            {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                          </div>
+                          {outside}
+                        </Fragment>
                       );
                     })}
                   </div>

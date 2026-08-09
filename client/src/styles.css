@@ -48,7 +48,9 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 * { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 
 /* ---------- Home ---------- */
-.home { max-width: 640px; margin: 0 auto; padding: 9vh 1.5rem 3rem; text-align: center; }
+/* wide enough for exactly 4 create-cards per row (4*196px + 3*1rem gap = 832px) plus padding,
+   so a wide screen shows every category as one full row instead of wrapping a lone 4th card */
+.home { max-width: 900px; margin: 0 auto; padding: 9vh 1.5rem 3rem; text-align: center; }
 .hero { display: flex; align-items: center; justify-content: center; }
 /* transparent logo (wordmark + arrow + tagline baked in) — works on light and dark.
    Sized by width so it scales down gracefully on small screens. */
@@ -67,7 +69,12 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
   font-size: .78rem; font-weight: 700; color: var(--ink3); letter-spacing: .08em;
 }
 .group-title::before, .group-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.create-row { display: grid; grid-template-columns: repeat(3, 196px); gap: 1rem; justify-content: center; }
+/* auto-fit at a fixed card width: as many 196px columns as the row has room for, always
+   centered via justify-content. On the widened .home this reaches 4-wide (now that every
+   category has exactly 4 tools) without a fixed column count that would wrap a lone extra
+   card, and it steps down gracefully on medium screens instead of jumping straight from 3
+   to the mobile override below. */
+.create-row { display: grid; grid-template-columns: repeat(auto-fit, 196px); gap: 1rem; justify-content: center; }
 .create-card {
   display: flex; flex-direction: column; align-items: center; gap: .2rem;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
@@ -405,7 +412,8 @@ body, .topbar, .toolbar, .btn, .tb, .tb-select, .rk-sel, input, textarea, select
 /* usage breakdown: per-type creation counts, grouped by category like the home page */
 .ab-usage { display: flex; flex-direction: column; gap: 1rem; }
 .ab-usage-group .group-title { margin: 0 0 .5rem; }
-.ab-usage-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
+/* 4 columns to match the (now 4-per-category) Home groups — same reasoning as .create-row */
+.ab-usage-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7rem; }
 .ab-usage-card {
   display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;

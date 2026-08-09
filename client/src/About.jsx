@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ThemeToggle } from './theme.jsx';
 import {
   Logo, IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject,
-  IconDebrief, IconFlag, IconCompass, IconTarget, IconGauge,
+  IconDebrief, IconFlag, IconCompass, IconTarget, IconGauge, IconMatrix, IconGantt,
 } from './icons.jsx';
 
 const TOOLS = [
@@ -15,21 +15,23 @@ const TOOLS = [
   { type: 'tasks', icon: <IconTasks />, cls: 'tasks', name: 'ניהול משימות', desc: 'לוח קנבן וטבלה - אחראי, יעדים, עדיפות ומעקב איחורים.' },
   { type: 'sun', icon: <IconSun />, cls: 'sun', name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו - אסוציאציות, שותפים ומחשבות.' },
   { type: 'project', icon: <IconProject />, cls: 'project', name: 'ניהול פרויקטים', desc: 'כרטיס פרויקט - מטרה, תכולה, בעלי עניין, אבני דרך ומדדים.' },
-  { type: 'gauges', icon: <IconGauge />, cls: 'gauges', name: 'דשבורד הערכת מצב', desc: 'שעוני מדידה גרפיים - נושא, טווח וערך נוכחי לכל שעון.' },
+  { type: 'gauges', icon: <IconGauge />, cls: 'gauges', name: 'שעוני הערכת מצב', desc: 'שעוני מדידה גרפיים - נושא, טווח וערך נוכחי לכל שעון.' },
   { type: 'chat', icon: <IconChat />, cls: 'chat', name: 'צ\'אט', desc: 'התכתבות חיה עם כל מי שמחובר, כולל תגובות וסימון "מקליד".' },
   { type: 'debrief', icon: <IconDebrief />, cls: 'debrief', name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים.' },
   { type: 'discussion', icon: <IconFlag />, cls: 'discussion', name: 'סיכום דיון', desc: 'סיכום, החלטות ומשתתפים.' },
   { type: 'meeting1on1', icon: <IconCompass />, cls: 'meeting1on1', name: 'פגישה אישית', desc: 'רקע, דברי הפרט, יעדים ומשימות.' },
   { type: 'goals', icon: <IconTarget />, cls: 'goals', name: 'יעדים', desc: 'יעד ראשי, מדדים ומשימות.' },
+  { type: 'matrix', icon: <IconMatrix />, cls: 'matrix', name: 'מטריצת ניתוח', desc: 'מיקום פריטים על שני צירים - X ו-Y.' },
+  { type: 'gantt', icon: <IconGantt />, cls: 'gantt', name: 'לוח גאנט', desc: 'ניהול לוח זמנים - מודולים, משימות וקשרים.' },
 ];
 
 // Same category grouping as the home page, for the per-type creation breakdown.
 const TOOL_BY_TYPE = Object.fromEntries(TOOLS.map((t) => [t.type, t]));
 const CATEGORIES = [
-  { name: 'יום־יומי', types: ['doc', 'chat', 'tasks'] },
-  { name: 'ניהול', types: ['risks', 'timeline', 'project', 'gauges'] },
-  { name: 'ארגוני', types: ['board', 'swot', 'sun'] },
-  { name: 'תבניות', types: ['debrief', 'discussion', 'meeting1on1'] },
+  { name: 'יום־יומי', types: ['doc', 'chat', 'tasks', 'gauges'] },
+  { name: 'ניהול', types: ['risks', 'timeline', 'gantt', 'project'] },
+  { name: 'ארגוני', types: ['board', 'swot', 'sun', 'matrix'] },
+  { name: 'תבניות', types: ['debrief', 'discussion', 'meeting1on1', 'goals'] },
 ];
 
 export default function About() {

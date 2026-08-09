@@ -34,6 +34,7 @@ const GROUPS = [
       { type: 'doc', cls: 'doc', icon: <IconDoc />, name: 'מסמך', desc: 'מעבד תמלילים משותף' },
       { type: 'chat', cls: 'chat', icon: <IconChat />, name: "צ'אט", desc: 'התכתבות חיה עם כל מי שמחובר' },
       { type: 'tasks', cls: 'tasks', icon: <IconTasks />, name: 'ניהול משימות', desc: 'מי אחראי, מה תקוע, מה באיחור' },
+      { type: 'gauges', cls: 'gauges', icon: <IconGauge />, name: 'שעוני הערכת מצב', desc: 'שעוני מדידה - נושא, טווח ועמידה נוכחית' },
     ],
   },
   {
@@ -43,9 +44,6 @@ const GROUPS = [
       { type: 'timeline', cls: 'timeline', icon: <IconTimeline />, name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים' },
       { type: 'gantt', cls: 'gantt', icon: <IconGantt />, name: 'לוח גאנט', desc: 'ניהול לוח זמנים - מודולים, משימות וקשרים' },
       { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקטים', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
-      { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'בניית יעדים', desc: 'מטרות, יעדים מדידים ומשימות לעמידה בהם' },
-      { type: 'gauges', cls: 'gauges', icon: <IconGauge />, name: 'דשבורד הערכת מצב', desc: 'שעוני מדידה - נושא, טווח ועמידה נוכחית' },
-      { type: 'matrix', cls: 'matrix', icon: <IconMatrix />, name: 'מטריצת ניתוח', desc: 'מיקום פריטים על שני צירים - X ו-Y' },
     ],
   },
   {
@@ -54,6 +52,7 @@ const GROUPS = [
       { type: 'board', cls: 'board', icon: <IconBoard />, name: 'לוח חשיבה', desc: 'פתקים על קנבס משותף' },
       { type: 'swot', cls: 'swot', icon: <IconSwot />, name: 'ניתוח SWOT', desc: 'חוזקות, חולשות, הזדמנויות, איומים' },
       { type: 'sun', cls: 'sun', icon: <IconSun />, name: 'תרשים שמש', desc: 'נושא מרכזי ומילים סביבו' },
+      { type: 'matrix', cls: 'matrix', icon: <IconMatrix />, name: 'מטריצת ניתוח', desc: 'מיקום פריטים על שני צירים - X ו-Y' },
     ],
   },
   {
@@ -62,6 +61,7 @@ const GROUPS = [
       { type: 'debrief', cls: 'debrief', icon: <IconDebrief />, name: 'תחקיר', desc: 'רקע, כרונולוגיה, ממצאים ולקחים' },
       { type: 'discussion', cls: 'discussion', icon: <IconFlag />, name: 'סיכום דיון', desc: 'סיכום, החלטות ומשתתפים' },
       { type: 'meeting1on1', cls: 'meeting1on1', icon: <IconCompass />, name: 'פגישה אישית', desc: 'רקע, דברי הפרט, יעדים ומשימות' },
+      { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'בניית יעדים', desc: 'מטרות, יעדים מדידים ומשימות לעמידה בהם' },
     ],
   },
 ];

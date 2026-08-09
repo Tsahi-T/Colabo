@@ -11,14 +11,16 @@ import { RISKS_EXAMPLE_TXT } from './examples.js';
 
 const uid = () => crypto.randomUUID().slice(0, 8);
 const level = (score) => (score > 14 ? 'r' : score >= 12 ? 'o' : score >= 7 ? 'y' : 'g');
-const download = (text, name) => {
+const LEVEL_COLOR = { g: '#6ee7a0', y: '#fbe14a', o: '#fdac4e', r: '#f76d6d' };
+const download = (text, name, mime = 'text/plain;charset=utf-8') => {
   bumpDownload();
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/plain;charset=utf-8' }));
+  a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: mime }));
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
 };
+const escHtml = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 function autoGrow(el) {
   if (!el) return;
   el.style.height = 'auto';
@@ -128,12 +130,64 @@ export default function Risks({ info, user, token, embed }) {
       });
     });
   }
+  // Excel: a real HTML <table> saved with an .xls extension — Excel opens this natively and
+  // renders the inline cell colours (the weighted-score column, matching the matrix's own
+  // red/orange/yellow/green), no binary xlsx library needed. Same trick as the Gantt screen.
+  const exportExcel = () => {
+    const head = ['#', 'נושא הסיכון', 'פירוט הסיכון', 'פעולות לצמצום הסיכון', 'חומרה', 'הסתברות', 'משוקלל'];
+    const bodyRows = rows.map((r) => `<tr>
+      <td style="border:1px solid #ccc;padding:3px 6px;text-align:center;">${r.num}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(r.name)}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(r.detail)}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;">${escHtml(r.actions)}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;text-align:center;">${r.sev}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;text-align:center;">${r.prob}</td>
+      <td style="border:1px solid #ccc;padding:3px 6px;text-align:center;background:${LEVEL_COLOR[level(r.score)]};font-weight:bold;">${r.score}</td>
+    </tr>`).join('');
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head>` +
+      `<body dir="rtl"><table border="1" style="border-collapse:collapse;font-family:Arial;font-size:12px;">` +
+      `<tr>${head.map((h) => `<th style="background:#eef1f5;border:1px solid #ccc;padding:3px 6px;">${escHtml(h)}</th>`).join('')}</tr>` +
+      `${bodyRows}</table></body></html>`;
+    download(html, `${title || 'ניהול סיכונים'}.xls`, 'application/vnd.ms-excel;charset=utf-8');
+  };
+  // Reads the exported .xls back — it's a plain HTML <table>, so DOMParser handles it with no
+  // library. Columns are located by header text rather than fixed position, so a hand-edited
+  // or reordered sheet still imports. "משוקלל" is derived (sev*prob) and skipped on read.
+  function applyExcelHtml(text, { skipConfirm = false } = {}) {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const trs = [...doc.querySelectorAll('table tr')];
+    const headCells = [...(trs[0]?.children || [])].map((c) => c.textContent.trim());
+    const col = (label, fallback) => { const i = headCells.indexOf(label); return i === -1 ? fallback : i; };
+    const cName = col('נושא הסיכון', 1), cDetail = col('פירוט הסיכון', 2), cActions = col('פעולות לצמצום הסיכון', 3);
+    const cSev = col('חומרה', 4), cProb = col('הסתברות', 5);
+    const parsed = [];
+    trs.slice(1).forEach((tr) => {
+      const cells = [...tr.children].map((td) => td.innerHTML.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim());
+      if (!cells.length) return;
+      const name = cells[cName] || '', detail = cells[cDetail] || '', actions = cells[cActions] || '';
+      if (!name && !detail && !actions) return;
+      parsed.push({ name, detail, actions, sev: +cells[cSev] || 3, prob: +cells[cProb] || 3 });
+    });
+    if (!parsed.length) return alert('לא נמצאו סיכונים בקובץ');
+    if (!skipConfirm && risks.size && !confirm('הטעינה תחליף את הטבלה הנוכחית. להמשיך?')) return;
+    ydoc.transact(() => {
+      [...risks.keys()].forEach((k) => risks.delete(k));
+      parsed.forEach((p, i) => {
+        const r = new Y.Map();
+        r.set('ord', i + 1); r.set('name', p.name); r.set('detail', p.detail); r.set('actions', p.actions);
+        r.set('sev', Math.min(5, Math.max(1, p.sev))); r.set('prob', Math.min(5, Math.max(1, p.prob)));
+        risks.set(uid(), r);
+      });
+    });
+  }
   async function importTxt(e) {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
     bumpReimport();
-    applyRisksTxt(await f.text());
+    const text = await f.text();
+    if (/<table/i.test(text)) return applyExcelHtml(text);
+    return applyRisksTxt(text);
   }
   function loadExample() {
     if (!confirm('טעינת דוגמה תחליף את התוכן הנוכחי במסמך זה. להמשיך?')) return;
@@ -159,12 +213,13 @@ export default function Risks({ info, user, token, embed }) {
           </div>
           <div className="actions">
             {editable && <>
-              <button className="btn" title="ניתן לטעון קובץ TXT בפורמט שיוצא מהמערכת בלבד" onClick={() => fileRef.current.click()}>טעינה</button>
-              <input ref={fileRef} type="file" accept=".txt" hidden onChange={importTxt} />
+              <button className="btn" title="ניתן לטעון קובץ TXT או Excel (.xls) בפורמט שיוצא מהמערכת" onClick={() => fileRef.current.click()}>טעינה</button>
+              <input ref={fileRef} type="file" accept=".txt,.xls" hidden onChange={importTxt} />
               <button className="btn" title="טעינת טבלת סיכונים לדוגמה, למטרות הכרות עם המערכת" onClick={loadExample}>דוגמה</button>
             </>}
             <Menu label="הורדה">
               <button onClick={exportPdf}>PDF (הדפסה)</button>
+              <button onClick={exportExcel}>Excel (טבלה צבעונית) - לטעינה חוזרת</button>
               <button onClick={exportTxt}>TXT - לטעינה חוזרת</button>
             </Menu>
             <ShareMenu info={info} />

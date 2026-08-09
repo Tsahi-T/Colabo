@@ -708,11 +708,16 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* z-index above bars/milestones (2) so an arrowhead landing right at a bar's edge is never
    hidden underneath it — it used to share the same stacking level and lose to DOM order. */
 .gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 3; }
-.gt-link { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .95; }
-.gt-link-case { fill: none; stroke: var(--panel); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; opacity: .92; }
+/* A soft double drop-shadow (not a second wide "casing" path — that read as a big blocky
+   white shape at some zoom levels) keeps the line legible crossing a colored bar, as a thin
+   glow instead of an obvious geometric outline. Applies to the marker too since SVG paints
+   markers as part of the element carrying the filter. */
+.gt-link {
+  fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .95;
+  filter: drop-shadow(0 0 1.3px var(--panel)) drop-shadow(0 0 1.3px var(--panel));
+}
 .gt-link-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .gt-arrowhead { fill: var(--ink2); }
-.gt-arrowhead-case { fill: var(--panel); }
 .gt-link-preview { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 4; }
 
 .gt-bar {
@@ -723,6 +728,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-bar.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
 .gt-bar-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 .gt-bar-pct { flex-shrink: 0; opacity: .9; margin-inline-start: .3rem; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+/* "1", "2.3" reference numbers — a dimmed prefix via opacity (adapts to whatever text color
+   it's inherited into, light-on-dark module colors included) rather than a fixed color. */
+.gt-num { font-weight: 800; opacity: .7; margin-inline-end: .3rem; font-variant-numeric: tabular-nums; }
+.gt-num-bar { flex-shrink: 0; opacity: .8; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 /* a bar too narrow for gt-bar-label renders this instead — positioned just past the bar's
    end so the name is always readable regardless of how short the task's duration is. */
 .gt-bar-label-ext {

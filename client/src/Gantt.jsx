@@ -27,7 +27,7 @@ const fmt = (iso) => (iso ? parseISO(iso).toLocaleDateString('he-IL', { day: 'nu
 const fmtShort = (iso) => (iso ? iso.split('-').reverse().join('.') : ''); // DD.MM.YYYY — compact, for accordion summaries
 
 // ---- layout geometry ----------------------------------------------------------------
-const ROW_H = 34, BAR_H = 24, GROUP_GAP = 3, LEFT_W = 148, MS_EXTRA = 16;
+const ROW_H = 34, BAR_H = 24, GROUP_GAP = 3, LEFT_W = 148, MS_EXTRA = 22;
 
 // Greedy interval packing: each task gets the first sub-row ("lane") within its module
 // whose last-placed task doesn't overlap it, so overlapping tasks stack instead of
@@ -91,19 +91,30 @@ function monthList(startISO, endISO) {
   return list;
 }
 
-// Right-angle "finish-to-start" connector, source-right to target-left. Handles the
-// backward/overlapping case (target starts before source ends) the same way as the normal
-// forward case — an H command draws either direction, so routing a fixed GAP out from the
-// source before the vertical turn always produces a valid, readable path either way.
+// Right-angle "finish-to-start" connector, source-right to target-left. Always makes its
+// FINAL approach into the target moving rightward (entering the target's left edge), even
+// for a backward/overlapping dependency (target starts before source ends) — a naive router
+// that just draws straight to the target's x can end up approaching from the target's right
+// side instead, which points the arrowhead the "wrong" way and reads as backwards.
 function elbowPath(x1, y1, x2, y2) {
-  if (y1 === y2) return `M ${x1} ${y1} H ${x2}`; // same lane — a straight line, no jog needed
   const GAP = 14;
-  const midX = x2 > x1 + 2 * GAP ? (x1 + x2) / 2 : x1 + GAP;
-  return `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
+  if (y1 === y2 && x2 >= x1) return `M ${x1} ${y1} H ${x2}`; // simple same-lane forward case
+  const exitX = x1 + GAP; // always leave the source moving right
+  const approachX = x2 - GAP; // always arrive at the target moving right, from just left of it
+  return `M ${x1} ${y1} H ${exitX} V ${y2} H ${approachX} H ${x2}`;
 }
 // Rough per-character width estimate (Hebrew UI font, .72rem bold) — used only to decide
 // whether a bar is wide enough to hold its own label before rendering it outside instead.
 const estLabelW = (name, pct) => name.length * 6.4 + (pct ? 26 : 8) + 14;
+// White text reads on a dark module color, dark text on a light one — the old fixed dark
+// text was unreadable once dark blues (not just light pastels) became a normal color choice.
+function textColorFor(hex) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return '#1f2937';
+  const n = parseInt(hex.slice(1, 7), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? '#1f2937' : '#ffffff';
+}
 
 function autoGrow(el) {
   if (!el) return;
@@ -172,13 +183,14 @@ function ColorPop({ value, onPick, onReset }) {
 // Collapsed by default — a compact one-line summary (name + dates) — and expands to the
 // full field set (dates/%/milestone + predecessor/successor lists) on demand, so a long
 // task list stays scannable instead of showing every field for every row at once.
-function TaskCard({ t, groupColor, editable, sel, open, onToggleOpen, onSelect, onChange, onDelete, showPct, predecessors, successors, taskOptions, onAddLink, onDelLink }) {
+function TaskCard({ t, num, groupColor, editable, sel, open, onToggleOpen, onSelect, onChange, onDelete, showPct, predecessors, successors, taskOptions, onAddLink, onDelLink }) {
   return (
-    <div className={'gt-tcard' + (sel ? ' sel' : '')}>
+    <div className={'gt-tcard' + (sel ? ' sel' : '')} data-taskcard={t.id}>
       <div className="gt-tcard-row1" onClick={() => onSelect(t.id)}>
         {editable
           ? <ColorPop value={t.color || groupColor} onPick={(hex) => onChange({ color: hex })} onReset={() => onChange({ color: '' })} />
           : <span className="gt-color-chip" style={{ background: t.color || groupColor }} />}
+        <span className="gt-num">{num}</span>
         {editable
           ? <GrowingField className="gt-tcard-name-in" value={t.name} placeholder="שם המשימה" onChange={(e) => onChange({ name: e.target.value })} />
           : <b className="gt-tcard-name-ro">{t.name || '-'}</b>}
@@ -269,13 +281,14 @@ function TaskCard({ t, groupColor, editable, sel, open, onToggleOpen, onSelect, 
   );
 }
 
-function GroupCard({ g, editable, sel, open, onToggleOpen, taskCount, onSelect, onChange, onDelete, onAddTask, children }) {
+function GroupCard({ g, num, editable, sel, open, onToggleOpen, taskCount, onSelect, onChange, onDelete, onAddTask, children }) {
   return (
-    <div className={'gt-gcard' + (sel ? ' sel' : '')}>
+    <div className={'gt-gcard' + (sel ? ' sel' : '')} data-groupcard={g.id}>
       <div className="gt-gcard-head" style={{ borderInlineStartColor: g.color }} onClick={() => onSelect(g.id)}>
         {editable
           ? <ColorPop value={g.color} onPick={(hex) => onChange({ color: hex })} />
           : <span className="gt-color-chip" style={{ background: g.color }} />}
+        <span className="gt-num">{num}</span>
         {editable
           ? <GrowingField className="gt-gcard-name-in" value={g.name} placeholder="שם המודול" onChange={(e) => onChange({ name: e.target.value })} />
           : <b>{g.name}</b>}
@@ -349,6 +362,26 @@ export default function Gantt({ info, user, token }) {
 
   useEffect(() => { touchRecent(token, title, info.mode, 'gantt'); }, [title]);
 
+  // Selecting a task or module on the canvas (click a bar/diamond/label) also brings it into
+  // view in the table — expanding its module and its own accordion if they were collapsed,
+  // then scrolling the card into view — so a canvas click is a real shortcut into editing,
+  // not just a highlight the user then has to go hunt for in a long list.
+  useEffect(() => {
+    if (!sel) return;
+    if (sel.kind === 'task') {
+      const t = tasks.get(sel.id);
+      const gid = t?.get('groupId');
+      if (gid) setClosedGroupIds((prev) => (prev.has(gid) ? (() => { const n = new Set(prev); n.delete(gid); return n; })() : prev));
+      setOpenTaskIds((prev) => (prev.has(sel.id) ? prev : new Set(prev).add(sel.id)));
+    } else if (sel.kind === 'group') {
+      setClosedGroupIds((prev) => (prev.has(sel.id) ? (() => { const n = new Set(prev); n.delete(sel.id); return n; })() : prev));
+    }
+    const selector = sel.kind === 'task' ? `[data-taskcard="${sel.id}"]` : `[data-groupcard="${sel.id}"]`;
+    // wait a tick for the expand-state changes above to actually render before scrolling
+    const id = setTimeout(() => document.querySelector(selector)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60);
+    return () => clearTimeout(id);
+  }, [sel]);
+
   // touch pinch-zoom — same pattern as Timeline.jsx
   function cDown(e) {
     if (e.pointerType !== 'touch') return;
@@ -415,7 +448,10 @@ export default function Gantt({ info, user, token }) {
   // is deliberately NOT floored at that same value — it used to be, which silently disabled
   // the "−" button below the default spacing; a user asking to zoom out for a small-screen
   // overview should get exactly that, even if labels get tight or hidden as a result.
-  const basePpd = Math.max(4.5, (cw - LEFT_W - 8) / spanDays);
+  // Narrower than the very first fix (4.5) — the external-label fallback and the
+  // milestone's own reserved row space now do most of the overlap-avoidance work, so the
+  // raw per-day spacing needed for a readable *default* view is smaller than it used to be.
+  const basePpd = Math.max(2.8, (cw - LEFT_W - 8) / spanDays);
   const ppd = Math.min(240, Math.max(0.6, basePpd * zoom));
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
@@ -446,6 +482,26 @@ export default function Gantt({ info, user, token }) {
   const totalHeight = Math.max(cumTop - GROUP_GAP, 0);
   const laidTasks = groupsLaid.flatMap((x) => x.tasks);
   const taskById = new Map(laidTasks.map((t) => [t.id, t]));
+  // "1", "2.3" style reference numbers — module order, then the task's position within its
+  // module (same display order already used everywhere) — so a module/task can be pointed
+  // to precisely in conversation instead of only by its (often-truncated) name.
+  const groupNumById = new Map(groupList.map((g, i) => [g.id, i + 1]));
+  const taskNumById = new Map();
+  groupsLaid.forEach(({ group: g, tasks: gTasks }) => {
+    gTasks.forEach((t, i) => taskNumById.set(t.id, `${groupNumById.get(g.id)}.${i + 1}`));
+  });
+  // An outside label (for a bar too narrow to hold its own text) used to only cap its width
+  // at a fixed 150px — fine on a spacious view, but at the new narrower default spacing that
+  // fixed cap can still reach past the START of the next task sharing the same lane, painting
+  // over its bar/label. Cap it dynamically at the actual pixel gap to that next task instead.
+  const nextInLaneXById = new Map();
+  groupsLaid.forEach(({ tasks: gTasks }) => {
+    const byLane = new Map();
+    gTasks.forEach((t) => { if (!byLane.has(t.lane)) byLane.set(t.lane, []); byLane.get(t.lane).push(t); });
+    byLane.forEach((arr) => {
+      for (let i = 0; i < arr.length - 1; i++) nextInLaneXById.set(arr[i].id, xOf(arr[i + 1].startT));
+    });
+  });
 
   const yearSegs = yearSegments(rangeStart, rangeEnd, xOf);
   const unitSegs = gran === 'week' ? weekSegments(rangeStart, rangeEnd, xOf) : monthSegments(rangeStart, rangeEnd, xOf);
@@ -495,8 +551,7 @@ export default function Gantt({ info, user, token }) {
       m.set('progress', 0); m.set('color', ''); m.set('milestone', false); m.set('ord', ord);
       tasks.set(id, m);
     });
-    setSel({ kind: 'task', id });
-    setOpenTaskIds((prev) => new Set(prev).add(id));
+    setSel({ kind: 'task', id }); // the sel-effect below opens its module + accordion and scrolls to it
   }
   function setTask(id, patch) {
     const m = tasks.get(id);
@@ -870,7 +925,7 @@ export default function Gantt({ info, user, token }) {
             <aside className="gt-table-wrap">
               {editable && <button type="button" className="btn gt-add-group-btn" onClick={addGroup}>+ מודול</button>}
               {groupsLaid.map(({ group: g, tasks: gTasks }) => (
-                <GroupCard key={g.id} g={g} editable={editable} sel={sel?.kind === 'group' && sel.id === g.id}
+                <GroupCard key={g.id} g={g} num={groupNumById.get(g.id)} editable={editable} sel={sel?.kind === 'group' && sel.id === g.id}
                   open={!closedGroupIds.has(g.id)} onToggleOpen={() => toggleGroupOpen(g.id)} taskCount={gTasks.length}
                   onSelect={(id) => setSel({ kind: 'group', id })} onChange={(patch) => setGroup(g.id, patch)}
                   onDelete={() => delGroup(g)} onAddTask={() => addTaskToGroup(g.id)}>
@@ -879,7 +934,7 @@ export default function Gantt({ info, user, token }) {
                     const successors = linkList.filter((l) => l.from === t.id).map((l) => ({ linkId: l.id, name: taskNameById.get(l.to) }));
                     const taskOptions = allTasks.filter((o) => o.id !== t.id).map((o) => ({ id: o.id, name: o.name }));
                     return (
-                      <TaskCard key={t.id} t={t} groupColor={g.color} editable={editable}
+                      <TaskCard key={t.id} t={t} num={taskNumById.get(t.id)} groupColor={g.color} editable={editable}
                         sel={sel?.kind === 'task' && sel.id === t.id} open={openTaskIds.has(t.id)} onToggleOpen={() => toggleTaskOpen(t.id)}
                         onSelect={(id) => setSel({ kind: 'task', id })} onChange={(patch) => setTask(t.id, patch)} onDelete={() => delTask(t)}
                         showPct={showPct} predecessors={predecessors} successors={successors} taskOptions={taskOptions}
@@ -918,9 +973,9 @@ export default function Gantt({ info, user, token }) {
                   <div className="gt-left">
                     {groupsLaid.map(({ group: g }) => (
                       <div key={g.id} className={'gt-group-label' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
-                        style={{ top: g.top, height: g.height, background: g.color }}
+                        style={{ top: g.top, height: g.height, background: g.color, color: textColorFor(g.color) }}
                         onClick={() => editable && setSel({ kind: 'group', id: g.id })}>
-                        {g.name}
+                        <span className="gt-num">{groupNumById.get(g.id)}</span>{g.name}
                       </div>
                     ))}
                     {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
@@ -939,13 +994,7 @@ export default function Gantt({ info, user, token }) {
                           <marker id="gt-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="3.5" orient="auto">
                             <path d="M0.5,0.5 L6.5,3.5 L0.5,6.5 Z" className="gt-arrowhead" />
                           </marker>
-                          <marker id="gt-arrow-case" markerWidth="11" markerHeight="11" refX="7.2" refY="4.2" orient="auto">
-                            <path d="M0,0 L7.7,4.2 L0,8.4 Z" className="gt-arrowhead-case" />
-                          </marker>
                         </defs>
-                        {/* A wider panel-colored "casing" stroke under each line, same idea as a
-                            map's road casing — otherwise a line crossing over a colored bar
-                            visually blended into it instead of reading as a line drawn over it. */}
                         {linkList.map((l) => {
                           const from = taskById.get(l.from), to = taskById.get(l.to);
                           if (!from || !to) return null;
@@ -954,7 +1003,6 @@ export default function Gantt({ info, user, token }) {
                           const d = elbowPath(x1, y1, x2 - 1, y2);
                           return (
                             <g key={l.id} className="gt-link-g">
-                              <path d={d} className="gt-link-case" markerEnd="url(#gt-arrow-case)" />
                               <path d={d} className="gt-link" style={{ stroke: from.color || PASTELS['אפור'] }} markerEnd="url(#gt-arrow)" />
                               {editable && <path d={d} className="gt-link-hit" onClick={(e) => { e.stopPropagation(); delLink(l.id); }} />}
                             </g>
@@ -970,6 +1018,7 @@ export default function Gantt({ info, user, token }) {
                     )}
                     {laidTasks.map((t) => {
                       const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
+                      const tnum = taskNumById.get(t.id);
                       if (t.milestone) {
                         // The diamond sits exactly at its date (its own centered transform);
                         // the label renders BELOW it, in the extra row-height reserved for
@@ -986,7 +1035,7 @@ export default function Gantt({ info, user, token }) {
                             </div>
                             <span className="gt-milestone-label" data-task={t.id} style={{ left: x, top: t.top + ROW_H + MS_EXTRA / 2 }}
                               onPointerDown={(e) => downBar(e, t)}>
-                              {t.name || 'אבן דרך'}
+                              <span className="gt-num">{tnum}</span>{t.name || 'אבן דרך'}
                             </span>
                           </Fragment>
                         );
@@ -994,24 +1043,29 @@ export default function Gantt({ info, user, token }) {
                       const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));
                       // A bar too narrow for its own text hides the label entirely (overflow:
                       // hidden) — instead render it just past the bar's end, always readable.
-                      const outside = w < estLabelW(t.name, showPct);
+                      const outside = w < estLabelW(t.name, showPct) + 22;
                       return (
                         <Fragment key={t.id}>
                           <div className={'gt-bar' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
                             data-task={t.id} style={{ left: x, top: t.top + (ROW_H - BAR_H) / 2, width: w, height: BAR_H, background: color }}
                             onPointerDown={(e) => downBar(e, t)}>
                             {editable && <span className="gt-handle gt-handle-s" onPointerDown={(e) => downResize(e, t, 'start')} />}
+                            {!outside && <span className="gt-num gt-num-bar">{tnum}</span>}
                             {!outside && <span className="gt-bar-label">{t.name}</span>}
                             {!outside && showPct && <span className="gt-bar-pct">{t.progress}%</span>}
                             {editable && <span className="gt-handle gt-handle-e" onPointerDown={(e) => downResize(e, t, 'end')} />}
                             {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
                           </div>
-                          {outside && (
-                            <span className="gt-bar-label-ext" data-task={t.id} style={{ left: x + w + 6, top: t.top + ROW_H / 2 }}
-                              onPointerDown={(e) => downBar(e, t)}>
-                              {t.name || 'ללא שם'}{showPct && t.progress ? ` · ${t.progress}%` : ''}
-                            </span>
-                          )}
+                          {outside && (() => {
+                            const nextX = nextInLaneXById.get(t.id);
+                            const maxW = nextX != null ? Math.max(20, Math.min(150, nextX - (x + w + 6) - 4)) : 150;
+                            return (
+                              <span className="gt-bar-label-ext" data-task={t.id} style={{ left: x + w + 6, top: t.top + ROW_H / 2, maxWidth: maxW }}
+                                onPointerDown={(e) => downBar(e, t)}>
+                                <span className="gt-num">{tnum}</span>{t.name || 'ללא שם'}{showPct && t.progress ? ` · ${t.progress}%` : ''}
+                              </span>
+                            );
+                          })()}
                         </Fragment>
                       );
                     })}

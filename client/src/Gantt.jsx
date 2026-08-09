@@ -269,7 +269,7 @@ function TaskCard({ t, groupColor, editable, sel, open, onToggleOpen, onSelect, 
   );
 }
 
-function GroupCard({ g, editable, sel, onSelect, onChange, onDelete, onAddTask, children }) {
+function GroupCard({ g, editable, sel, open, onToggleOpen, taskCount, onSelect, onChange, onDelete, onAddTask, children }) {
   return (
     <div className={'gt-gcard' + (sel ? ' sel' : '')}>
       <div className="gt-gcard-head" style={{ borderInlineStartColor: g.color }} onClick={() => onSelect(g.id)}>
@@ -279,12 +279,17 @@ function GroupCard({ g, editable, sel, onSelect, onChange, onDelete, onAddTask, 
         {editable
           ? <GrowingField className="gt-gcard-name-in" value={g.name} placeholder="שם המודול" onChange={(e) => onChange({ name: e.target.value })} />
           : <b>{g.name}</b>}
+        <button type="button" className="gt-tcard-expand" title={open ? 'כיווץ המודול' : 'הרחבת המודול'} onClick={(e) => { e.stopPropagation(); onToggleOpen(); }}>
+          {open ? '︿' : `﹀ ${taskCount}`}
+        </button>
         {editable && <button className="pj-x" onClick={(e) => { e.stopPropagation(); onDelete(); }}>✕</button>}
       </div>
-      <div className="gt-gcard-tasks">
-        {children}
-        {editable && <button type="button" className="btn gt-add-task-btn" onClick={onAddTask}>+ משימה</button>}
-      </div>
+      {open && (
+        <div className="gt-gcard-tasks">
+          {children}
+          {editable && <button type="button" className="btn gt-add-task-btn" onClick={onAddTask}>+ משימה</button>}
+        </div>
+      )}
     </div>
   );
 }
@@ -297,6 +302,7 @@ export default function Gantt({ info, user, token }) {
   const [peers, setPeers] = useState([]);
   const [sel, setSel] = useState(null); // {kind:'task'|'group', id}
   const [tableOpen, setTableOpen] = useState(true);
+  const [closedGroupIds, setClosedGroupIds] = useState(() => new Set()); // collapsed modules, per-viewer — open by default
   const [openTaskIds, setOpenTaskIds] = useState(() => new Set()); // accordion state, per-viewer
   const [zoom, setZoom] = useState(1);
   const [connect, setConnect] = useState(null); // {from, x, y} — live link-drag preview, grid-local coords
@@ -373,6 +379,13 @@ export default function Gantt({ info, user, token }) {
       return next;
     });
   }
+  function toggleGroupOpen(id) {
+    setClosedGroupIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   // ---- data ----
   const rangeStart = meta.get('start') || defaultStart();
@@ -397,12 +410,13 @@ export default function Gantt({ info, user, token }) {
 
   const startT = +parseISO(rangeStart), endT = +parseISO(rangeEnd);
   const spanDays = Math.max(1, (endT - startT) / DAY);
-  // A long default range (18 months) squeezed into one screen-width left almost no room
-  // per day, so bar/milestone labels piled on top of each other. A firm floor here means a
-  // long plan scrolls horizontally instead of collapsing into unreadable overlapping text —
-  // matches the "can pan back and forth" allowance from the original spec.
+  // basePpd (the zoom=1 default) has its own floor so a long plan starts out readable
+  // instead of squeezing every label into unreadable overlaps. The zoom multiplier itself
+  // is deliberately NOT floored at that same value — it used to be, which silently disabled
+  // the "−" button below the default spacing; a user asking to zoom out for a small-screen
+  // overview should get exactly that, even if labels get tight or hidden as a result.
   const basePpd = Math.max(4.5, (cw - LEFT_W - 8) / spanDays);
-  const ppd = Math.min(240, Math.max(4.5, basePpd * zoom));
+  const ppd = Math.min(240, Math.max(0.6, basePpd * zoom));
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
 
@@ -857,6 +871,7 @@ export default function Gantt({ info, user, token }) {
               {editable && <button type="button" className="btn gt-add-group-btn" onClick={addGroup}>+ מודול</button>}
               {groupsLaid.map(({ group: g, tasks: gTasks }) => (
                 <GroupCard key={g.id} g={g} editable={editable} sel={sel?.kind === 'group' && sel.id === g.id}
+                  open={!closedGroupIds.has(g.id)} onToggleOpen={() => toggleGroupOpen(g.id)} taskCount={gTasks.length}
                   onSelect={(id) => setSel({ kind: 'group', id })} onChange={(patch) => setGroup(g.id, patch)}
                   onDelete={() => delGroup(g)} onAddTask={() => addTaskToGroup(g.id)}>
                   {gTasks.map((t) => {
@@ -879,10 +894,10 @@ export default function Gantt({ info, user, token }) {
           )}
           <div className="gt-canvas-col">
             <div className="gt-canvas-topbar">
-              <span className="gt-canvas-title">{title || 'לוח גאנט'}</span>
               <button type="button" className="btn gt-table-toggle" onClick={() => setTableOpen((v) => !v)}>
                 {tableOpen ? '‹ הסתרת טבלה' : 'הצגת טבלה ›'}
               </button>
+              <span className="gt-canvas-title">{title || 'לוח גאנט'}</span>
             </div>
             <div className="gt-canvas" ref={canvasRef}
               onPointerDownCapture={cDown} onPointerMoveCapture={cMove} onPointerUpCapture={cUp} onPointerCancelCapture={cUp}>
@@ -899,7 +914,7 @@ export default function Gantt({ info, user, token }) {
                     {unitSegs.map((s) => <div key={s.key} className="gt-seg gt-seg-unit" style={{ left: s.x, width: s.w }}>{s.label}</div>)}
                   </div>
                 </div>
-                <div className="gt-body" style={{ height: totalHeight || ROW_H }}>
+                <div className="gt-body" style={{ minHeight: totalHeight || ROW_H }}>
                   <div className="gt-left">
                     {groupsLaid.map(({ group: g }) => (
                       <div key={g.id} className={'gt-group-label' + (sel?.kind === 'group' && sel.id === g.id ? ' sel' : '')}
@@ -910,7 +925,7 @@ export default function Gantt({ info, user, token }) {
                     ))}
                     {!groupList.length && <div className="gt-empty-left">מוסיפים מודול כדי להתחיל</div>}
                   </div>
-                  <div className="gt-grid" ref={gridRef} style={{ width: stageW, height: totalHeight || ROW_H }}
+                  <div className="gt-grid" ref={gridRef} style={{ width: stageW, minHeight: totalHeight || ROW_H }}
                     onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}
                     onPointerMove={moveGrid} onPointerUp={upGrid} onPointerCancel={upGrid}>
                     {unitSegs.map((s) => <div key={s.key} className="gt-gridline" style={{ left: s.x }} />)}
@@ -924,7 +939,13 @@ export default function Gantt({ info, user, token }) {
                           <marker id="gt-arrow" markerWidth="9" markerHeight="9" refX="6.5" refY="3.5" orient="auto">
                             <path d="M0.5,0.5 L6.5,3.5 L0.5,6.5 Z" className="gt-arrowhead" />
                           </marker>
+                          <marker id="gt-arrow-case" markerWidth="11" markerHeight="11" refX="7.2" refY="4.2" orient="auto">
+                            <path d="M0,0 L7.7,4.2 L0,8.4 Z" className="gt-arrowhead-case" />
+                          </marker>
                         </defs>
+                        {/* A wider panel-colored "casing" stroke under each line, same idea as a
+                            map's road casing — otherwise a line crossing over a colored bar
+                            visually blended into it instead of reading as a line drawn over it. */}
                         {linkList.map((l) => {
                           const from = taskById.get(l.from), to = taskById.get(l.to);
                           if (!from || !to) return null;
@@ -933,6 +954,7 @@ export default function Gantt({ info, user, token }) {
                           const d = elbowPath(x1, y1, x2 - 1, y2);
                           return (
                             <g key={l.id} className="gt-link-g">
+                              <path d={d} className="gt-link-case" markerEnd="url(#gt-arrow-case)" />
                               <path d={d} className="gt-link" style={{ stroke: from.color || PASTELS['אפור'] }} markerEnd="url(#gt-arrow)" />
                               {editable && <path d={d} className="gt-link-hit" onClick={(e) => { e.stopPropagation(); delLink(l.id); }} />}
                             </g>

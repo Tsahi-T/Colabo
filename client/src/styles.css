@@ -650,13 +650,25 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 
 .gt-page { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 .gt-canvas { flex: 1; overflow: auto; position: relative; background: var(--bg); }
-.gt-stage { position: relative; }
+/* min-height:100% (not just the content's own natural height) so a short plan's grid still
+   stretches to fill the visible canvas — otherwise the today-line/gridlines (top:0;bottom:0
+   relative to .gt-grid) stopped wherever the content ended, well short of the actual
+   scrollport, reading as "the line doesn't continue through the table". */
+.gt-stage { position: relative; display: flex; flex-direction: column; min-height: 100%; }
 /* the title used to be squeezed into the 148px corner cell and get clipped — it now lives
    in its own full-width row alongside the table-toggle button. */
-.gt-canvas-topbar { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .5rem .6rem 0; flex-shrink: 0; }
-.gt-canvas-title { font-weight: 800; font-size: .95rem; color: var(--ink); unicode-bidi: plaintext; overflow-wrap: anywhere; }
+/* toggle button anchored at the table seam (first in DOM = start-of-row = right, next to
+   the table in RTL). The title is truly centered on the row's full width via absolute
+   positioning — centering it in the flex space left over *after* the button would center it
+   relative to the button's off-center position instead of the row itself. */
+.gt-canvas-topbar { position: relative; display: flex; align-items: center; padding: .5rem .6rem 0; flex-shrink: 0; min-height: 2.3rem; }
+.gt-canvas-title {
+  position: absolute; left: 50%; top: .5rem; transform: translateX(-50%); max-width: 55%;
+  font-weight: 800; font-size: .95rem; color: var(--ink); unicode-bidi: plaintext;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
-.gt-header-row { display: flex; position: sticky; z-index: 4; }
+.gt-header-row { display: flex; position: sticky; z-index: 4; flex-shrink: 0; }
 .gt-header-years { top: 0; height: 28px; }
 .gt-header-units { top: 28px; height: 30px; }
 .gt-corner {
@@ -673,7 +685,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-seg-year { background: var(--bg); color: var(--ink); font-weight: 800; }
 .gt-seg-unit { font-size: .7rem; font-weight: 600; }
 
-.gt-body { display: flex; }
+.gt-body { display: flex; flex: 1; }
 .gt-left { position: sticky; left: 0; z-index: 3; width: 148px; flex-shrink: 0; background: var(--panel); border-inline-end: 1px solid var(--border); }
 .gt-group-label {
   position: absolute; left: 0; right: 0; display: flex; align-items: center; padding: .3rem .6rem;
@@ -696,9 +708,11 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* z-index above bars/milestones (2) so an arrowhead landing right at a bar's edge is never
    hidden underneath it — it used to share the same stacking level and lose to DOM order. */
 .gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 3; }
-.gt-link { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
+.gt-link { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .95; }
+.gt-link-case { fill: none; stroke: var(--panel); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; opacity: .92; }
 .gt-link-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .gt-arrowhead { fill: var(--ink2); }
+.gt-arrowhead-case { fill: var(--panel); }
 .gt-link-preview { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 4; }
 
 .gt-bar {

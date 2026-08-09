@@ -713,6 +713,8 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-bar-label-ext {
   position: absolute; transform: translateY(-50%); font-size: .74rem; font-weight: 700; color: var(--ink);
   white-space: nowrap; z-index: 3; cursor: grab; unicode-bidi: plaintext;
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+  background: var(--panel); padding: .05rem .3rem; border-radius: 4px; box-shadow: var(--shadow-chip);
 }
 .gt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .gt-handle-s { left: 0; }
@@ -727,8 +729,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-milestone { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: .35rem; z-index: 2; cursor: grab; }
 .gt-diamond { width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid var(--panel); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); flex-shrink: 0; }
 .gt-milestone-label {
-  font-size: .76rem; font-weight: 700; color: var(--ink); white-space: nowrap; background: var(--panel);
-  padding: .05rem .35rem; border-radius: 4px; box-shadow: var(--shadow-chip); unicode-bidi: plaintext;
+  position: absolute; transform: translateY(-50%); font-size: .76rem; font-weight: 700; color: var(--ink);
+  white-space: nowrap; background: var(--panel); padding: .05rem .35rem; border-radius: 4px;
+  box-shadow: var(--shadow-chip); unicode-bidi: plaintext; max-width: 130px; overflow: hidden;
+  text-overflow: ellipsis; z-index: 3; cursor: grab;
 }
 .gt-milestone.sel .gt-diamond { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -742,12 +746,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   width: 380px; flex-shrink: 0; border-inline-end: 1px solid var(--border); background: var(--bg);
   overflow-y: auto; padding: .7rem; display: flex; flex-direction: column; gap: .6rem;
 }
-.gt-add-group-btn { align-self: stretch; }
+.gt-add-group-btn { align-self: stretch; font-size: .85rem; padding: .5rem; }
 .gt-canvas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .gt-table-toggle { align-self: flex-start; margin: .5rem .6rem 0; flex-shrink: 0; }
 .gt-empty-table { padding: 1rem .4rem; text-align: center; font-size: .82rem; color: var(--ink3); }
 
-.gt-gcard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--card-shadow); }
+.gt-gcard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--card-shadow); flex-shrink: 0; }
 .gt-gcard.sel { border-color: var(--accent); }
 .gt-gcard-head {
   display: flex; align-items: flex-start; gap: .45rem; padding: .55rem .6rem;
@@ -758,7 +762,7 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-gcard-name-in:hover, .gt-gcard-name-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
 .gt-gcard-tasks { display: flex; flex-direction: column; gap: .45rem; padding: .55rem; }
 
-.gt-tcard { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: .5rem .6rem; display: flex; flex-direction: column; gap: .4rem; cursor: pointer; }
+.gt-tcard { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: .5rem .6rem; display: flex; flex-direction: column; gap: .4rem; cursor: pointer; flex-shrink: 0; }
 .gt-tcard.sel { border-color: var(--accent); outline: 1px solid var(--accent); }
 .gt-tcard-row1 { display: flex; align-items: flex-start; gap: .4rem; }
 .gt-tcard-name-in { flex: 1; min-width: 0; font-weight: 700; font-size: .88rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .1rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }

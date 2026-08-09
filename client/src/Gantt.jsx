@@ -330,8 +330,12 @@ export default function Gantt({ info, user, token }) {
 
   const startT = +parseISO(rangeStart), endT = +parseISO(rangeEnd);
   const spanDays = Math.max(1, (endT - startT) / DAY);
-  const basePpd = Math.max(2, (cw - LEFT_W - 8) / spanDays);
-  const ppd = Math.min(240, Math.max(1.5, basePpd * zoom));
+  // A long default range (18 months) squeezed into one screen-width left almost no room
+  // per day, so bar/milestone labels piled on top of each other. A firm floor here means a
+  // long plan scrolls horizontally instead of collapsing into unreadable overlapping text —
+  // matches the "can pan back and forth" allowance from the original spec.
+  const basePpd = Math.max(4.5, (cw - LEFT_W - 8) / spanDays);
+  const ppd = Math.min(240, Math.max(4.5, basePpd * zoom));
   const stageW = spanDays * ppd;
   const xOf = (t) => ((t - startT) / DAY) * ppd;
 
@@ -659,7 +663,7 @@ export default function Gantt({ info, user, token }) {
         <div className="gt-split">
           {tableOpen && (
             <aside className="gt-table-wrap">
-              {editable && <button type="button" className="btn-primary gt-add-group-btn" onClick={addGroup}>+ מודול</button>}
+              {editable && <button type="button" className="btn gt-add-group-btn" onClick={addGroup}>+ מודול</button>}
               {groupsLaid.map(({ group: g, tasks: gTasks }) => (
                 <GroupCard key={g.id} g={g} editable={editable} sel={sel?.kind === 'group' && sel.id === g.id}
                   onSelect={(id) => setSel({ kind: 'group', id })} onChange={(patch) => setGroup(g.id, patch)}
@@ -744,15 +748,25 @@ export default function Gantt({ info, user, token }) {
                 {laidTasks.map((t) => {
                   const color = t.color || groupList.find((g) => g.id === t.groupId)?.color || PASTELS['כחול'];
                   if (t.milestone) {
+                    // The diamond sits exactly at its date (its own centered transform); the
+                    // label is a separate sibling starting just past it and extending in one
+                    // predictable direction — same convention as the external bar label,
+                    // instead of a centered diamond+label group whose combined width shifted
+                    // the diamond off its true date and let the label spill both directions.
                     const x = xOf(t.startT);
                     return (
-                      <div key={t.id} className={'gt-milestone' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
-                        data-task={t.id} style={{ left: x, top: t.top + ROW_H / 2 }}
-                        onPointerDown={(e) => downBar(e, t)}>
-                        <span className="gt-diamond" style={{ background: color }} />
-                        <span className="gt-milestone-label">{t.name || 'אבן דרך'}</span>
-                        {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
-                      </div>
+                      <Fragment key={t.id}>
+                        <div className={'gt-milestone' + (sel?.kind === 'task' && sel.id === t.id ? ' sel' : '')}
+                          data-task={t.id} style={{ left: x, top: t.top + ROW_H / 2 }}
+                          onPointerDown={(e) => downBar(e, t)}>
+                          <span className="gt-diamond" style={{ background: color }} />
+                          {editable && <span className="gt-link-anchor" onPointerDown={(e) => downLinkAnchor(e, t)} />}
+                        </div>
+                        <span className="gt-milestone-label" data-task={t.id} style={{ left: x + 12, top: t.top + ROW_H / 2 }}
+                          onPointerDown={(e) => downBar(e, t)}>
+                          {t.name || 'אבן דרך'}
+                        </span>
+                      </Fragment>
                     );
                   }
                   const x = xOf(t.startT), w = Math.max(6, xOf(t.endT) - xOf(t.startT));

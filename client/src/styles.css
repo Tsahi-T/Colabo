@@ -691,10 +691,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 
 .gt-links-svg { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 2; }
-.gt-link { fill: none; stroke-width: 2; opacity: .85; }
-.gt-link-hit { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: pointer; }
+.gt-link { fill: none; stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
+.gt-link-hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .gt-arrowhead { fill: var(--ink2); }
-.gt-link-preview { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; }
+.gt-link-preview { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 4; }
 
 .gt-bar {
   position: absolute; border-radius: 5px; display: flex; align-items: center; padding: 0 .4rem;
@@ -708,6 +708,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .gt-bar-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 .gt-bar-pct { flex-shrink: 0; opacity: .9; margin-inline-start: .3rem; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+/* a bar too narrow for gt-bar-label renders this instead — positioned just past the bar's
+   end so the name is always readable regardless of how short the task's duration is. */
+.gt-bar-label-ext {
+  position: absolute; transform: translateY(-50%); font-size: .74rem; font-weight: 700; color: var(--ink);
+  white-space: nowrap; z-index: 3; cursor: grab; unicode-bidi: plaintext;
+}
 .gt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .gt-handle-s { left: 0; }
 .gt-handle-e { right: 0; }
@@ -726,13 +732,53 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .gt-milestone.sel .gt-diamond { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.gt-panel { width: 280px; flex-shrink: 0; border-inline-start: 1px solid var(--border); background: var(--panel); padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: .7rem; }
-.gt-panel-head { display: flex; align-items: center; justify-content: space-between; }
-.gt-panel-head h3 { margin: 0; font-size: 1rem; }
-.gt-del-btn { color: #dc2626; border-color: #dc2626; margin-top: .4rem; }
-.gt-links-list { display: flex; flex-direction: column; gap: .3rem; }
-.gt-link-row { display: flex; align-items: center; justify-content: space-between; font-size: .82rem; background: var(--bg); border-radius: 6px; padding: .3rem .5rem; }
 .gt-swatch-reset { display: grid; place-items: center; font-size: .7rem; background: var(--bg); border: 1px solid var(--border); color: var(--ink2); }
+
+/* split layout: editable table on the right (first in RTL DOM order), chart on the left —
+   same "table beside the visual" idea as ניהול סיכונים, so precise editing (typed dates,
+   names) doesn't depend on fiddly pixel-dragging. */
+.gt-split { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+.gt-table-wrap {
+  width: 380px; flex-shrink: 0; border-inline-end: 1px solid var(--border); background: var(--bg);
+  overflow-y: auto; padding: .7rem; display: flex; flex-direction: column; gap: .6rem;
+}
+.gt-add-group-btn { align-self: stretch; }
+.gt-canvas-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.gt-table-toggle { align-self: flex-start; margin: .5rem .6rem 0; flex-shrink: 0; }
+.gt-empty-table { padding: 1rem .4rem; text-align: center; font-size: .82rem; color: var(--ink3); }
+
+.gt-gcard { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--card-shadow); }
+.gt-gcard.sel { border-color: var(--accent); }
+.gt-gcard-head {
+  display: flex; align-items: flex-start; gap: .45rem; padding: .55rem .6rem;
+  border-inline-start: 5px solid; cursor: pointer; background: color-mix(in srgb, var(--ink) 3%, var(--panel));
+}
+.gt-gcard-head b { padding-top: .2rem; font-size: .92rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-gcard-name-in { flex: 1; min-width: 0; font-weight: 800; font-size: .92rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .15rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-gcard-name-in:hover, .gt-gcard-name-in:focus { border-color: var(--border); background: var(--bg); outline: 0; }
+.gt-gcard-tasks { display: flex; flex-direction: column; gap: .45rem; padding: .55rem; }
+
+.gt-tcard { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: .5rem .6rem; display: flex; flex-direction: column; gap: .4rem; cursor: pointer; }
+.gt-tcard.sel { border-color: var(--accent); outline: 1px solid var(--accent); }
+.gt-tcard-row1 { display: flex; align-items: flex-start; gap: .4rem; }
+.gt-tcard-name-in { flex: 1; min-width: 0; font-weight: 700; font-size: .88rem; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: .1rem .3rem; color: var(--ink); resize: none; font-family: inherit; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-tcard-name-in:hover, .gt-tcard-name-in:focus { border-color: var(--border); background: var(--panel); outline: 0; }
+.gt-tcard-name-ro { padding-top: .1rem; font-size: .88rem; unicode-bidi: plaintext; overflow-wrap: anywhere; }
+.gt-tcard-row2 { display: flex; flex-wrap: wrap; gap: .6rem .7rem; align-items: end; }
+.gt-tcard-row2 label { display: flex; flex-direction: column; gap: .15rem; font-size: .68rem; font-weight: 700; color: var(--ink3); }
+.gt-tcard-row2 label span { font-size: .82rem; font-weight: 400; color: var(--ink2); }
+.gt-tcard-row2 input[type=date] { font: inherit; font-size: .8rem; }
+.gt-pct-in { width: 3.4em; font: inherit; font-size: .8rem; }
+.gt-tcard-cb { flex-direction: row !important; align-items: center; gap: .25rem !important; cursor: pointer; font-size: .95rem !important; color: var(--ink2) !important; }
+.gt-tcard-cb input { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+
+.gt-color-wrap { position: relative; flex-shrink: 0; }
+.gt-color-chip { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--border); flex-shrink: 0; cursor: pointer; margin-top: .1rem; padding: 0; }
+.gt-color-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; padding: .4rem; display: flex; flex-wrap: wrap;
+  gap: .25rem; width: 148px; box-shadow: var(--shadow-pop);
+}
 .sw-page { flex: 1; overflow-y: auto; padding: 1.2rem; }
 .sw-grid { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .sw-quad {

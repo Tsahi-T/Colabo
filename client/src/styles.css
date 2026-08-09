@@ -1622,6 +1622,12 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
   body.printing .print-target.gt-stage .gt-left,
   body.printing .print-target.gt-stage .gt-header-row,
   body.printing .print-target.gt-stage .gt-corner { position: relative !important; }
+  /* imageExport.js already lifts any max-height cap via inline style (unconditionally, before
+     it measures the page-fit scale — a print-only CSS override here would run too late, since
+     @media print only engages once window.print() actually fires, well after that measurement).
+     This is a harmless backstop for the same case, kept in case something ever sets a growing
+     field's cap through a stylesheet the JS pass doesn't reach. */
+  body.printing .print-target textarea { max-height: none !important; overflow: visible !important; }
   /* keep SWOT a 2x2 grid in print — the print page is narrower than 760px, which would
      otherwise trigger the small-screen single-column rule and stack the quadrants */
   body.printing .print-target.sw-grid { grid-template-columns: 1fr 1fr !important; max-width: none !important; }

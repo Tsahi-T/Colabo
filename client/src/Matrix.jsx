@@ -149,7 +149,11 @@ export default function Matrix({ info, user, token }) {
       `[${r.num}] ${r.name.replace(/\n/g, ' / ')} | X: ${r.x} | Y: ${r.y} | משקל: ${r.weight} | צבע: ${colorName(r.color)}\n` +
       `תיאור: ${r.text.replace(/\n/g, ' / ')}\n`
     ).join('\n'), `${title || 'מטריצה'}.txt`);
-  const exportPdf = () => printElementImage('.xy-page', { title: title || 'מטריצה', landscape: true });
+  // The full page (style toolbar + quadrant plot + the entire item list stacked below it) is
+  // naturally tall and narrow, not wide — landscape was scaling it down far more than needed
+  // (measured ~45% smaller than portrait on example content), the opposite of every other
+  // landscape screen here, which are genuinely wide.
+  const exportPdf = () => printElementImage('.xy-page', { title: title || 'מטריצה' });
   function applyMatrixTxt(txt, { skipConfirm = false } = {}) {
     const lines = txt.split(/\r?\n/);
     const parsed = [];

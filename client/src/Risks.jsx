@@ -106,7 +106,10 @@ export default function Risks({ info, user, token, embed }) {
     `ניהול סיכונים: ${title || 'ללא שם'}\n\n` + rows.map((r) =>
       `[${r.num}] ${r.name.replace(/\n/g, ' / ')} | חומרה: ${r.sev} | הסתברות: ${r.prob} | משוקלל: ${r.score}\nפירוט: ${r.detail.replace(/\n/g, ' / ')}\nפעולות: ${r.actions.replace(/\n/g, ' / ')}\n`
     ).join('\n'), `${title || 'ניהול סיכונים'}.txt`);
-  const exportPdf = () => printElementImage('.rk-page', { title: title || 'ניהול סיכונים' });
+  // The table sits beside the matrix (a wide layout, not a tall one), so landscape wastes far
+  // less of the page than the previous portrait default — same content fit noticeably larger
+  // and more legible (measured ~30% bigger on the example content).
+  const exportPdf = () => printElementImage('.rk-page', { title: title || 'ניהול סיכונים', landscape: true });
   function applyRisksTxt(txt, { skipConfirm = false } = {}) {
     const parsed = [];
     let cur = null;

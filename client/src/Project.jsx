@@ -502,7 +502,10 @@ export default function Project({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportCsv}>Excel ‏(CSV)</button>
-            <button onClick={() => printElementImage(open ? '.pj-detail' : '.pj-list', { title: title || 'פרויקטים' })}>PDF (הדפסה)</button>
+            {/* the list is a row per project (wide, short) while an open detail's aspect
+                cards run tall — landscape suits the former, portrait the latter (measured
+                ~44% larger for the list; detail was already near-optimal in portrait). */}
+            <button onClick={() => printElementImage(open ? '.pj-detail' : '.pj-list', { title: title || 'פרויקטים', landscape: !open })}>PDF (הדפסה)</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />

@@ -332,7 +332,8 @@ export default function Goals({ info, user, token }) {
           </>}
           <Menu label="הורדה">
             <button onClick={exportCsv}>Excel ‏(CSV)</button>
-            <button onClick={() => printElementImage(open ? '.pj-detail' : '.pj-list', { title: title || 'יעדים' })}>PDF (הדפסה)</button>
+            {/* see Project.jsx's identical export button for why orientation follows open state */}
+            <button onClick={() => printElementImage(open ? '.pj-detail' : '.pj-list', { title: title || 'יעדים', landscape: !open })}>PDF (הדפסה)</button>
           </Menu>
           <ShareMenu info={info} />
           <ThemeToggle />

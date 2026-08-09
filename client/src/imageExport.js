@@ -16,6 +16,24 @@ export function printElementImage(selector, { title = 'טורבו', landscape = 
   const el = document.querySelector(selector);
   if (!el) return alert('לא נמצא תוכן לייצוא');
 
+  // Every editable field (module/task names, risk details, gauge titles, ...) is a
+  // `<textarea>` that a GrowingField component resizes via JS whenever its value changes —
+  // there's no pure-CSS way to size a textarea to its content. That inline height can go
+  // stale (it only re-measures on value change, so a field can end up too short right after
+  // mount) or get capped by a deliberate max-height (the gauge title). Either way the on-screen
+  // symptom is invisible text a user would have to click in and scroll to see — which print
+  // must not silently reproduce. Force every textarea in the target to its true content
+  // height, with any max-height cap lifted via inline style so it isn't print-media-gated —
+  // and do this BEFORE measuring below, since a still-capped field understates the content's
+  // real size and would throw off the fit-to-page scale by exactly the amount it un-clips by.
+  const savedStyles = new Map();
+  el.querySelectorAll('textarea').forEach((ta) => {
+    savedStyles.set(ta, { height: ta.style.height, maxHeight: ta.style.maxHeight });
+    ta.style.maxHeight = 'none';
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  });
+
   const page = landscape ? PAGE.landscape : PAGE.portrait;
   const ew = clip ? el.offsetWidth : (el.scrollWidth || el.offsetWidth);
   const eh = clip ? el.offsetHeight : (el.scrollHeight || el.offsetHeight);
@@ -43,6 +61,7 @@ export function printElementImage(selector, { title = 'טורבו', landscape = 
     el.style.removeProperty('--print-scale');
     el.style.removeProperty('--print-w');
     el.style.removeProperty('--print-h');
+    savedStyles.forEach((s, ta) => { ta.style.height = s.height; ta.style.maxHeight = s.maxHeight; });
     pageStyle.remove();
     document.title = prevDocTitle;
     window.removeEventListener('afterprint', cleanup);

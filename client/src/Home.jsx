@@ -4,7 +4,7 @@ import { getRecents } from './identity.js';
 import { ThemeToggle } from './theme.jsx';
 import {
   IconDoc, IconBoard, IconTimeline, IconRisk, IconSwot, IconChat, IconTasks, IconSun, IconProject, IconDebrief,
-  IconTarget, IconFlag, IconCompass, IconGauge, IconMatrix,
+  IconTarget, IconFlag, IconCompass, IconGauge, IconMatrix, IconGantt,
 } from './icons.jsx';
 import turboLogo from './assets/turbo-logo.png';
 
@@ -24,6 +24,7 @@ const TYPE_ICON = {
   goals: <span className="ricon goals"><IconTarget /></span>,
   gauges: <span className="ricon gauges"><IconGauge /></span>,
   matrix: <span className="ricon matrix"><IconMatrix /></span>,
+  gantt: <span className="ricon gantt"><IconGantt /></span>,
 };
 
 const GROUPS = [
@@ -40,6 +41,7 @@ const GROUPS = [
     tools: [
       { type: 'risks', cls: 'risks', icon: <IconRisk />, name: 'ניהול סיכונים', desc: 'טבלה ומטריצת חומרה/הסתברות' },
       { type: 'timeline', cls: 'timeline', icon: <IconTimeline />, name: 'ציר זמן', desc: 'אבני דרך על ציר תאריכים' },
+      { type: 'gantt', cls: 'gantt', icon: <IconGantt />, name: 'לוח גאנט', desc: 'ניהול לוח זמנים - מודולים, משימות וקשרים' },
       { type: 'project', cls: 'project', icon: <IconProject />, name: 'ניהול פרויקטים', desc: 'מטרה, תכולה, בעלי עניין ומדדים' },
       { type: 'goals', cls: 'goals', icon: <IconTarget />, name: 'בניית יעדים', desc: 'מטרות, יעדים מדידים ומשימות לעמידה בהם' },
       { type: 'gauges', cls: 'gauges', icon: <IconGauge />, name: 'דשבורד הערכת מצב', desc: 'שעוני מדידה - נושא, טווח ועמידה נוכחית' },

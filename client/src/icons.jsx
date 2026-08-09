@@ -152,6 +152,14 @@ export const IconMatrix = () => (
   </svg>
 );
 
+export const IconGantt = () => (
+  <svg className="cicon" viewBox="0 0 24 24">
+    <rect x="3.5" y="4.5" width="8" height="3.2" rx="1" fill="currentColor" stroke="none" />
+    <rect x="8.5" y="10.4" width="12" height="3.2" rx="1" fill="currentColor" stroke="none" opacity=".65" />
+    <rect x="3.5" y="16.3" width="9" height="3.2" rx="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const IconGauge = () => (
   <svg className="cicon" viewBox="0 0 24 24">
     <path {...S} d="M3.5 18a8.5 8.5 0 0117 0" />

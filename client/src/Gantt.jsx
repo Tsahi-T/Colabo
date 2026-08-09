@@ -449,6 +449,9 @@ export default function Gantt({ info, user, token }) {
   // 'table'  — names in a wide aligned column beside the timeline (clearest for editing)
   // 'labels' — module swimlanes on the left, task names on/beside their own bar (reads best
   //            pasted into a deck, and is the layout the reference charts use)
+  // off by default — the summary bar duplicates what the task rows already show, and on a
+  // full plan it reads as clutter rather than information
+  const showHammock = meta.get('showHammock') === true;
   const chartStyle = meta.get('style') === 'labels' ? 'labels' : 'table';
   const labelStyle = chartStyle === 'labels';
   const leftW = labelStyle ? 132 : LEFT_W;
@@ -542,7 +545,8 @@ export default function Gantt({ info, user, token }) {
   const rowIndexById = new Map(rows.map((r, i) => [r.id, i]));
   const rowBlocks = rows.map((r) => {
     if (r.kind === 'group') {
-      return r.group.spanStart == null ? [] : [{ a: xOf(r.group.spanStart), b: xOf(r.group.spanEnd) }];
+      // a hidden hammock is not an obstacle for connector routing
+      return !showHammock || r.group.spanStart == null ? [] : [{ a: xOf(r.group.spanStart), b: xOf(r.group.spanEnd) }];
     }
     const t = r.task;
     const base = t.milestone
@@ -748,6 +752,7 @@ export default function Gantt({ info, user, token }) {
       row(['הצגת היום', boolHe(showToday)]),
       row(['הצגת קשרים', boolHe(showLinks)]),
       row(['הצגת אחוזים', boolHe(showPct)]),
+      row(['הצגת בר מודול', boolHe(showHammock)]),
       '',
       ...groupList.map((g) => `[G${gNum.get(g.id)}] מודול,${esc(g.name)},${esc(g.color)}`),
       '',
@@ -757,7 +762,10 @@ export default function Gantt({ info, user, token }) {
     ];
     download(lines.join('\r\n') + '\r\n', `${title || 'לוח גאנט'}.txt`);
   };
-  const exportPdf = () => printElementImage('.gt-canvas', { title: title || 'לוח גאנט', landscape: true, clip: true });
+  // Print the whole stage, not the scroll viewport: `clip` would capture only what happens
+  // to be on screen and scale it *up*, cutting off everything scrolled out of view. The stage
+  // carries its full width/height, so it scales down to fit one A4 landscape page.
+  const exportPdf = () => printElementImage('.gt-stage', { title: title || 'לוח גאנט', landscape: true });
   // Excel: a real HTML <table> saved with an .xls extension — Excel opens this natively and
   // renders the inline cell colors, no binary xlsx library needed. Leading columns carry the
   // same structured fields as the TXT format (minus link IDs, which don't survive a human
@@ -797,7 +805,7 @@ export default function Gantt({ info, user, token }) {
   };
   function applyGanttTxt(txt, { skipConfirm = false } = {}) {
     const lines = txt.split(/\r?\n/);
-    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true, newShowPct = true, newStyle = 'table';
+    let newTitle = '', newStart = '', newEnd = '', newGran = 'month', newShowToday = true, newShowLinks = true, newShowPct = true, newStyle = 'table', newShowHammock = false;
     const parsedGroups = [], parsedTasks = [], parsedLinks = [];
     for (const line of lines) {
       const g = line.match(/^\[G(\d+)\]\s*מודול,(.*)/); if (g) { const f = parseCsvLine(g[2]); parsedGroups.push({ num: +g[1], name: f[0] || 'מודול', color: f[1] || PASTELS['אפור'] }); continue; }
@@ -821,6 +829,7 @@ export default function Gantt({ info, user, token }) {
       else if (label === 'הצגת היום') newShowToday = (rowFields[1] || '').trim() !== 'לא';
       else if (label === 'הצגת קשרים') newShowLinks = (rowFields[1] || '').trim() !== 'לא';
       else if (label === 'הצגת אחוזים') newShowPct = (rowFields[1] || '').trim() !== 'לא';
+      else if (label === 'הצגת בר מודול') newShowHammock = (rowFields[1] || '').trim() === 'כן';
     }
     if (!parsedGroups.length && !parsedTasks.length) return alert('לא נמצא תוכן תקין בקובץ');
     if (!skipConfirm && (groups.size || tasks.size) && !confirm('הטעינה תחליף את לוח הגאנט הנוכחי. להמשיך?')) return;
@@ -829,7 +838,7 @@ export default function Gantt({ info, user, token }) {
       if (newStart) meta.set('start', newStart);
       if (newEnd) meta.set('end', newEnd);
       meta.set('gran', newGran); meta.set('showToday', newShowToday); meta.set('showLinks', newShowLinks);
-      meta.set('showPct', newShowPct); meta.set('style', newStyle);
+      meta.set('showPct', newShowPct); meta.set('style', newStyle); meta.set('showHammock', newShowHammock);
       [...groups.keys()].forEach((k) => groups.delete(k));
       [...tasks.keys()].forEach((k) => tasks.delete(k));
       [...links.keys()].forEach((k) => links.delete(k));
@@ -1025,11 +1034,13 @@ export default function Gantt({ info, user, token }) {
           <label className="tl-check" title="הצגה/הסתרה של אחוזי ההשלמה על גבי המשימות">
             <input type="checkbox" checked={showPct} onChange={(e) => meta.set('showPct', e.target.checked)} /> אחוזים
           </label>
+          <label className="tl-check" title="הצגה/הסתרה של בר הסיכום של המודול, המשתרע על פני כל משימותיו">
+            <input type="checkbox" checked={showHammock} onChange={(e) => meta.set('showHammock', e.target.checked)} /> בר מודול
+          </label>
           <span className="sep" />
           <button className="tb" title="הקטנה" onClick={() => setZoom((z) => Math.max(0.4, z / 1.3))}>−</button>
           <button className="tb" title="הגדלה" onClick={() => setZoom((z) => Math.min(8, z * 1.3))}>+</button>
           <button className="btn" onClick={fitAll}>הצג הכל</button>
-          <span className="hint" style={{ marginInlineStart: 'auto' }}>גרירת משימה - הזזה · גרירת קצה - שינוי משך · גרירת הנקודה בקצה - קישור בין משימות</span>
         </div>
       )}
 
@@ -1096,7 +1107,8 @@ export default function Gantt({ info, user, token }) {
                             {closedGroupIds.has(g.id) ? '▸' : '▾'}
                           </button>
                         )}
-                        <span className="gt-swim-name"><span className="gt-row-num">{g.num}</span>{g.name}</span>
+                        <span className="gt-row-num">{g.num}</span>
+                        <span className="gt-swim-name">{g.name}</span>
                       </div>
                     )) : rows.map((r) => (r.kind === 'group' ? (
                       <div key={r.id} className={'gt-row-l gt-row-l-group' + (sel?.kind === 'group' && sel.id === r.id ? ' sel' : '')}
@@ -1133,7 +1145,7 @@ export default function Gantt({ info, user, token }) {
                     ))}
                     {todayVisible && <div className="gt-today" style={{ left: xOf(todayT) }} title="היום" />}
                     {/* module "hammock": a thin summary bar spanning its tasks' full extent */}
-                    {groupsLaid.map(({ group: g }) => (g.spanStart == null ? null : (
+                    {showHammock && groupsLaid.map(({ group: g }) => (g.spanStart == null ? null : (
                       <div key={g.id} className="gt-ghammock"
                         style={{ left: xOf(g.spanStart), width: Math.max(4, xOf(g.spanEnd) - xOf(g.spanStart)),
                           top: g.top + (GROUP_ROW_H - GROUP_BAR_H) / 2, height: GROUP_BAR_H, background: g.color }} />

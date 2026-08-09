@@ -668,11 +668,13 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.gt-header-row { display: flex; position: sticky; z-index: 4; flex-shrink: 0; }
+/* above .gt-left (4): the body comes later in DOM, so at an equal z-index the scrolling
+   name column painted straight over the pinned date headers on the way up. */
+.gt-header-row { display: flex; position: sticky; z-index: 6; flex-shrink: 0; }
 .gt-header-years { top: 0; height: 28px; }
 .gt-header-units { top: 28px; height: 30px; }
 .gt-corner {
-  position: sticky; left: 0; z-index: 5; width: 210px; flex-shrink: 0;
+  position: sticky; left: 0; z-index: 7; width: 210px; flex-shrink: 0;
   background: var(--panel); border-bottom: 1px solid var(--border); border-inline-end: 1px solid var(--border);
 }
 .gt-corner-sub { background: var(--bg); }
@@ -692,10 +694,14 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 /* One left cell per chart row, absolutely positioned at the same `top` the bar uses, so a
    name and its bar are always on exactly the same line — the chart reads like the reference
    Gantts (name column beside the timeline) instead of needing captions on the bars. */
+/* direction:rtl packs the row's parts against the right edge (caret, number, then name).
+   The bidi isolation below is what keeps that order: without it the number and the name sit
+   in one bidi run, so a name starting with Latin text ("CRM חדש") makes the run left-to-right
+   and strands the number in the middle of the line. */
 .gt-row-l {
   position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: .3rem;
   padding: 0 .5rem; font-size: .76rem; cursor: pointer; overflow: hidden; white-space: nowrap;
-  direction: rtl; unicode-bidi: plaintext;
+  direction: rtl; justify-content: flex-start; text-align: right;
 }
 .gt-row-l-group { font-weight: 800; font-size: .78rem; color: var(--ink); border-top: 1px solid var(--border); }
 .gt-row-l-task { color: var(--ink2); padding-inline-start: 1.3rem; }
@@ -707,8 +713,10 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 }
 .gt-row-caret:hover { color: var(--ink); }
 .gt-row-dot { flex-shrink: 0; width: 9px; height: 9px; border-radius: 2px; }
-.gt-row-num { flex-shrink: 0; color: var(--ink3); font-variant-numeric: tabular-nums; font-weight: 700; font-size: .68rem; }
-.gt-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gt-row-num { flex-shrink: 0; color: var(--ink3); font-variant-numeric: tabular-nums; font-weight: 700; font-size: .68rem; unicode-bidi: isolate; }
+/* plaintext so the name renders by its OWN first strong character (a Latin-led name stays
+   left-to-right internally), while staying an isolated run that the row places on the right */
+.gt-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; text-align: right; }
 .gt-empty-left { padding: 1rem .6rem; font-size: .8rem; color: var(--ink3); }
 
 .gt-grid { position: relative; background: var(--panel); }
@@ -752,10 +760,12 @@ input.tlr-date:hover, input.tlr-date:focus { border-color: var(--border); backgr
 .gt-swimlane {
   position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: .25rem;
   padding: .2rem .45rem; font-size: .78rem; font-weight: 800; cursor: pointer;
-  border-bottom: 2px solid var(--panel); overflow: hidden; direction: rtl; unicode-bidi: plaintext;
+  border-bottom: 2px solid var(--panel); overflow: hidden;
+  direction: rtl; justify-content: flex-start; text-align: right;
 }
 .gt-swimlane.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
-.gt-swim-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* see .gt-row-name — same bidi isolation, so "CRM חדש 2" doesn't become "2CRM חדש" */
+.gt-swim-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; text-align: right; }
 .gt-swim-caret { color: inherit; opacity: .75; align-self: flex-start; }
 .gt-swim-caret:hover { color: inherit; opacity: 1; }
 .gt-swimlane .gt-row-num { color: inherit; opacity: .7; }
@@ -1598,6 +1608,12 @@ textarea.pj-link-title { resize: none; overflow: hidden; overflow-wrap: anywhere
   body.printing .print-target.tl-stage,
   body.printing .print-target.sun-stage,
   body.printing .print-target.rk-page { overflow: visible !important; }
+  /* the Gantt prints its whole stage, so the sticky name column and date headers must lay
+     out statically — left as sticky they detach from the scaled page box and land wherever
+     the (now position:fixed) target happens to sit. */
+  body.printing .print-target.gt-stage .gt-left,
+  body.printing .print-target.gt-stage .gt-header-row,
+  body.printing .print-target.gt-stage .gt-corner { position: relative !important; }
   /* keep SWOT a 2x2 grid in print — the print page is narrower than 760px, which would
      otherwise trigger the small-screen single-column rule and stack the quadrants */
   body.printing .print-target.sw-grid { grid-template-columns: 1fr 1fr !important; max-width: none !important; }
